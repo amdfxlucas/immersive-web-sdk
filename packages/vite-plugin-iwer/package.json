@@ -1,6 +1,6 @@
 {
   "name": "@iwsdk/vite-plugin-iwer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Vite plugin for WebXR emulation runtime injection using IWER",
   "main": "dist/index.js",

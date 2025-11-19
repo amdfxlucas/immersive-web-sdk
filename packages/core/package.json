@@ -1,6 +1,6 @@
 {
   "name": "@iwsdk/core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Javascript WebXR Runtime for Emulation",
   "type": "module",
   "main": "dist/index.js",

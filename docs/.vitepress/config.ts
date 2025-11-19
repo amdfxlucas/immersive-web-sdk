@@ -19,6 +19,18 @@ function loadTypedocSidebar() {
   return [];
 }
 
+function loadVersion() {
+  const p = path.resolve(__dirname, '../../packages/core/package.json');
+  if (!fs.existsSync(p)) {
+    throw new Error(`Failed to load version: ${p} does not exist`);
+  }
+  const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+  if (!pkg.version) {
+    throw new Error(`Failed to load version: no version field in ${p}`);
+  }
+  return `v${pkg.version}`;
+}
+
 export default defineConfig({
   // Build static site even if some cross-package API links are unresolved in early builds
   ignoreDeadLinks: true,
@@ -57,7 +69,7 @@ gtag('config', 'G-V03QDNGKY3');`,
       { text: 'Concepts', link: '/concepts/' },
       { text: 'API', link: '/api/' },
       {
-        text: `v0.1.0`,
+        text: loadVersion(),
         items: [
           { text: 'NPM', link: 'https://www.npmjs.com/package/@iwsdk/core' },
           {
