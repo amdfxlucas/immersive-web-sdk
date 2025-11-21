@@ -50,10 +50,10 @@
 </style>
 <Panel class="panel-root">
   <div class="panel-content">
-    <span class="heading"> Hello, Immersive Web! </span>
+    <div class="heading"> Hello, Immersive Web! </div>
     <divider></divider>
-    <span class="sub-heading"> Explore locomotion, grab interactions, spatial UI panel and more -
-      start building for the immersive web with Immersive Web SDK today.</span>
+    <div class="sub-heading"> Explore locomotion, grab interactions, spatial UI panel and more -
+      start building for the immersive web with Immersive Web SDK today.</div>
   </div>
   <Button id="xr-button" class="button">
     <ButtonIcon>

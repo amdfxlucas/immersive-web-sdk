@@ -22,15 +22,23 @@ const assets = {
 
 World.create(document.getElementById('scene-container'), {
   assets,
+  render: {
+    near: 0.001,
+    far: 300,
+  },
   xr: {
     sessionMode: SessionMode.ImmersiveVR,
-    requiredFeatures: ['hand-tracking'],
+    features: {
+      handTracking: { required: true },
+    },
   },
   level: '/glxf/Composition.glxf',
   features: {
     grabbing: true,
     locomotion: true,
-    spatialUI: { kits: [horizonKit, { LogInIcon, RectangleGogglesIcon }] },
+    spatialUI: {
+      kits: [horizonKit, { LogInIcon, RectangleGogglesIcon }],
+    },
   },
 }).then((world) => {
   const { camera } = world;

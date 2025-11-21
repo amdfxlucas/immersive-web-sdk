@@ -34,7 +34,9 @@ World.create(document.getElementById('scene-container'), {
   assets,
   xr: {
     sessionMode: SessionMode.ImmersiveVR,
-    requiredFeatures: ['hand-tracking'],
+    features: {
+      handTracking: { required: true },
+    },
   },
   level: '/glxf/Composition.glxf',
   features: {
