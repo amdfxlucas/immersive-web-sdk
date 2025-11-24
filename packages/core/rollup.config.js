@@ -13,27 +13,29 @@ import typescript from '@rollup/plugin-typescript';
 
 export default {
   input: 'src/index.ts',
-  external: [
-    'three',
-    'three/examples/jsm/loaders/GLTFLoader.js',
-    'three/examples/jsm/loaders/DRACOLoader.js',
-    'three/examples/jsm/loaders/KTX2Loader.js',
-    'three/examples/jsm/environments/RoomEnvironment.js',
-    'three/examples/jsm/lines/Line2.js',
-    'three/examples/jsm/lines/LineGeometry.js',
-    'three/examples/jsm/utils/BufferGeometryUtils.js',
-    'three-mesh-bvh',
-    '@iwsdk/glxf',
-    '@iwsdk/locomotor',
-    '@iwsdk/xr-input',
-    '@pmndrs/handle',
-    '@pmndrs/pointer-events',
-    '@pmndrs/uikit',
-    '@pmndrs/uikit-html-parser',
-    '@preact/signals-core',
-    '@babylonjs/havok',
-    'elics',
-  ],
+  external: (id) => {
+    // Mark three.js and all its subpaths as external
+    if (id === 'three' || id.startsWith('three/')) {
+      return true;
+    }
+
+    // Mark all other dependencies as external
+    const externalDeps = [
+      'three-mesh-bvh',
+      '@iwsdk/glxf',
+      '@iwsdk/locomotor',
+      '@iwsdk/xr-input',
+      '@pmndrs/handle',
+      '@pmndrs/pointer-events',
+      '@pmndrs/uikit',
+      '@pmndrs/uikitml',
+      '@preact/signals-core',
+      '@babylonjs/havok',
+      'elics',
+    ];
+
+    return externalDeps.some((dep) => id === dep || id.startsWith(dep + '/'));
+  },
   plugins: [
     typescript({
       tsconfig: './tsconfig.json',
