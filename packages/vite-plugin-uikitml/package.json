@@ -26,11 +26,12 @@
   "dependencies": {
     "@types/node": "^20.19.9",
     "fs-extra": "^11.2.0",
-    "@pmndrs/uikitml": "^0.1.7",
+    "@pmndrs/uikitml": "^0.1.12",
     "chokidar": "^4.0.3"
   },
   "devDependencies": {
-    "@types/fs-extra": "^11.0.4"
+    "@types/fs-extra": "^11.0.4",
+    "three": "npm:super-three@0.177.0"
   },
   "peerDependencies": {
     "vite": "^7.0.0"

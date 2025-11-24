@@ -47,7 +47,11 @@ function setupGitHooks() {
 
       // Ensure pre-commit hook exists
       const hookContent =
-        '#!/usr/bin/env sh\n. "$(dirname -- "$0")/_/husky.sh"\n\nnpx lint-staged\n';
+        '#!/usr/bin/env sh\n' +
+        '. "$(dirname -- "$0")/_/husky.sh"\n\n' +
+        '# Check three.js version consistency\n' +
+        'npm run three:check || exit 1\n\n' +
+        'npx lint-staged\n';
       const hookPath = '.husky/pre-commit';
 
       if (!fs.existsSync('.husky')) {

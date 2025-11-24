@@ -21,7 +21,8 @@
     "setup-hooks": "node scripts/setup-git-hooks.cjs",
     "engines:audit": "node scripts/check-engines.mjs",
     "headers:check": "node scripts/check-headers.mjs --dry-run",
-    "headers:fix": "node scripts/check-headers.mjs --fix"
+    "headers:fix": "node scripts/check-headers.mjs --fix",
+    "three:check": "node scripts/check-three-version.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

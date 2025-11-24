@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@iwsdk/core": "file:../../packages/core/iwsdk-core.tgz",
-    "@pmndrs/uikit-horizon": "^1.0.58",
-    "@pmndrs/uikit-lucide": "^1.0.58",
+    "@pmndrs/uikit-horizon": "^1.0.60",
+    "@pmndrs/uikit-lucide": "^1.0.60",
     "three": "npm:super-three@0.177.0"
   },
   "devDependencies": {
