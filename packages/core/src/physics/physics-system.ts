@@ -295,6 +295,11 @@ export class PhysicsSystem extends createSystem(
         : ([[0, 0, 0], 1, [1, 1, 1], [0, 0, 0, 1]] as MassProperties);
     if (!centerOfMass.every((e) => e == Infinity)) {
       massProps[0] = [centerOfMass[0], centerOfMass[1], centerOfMass[2]];
+    } else {
+      // Update the centerOfMass with the computed value from mass properties
+      centerOfMass[0] = massProps[0][0];
+      centerOfMass[1] = massProps[0][1];
+      centerOfMass[2] = massProps[0][2];
     }
 
     this.havok.HP_Body_SetMassProperties(body, massProps);
