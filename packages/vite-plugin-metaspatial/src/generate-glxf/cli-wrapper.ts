@@ -10,6 +10,7 @@ import * as os from 'os';
 import * as path from 'path';
 import fs from 'fs-extra';
 import { processAssets } from './asset-processor.js';
+import { validateCliPath } from './cli-path-resolver.js';
 
 /**
  * Execute Meta Spatial CLI and process the generated assets
@@ -21,6 +22,9 @@ export async function executeMetaSpatialExport(
   finalGltfDir: string,
   verbose: boolean = false,
 ): Promise<void> {
+  // Validate CLI path before attempting execution
+  await validateCliPath(cliPath);
+
   // Create temporary directory
   const tempDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'metaspatial-export-'),
@@ -31,6 +35,7 @@ export async function executeMetaSpatialExport(
 
     if (verbose) {
       console.log(`🚀 Executing Meta Spatial CLI export:`);
+      console.log(`   CLI: ${cliPath}`);
       console.log(`   Project: ${absoluteProjectPath}`);
       console.log(`   Temp output: ${tempDir}`);
     }

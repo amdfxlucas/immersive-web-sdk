@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { getHighestVersion, resolveMetaSpatialCliPath } from '../src/generate-glxf/cli-path-resolver.js';
+import { getHighestVersion, resolveMetaSpatialCliPath, validateCliPath } from '../src/generate-glxf/cli-path-resolver.js';
 import fs from 'fs-extra';
 import * as path from 'path';
 
@@ -198,6 +198,89 @@ describe('CLI Path Resolver', () => {
 
       expect(result).toBe('/override/path');
       expect(result).not.toBe('/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI');
+    });
+  });
+
+  describe('validateCliPath', () => {
+    beforeEach(() => {
+      // Reset to darwin for most tests
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+      });
+    });
+
+    it('should pass validation when CLI exists and is executable on macOS', async () => {
+      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+
+      await expect(validateCliPath(cliPath)).resolves.toBeUndefined();
+    });
+
+    it('should pass validation when CLI exists on Windows', async () => {
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+      });
+
+      const cliPath = 'C:\\Program Files\\Meta Spatial Editor\\v20\\Resources\\CLI.exe';
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+
+      await expect(validateCliPath(cliPath)).resolves.toBeUndefined();
+    });
+
+    it('should skip validation for Linux with non-absolute path', async () => {
+      Object.defineProperty(process, 'platform', {
+        value: 'linux',
+      });
+
+      const cliPath = 'MetaSpatialEditorCLI';
+
+      await expect(validateCliPath(cliPath)).resolves.toBeUndefined();
+      expect(fs.pathExists).not.toHaveBeenCalled();
+    });
+
+    it('should throw helpful error when CLI does not exist on macOS', async () => {
+      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+
+      vi.mocked(fs.pathExists).mockResolvedValue(false);
+
+      await expect(validateCliPath(cliPath)).rejects.toThrow('Meta Spatial Editor CLI not found');
+      await expect(validateCliPath(cliPath)).rejects.toThrow('meta-spatial-editor-for-mac');
+      await expect(validateCliPath(cliPath)).rejects.toThrow('META_SPATIAL_EDITOR_CLI_PATH');
+    });
+
+    it('should throw helpful error when CLI does not exist on Windows', async () => {
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+      });
+
+      const cliPath = 'C:\\Program Files\\Meta Spatial Editor\\v20\\Resources\\CLI.exe';
+
+      vi.mocked(fs.pathExists).mockResolvedValue(false);
+
+      await expect(validateCliPath(cliPath)).rejects.toThrow('Meta Spatial Editor CLI not found');
+      await expect(validateCliPath(cliPath)).rejects.toThrow('meta-spatial-editor-for-windows');
+    });
+
+    it('should throw helpful error when CLI exists but is not executable on macOS', async () => {
+      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.access).mockRejectedValue(new Error('Permission denied'));
+
+      await expect(validateCliPath(cliPath)).rejects.toThrow('not executable');
+      await expect(validateCliPath(cliPath)).rejects.toThrow('chmod +x');
+    });
+
+    it('should include download link in error message for unknown errors', async () => {
+      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+
+      vi.mocked(fs.pathExists).mockRejectedValue(new Error('Unknown error'));
+
+      await expect(validateCliPath(cliPath)).rejects.toThrow('Error checking Meta Spatial Editor CLI');
+      await expect(validateCliPath(cliPath)).rejects.toThrow('download');
     });
   });
 });
