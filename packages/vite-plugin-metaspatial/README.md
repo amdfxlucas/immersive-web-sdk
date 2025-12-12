@@ -125,7 +125,7 @@ import { componentDiscoveryXMLPlugin } from '@iwsdk/vite-plugin-metaspatial';
 | `outputDir`          | `string`  | `'public/glxf'`                                              | Directory to output generated GLXF files        |
 | `watchDebounceMs`    | `number`  | `500`                                                        | Debounce time for file watcher (milliseconds)   |
 | `formats`            | `array`   | `['glxf']`                                                   | Export formats to generate                      |
-| `metaSpatialCliPath` | `string`  | `'/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI'` | Path to Meta Spatial CLI executable             |
+| `metaSpatialCliPath` | `string`  | Platform-specific (see [CLI Path Configuration](#cli-path-configuration)) | Path to Meta Spatial CLI executable. Can also be set via `META_SPATIAL_EDITOR_CLI_PATH` environment variable |
 | `verbose`            | `boolean` | `false`                                                      | Enable verbose logging                          |
 | `enableWatcher`      | `boolean` | `true`                                                       | Enable file watcher in development mode         |
 | `ignorePattern`      | `RegExp`  | `/components\//`                                             | Regex pattern to ignore files/directories       |
@@ -162,6 +162,27 @@ Generates:
 ## GLXF Generation
 
 The `generateGLXF` plugin integrates with Meta Spatial Editor to automatically generate GLXF and GLTF assets from your Meta Spatial projects.
+
+### CLI Path Configuration
+
+The plugin needs to locate the Meta Spatial Editor CLI executable. It uses the following resolution order:
+
+1. **Environment Variable** (highest priority): Set `META_SPATIAL_EDITOR_CLI_PATH` to specify a custom path.
+
+2. **Plugin Option**: Specify `metaSpatialCliPath` in your Vite config
+   ```javascript
+   generateGLXF({
+     metaSpatialCliPath: '/custom/path/to/CLI',
+   })
+   ```
+
+3. **Platform Defaults** (lowest priority):
+   - **macOS**: `/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI`
+   - **Windows**: `C:\Program Files\Meta Spatial Editor\v{highest}\Resources\CLI.exe`
+     - Automatically selects the highest version if multiple versions are installed
+   - **Linux**: `MetaSpatialEditorCLI` (assumes it's in your system PATH)
+
+> **Note**: The environment variable takes precedence over the plugin option, which takes precedence over platform defaults.
 
 ### How It Works
 
