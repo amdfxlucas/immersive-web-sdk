@@ -96,7 +96,7 @@ export type WorldOptions = {
     /** Locomotion (teleport/slide/turn). Boolean or config. @defaultValue false */
     locomotion?: boolean | { useWorker?: boolean };
     /** Grabbing (one/two‑hand, distance). @defaultValue false */
-    grabbing?: boolean;
+    grabbing?: boolean | { useHandPinchForGrab?: boolean };
     /** Physics simulation (Havok). @defaultValue false */
     physics?: boolean;
     /** Scene Understanding (planes/meshes/anchors). Boolean or config. @defaultValue false */
@@ -420,7 +420,10 @@ function registerFeatureSystems(
     | boolean
     | { useWorker?: boolean };
   const locomotionEnabled = !!locomotion;
-  const grabbingEnabled = !!config.features.grabbing;
+  const grabbing = config.features.grabbing as
+    | boolean
+    | { useHandPinchForGrab?: boolean };
+  const grabbingEnabled = !!grabbing;
   const physicsEnabled = !!config.features.physics;
   const sceneUnderstanding = config.features.sceneUnderstanding as
     | boolean
@@ -444,7 +447,11 @@ function registerFeatureSystems(
   }
   world.registerSystem(InputSystem, { priority: -4 });
   if (grabbingEnabled) {
-    world.registerSystem(GrabSystem, { priority: -3 });
+    const grabOpts =
+      typeof grabbing === 'object' && grabbing
+        ? { useHandPinchForGrab: grabbing.useHandPinchForGrab }
+        : undefined;
+    world.registerSystem(GrabSystem, { priority: -3, configData: grabOpts });
   }
 
   // Physics runs after Grab so it can respect Pressed overrides

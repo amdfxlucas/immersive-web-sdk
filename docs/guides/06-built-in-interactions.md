@@ -55,7 +55,7 @@ With grabbing enabled, you can add grab components to any object. IWSDK provides
 
 ### OneHandGrabbable - Direct Manipulation
 
-For objects you grab and move directly with one hand:
+For objects you grab and move directly with one input:
 
 ```javascript
 // Make your existing robot grabbable
@@ -71,6 +71,25 @@ world
     translate: true, // Can move it around
     rotate: true, // Can rotate it
   });
+```
+
+> Note that hand tracking is by default not working with OneHandGrabbable and TwoHandsGrabbable as the hand pinch is mapped to the trigger button instead of the squeeze button. To use hand tracking for OneHandGrabbable and TwoHandsGrabbable, you will need to enable `useHandPinchForGrab` in the grab system. For example,
+
+```javascript
+// Update your existing World.create() call in src/index.ts
+World.create(document.getElementById('scene-container'), {
+  assets,
+  xr: {
+    sessionMode: SessionMode.ImmersiveVR,
+    features: { handTracking: true },
+  },
+  features: {
+    grabbing: { useHandPinchForGrab: true }, // Enable grab system with hand pinch grabbing
+    // ... other existing features
+  },
+}).then((world) => {
+  // ... your existing setup
+});
 ```
 
 ### DistanceGrabbable - At-a-Distance Interaction

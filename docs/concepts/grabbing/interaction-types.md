@@ -8,7 +8,7 @@ IWSDK's grabbing system provides three distinct interaction patterns, each imple
 
 ## One-Hand Grabbing
 
-Single-controller direct manipulation optimized for immediate, responsive interactions.
+Single-input direct manipulation optimized for immediate, responsive interactions.
 
 ### Architecture Characteristics
 
@@ -52,7 +52,7 @@ const handle = new HandleStore(object, () => ({
 
 ## Two-Hand Grabbing
 
-Dual-controller manipulation enabling advanced operations including scaling through multi-pointer coordination.
+Dual-input manipulation enabling advanced operations including scaling through multi-pointer coordination.
 
 ### Architecture Characteristics
 

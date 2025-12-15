@@ -6,7 +6,7 @@ title: Grabbing Overview
 
 Interactive object manipulation is foundational to immersive experiences. IWSDK provides a comprehensive grabbing system that enables natural, performant object interaction through three distinct manipulation patterns—each optimized for different use cases and comfort requirements.
 
-- **One-Hand Grabbing** — Direct single-controller manipulation for basic interactions
+- **One-Hand Grabbing** — Direct single input manipulation for basic interactions
 - **Two-Hand Grabbing** — Dual-hand manipulation with scaling capabilities for precise control  
 - **Distance Grabbing** — Ray-based remote manipulation with telekinetic-style interactions
 

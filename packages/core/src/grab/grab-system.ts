@@ -7,7 +7,7 @@
 
 import { HandleStore } from '@pmndrs/handle';
 import { PointerEventsMap } from '@pmndrs/pointer-events';
-import { createSystem, Entity } from '../ecs/index.js';
+import { createSystem, Entity, Types } from '../ecs/index.js';
 import { Object3D, Object3DEventMap } from '../runtime/index.js';
 import { DistanceGrabbable } from './distance-grabbable.js';
 import { DistanceGrabHandle, MovementMode, Handle } from './handles.js';
@@ -48,20 +48,30 @@ import { TwoHandsGrabbable } from './two-hands-grabbable.js';
  * @see {@link TwoHandsGrabbable}
  * @see {@link DistanceGrabbable}
  */
-export class GrabSystem extends createSystem({
-  oneHandGrabbables: {
-    required: [OneHandGrabbable],
+export class GrabSystem extends createSystem(
+  {
+    oneHandGrabbables: {
+      required: [OneHandGrabbable],
+    },
+    twoHandsGrabbables: {
+      required: [TwoHandsGrabbable],
+    },
+    distanceGrabbables: {
+      required: [DistanceGrabbable],
+    },
+    handles: {
+      required: [Handle],
+    },
   },
-  twoHandsGrabbables: {
-    required: [TwoHandsGrabbable],
+  {
+    /**
+     * Controls whether hand pinch gestures are forwarded as squeeze events for grab interactions.
+     * Set to `false` to disable pinch-to-grab and require the physical squeeze button instead.
+     * @default false
+     */
+    useHandPinchForGrab: { type: Types.Boolean, default: false },
   },
-  distanceGrabbables: {
-    required: [DistanceGrabbable],
-  },
-  handles: {
-    required: [Handle],
-  },
-}) {
+) {
   init() {
     // Ensure Handle component is registered in the world before queries rely on it
     if (!Handle.bitmask) {
@@ -110,7 +120,27 @@ export class GrabSystem extends createSystem({
     this.input.multiPointers.right.toggleSubPointer('grab', true);
   }
 
-  update(delta: number): void {
+  update(delta: number, time: number): void {
+    // Forward hand pinch events to squeeze for grab interactions
+    // Only forward if the system-level useHandPinchForGrab flag is enabled
+    if (this.config.useHandPinchForGrab) {
+      (['left', 'right'] as const).forEach((handedness) => {
+        if (this.input.isPrimary('hand', handedness)) {
+          const timeStamp = time * 1000;
+          if (this.input.gamepads[handedness]?.getSelectStart()) {
+            this.input.multiPointers[handedness].routeDown('squeeze', 'grab', {
+              timeStamp,
+            });
+          }
+          if (this.input.gamepads[handedness]?.getSelectEnd()) {
+            this.input.multiPointers[handedness].routeUp('squeeze', 'grab', {
+              timeStamp,
+            });
+          }
+        }
+      });
+    }
+
     // Unified handle updates
     this.queries.handles.entities.forEach((entity) => {
       const h = Handle.data.instance[entity.index] as
