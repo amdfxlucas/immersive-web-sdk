@@ -97,6 +97,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
             grabbingEnabled: true,
             physicsEnabled: false,
             sceneUnderstandingEnabled: false,
+            environmentRaycastEnabled: false,
           },
           gitInit: true,
           xrFeatureStates: { handTracking: 'optional', layers: 'optional' },
@@ -123,6 +124,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       grabbingEnabled: true,
       physicsEnabled: false,
       sceneUnderstandingEnabled: false,
+      environmentRaycastEnabled: false,
     };
     const locomotionLiteral = ff.locomotionEnabled
       ? ff.locomotionUseWorker
@@ -131,8 +133,10 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       : 'false';
     const sceneUnderstandingLiteral =
       res.mode === 'ar' && ff.sceneUnderstandingEnabled ? 'true' : 'false';
+    const environmentRaycastLiteral =
+      res.mode === 'ar' && ff.environmentRaycastEnabled ? 'true' : 'false';
     recipe.edits['@appFeaturesStr'] =
-      `{ locomotion: ${locomotionLiteral}, grabbing: ${ff.grabbingEnabled ? 'true' : 'false'}, physics: ${ff.physicsEnabled ? 'true' : 'false'}, sceneUnderstanding: ${sceneUnderstandingLiteral} }`;
+      `{ locomotion: ${locomotionLiteral}, grabbing: ${ff.grabbingEnabled ? 'true' : 'false'}, physics: ${ff.physicsEnabled ? 'true' : 'false'}, sceneUnderstanding: ${sceneUnderstandingLiteral}, environmentRaycast: ${environmentRaycastLiteral} }`;
     // XR features (tri-state -> JS object literal)
     const toFlag = (s: TriState) =>
       s === 'required'

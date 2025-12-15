@@ -124,6 +124,7 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
   let locomotionEnabled = false;
   let locomotionUseWorker: boolean | undefined = undefined;
   let sceneUnderstandingEnabled = false;
+  let environmentRaycastEnabled = false;
 
   if (mode === 'vr') {
     // Locomotion (VR only)
@@ -164,12 +165,13 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
       locomotionUseWorker = !!followUp.useWorker;
     }
   } else {
-    // AR: Scene Understanding first
-    const ans = await prompts(
+    // AR: Scene Understanding first (requires room scanning)
+    const sceneAns = await prompts(
       {
         type: 'toggle',
         name: 'sceneUnderstandingEnabled',
-        message: 'Enable Scene Understanding (planes/meshes/anchors)?',
+        message:
+          'Enable Scene Understanding (planes/meshes/anchors)? Requires room scanning.',
         initial: true,
         active: 'Yes',
         inactive: 'No',
@@ -179,7 +181,25 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
     if (cancelled) {
       throw new Error('Input cancelled');
     }
-    sceneUnderstandingEnabled = !!ans.sceneUnderstandingEnabled;
+    sceneUnderstandingEnabled = !!sceneAns.sceneUnderstandingEnabled;
+
+    // Environment Raycast (no room scanning required)
+    const raycastAns = await prompts(
+      {
+        type: 'toggle',
+        name: 'environmentRaycastEnabled',
+        message:
+          'Enable Environment Raycast (hit-test surfaces)? No room scanning required.',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No',
+      },
+      { onCancel },
+    );
+    if (cancelled) {
+      throw new Error('Input cancelled');
+    }
+    environmentRaycastEnabled = !!raycastAns.environmentRaycastEnabled;
   }
 
   // Grabbing (default: enabled)
@@ -281,6 +301,7 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
       grabbingEnabled: !!grabbingEnabled,
       physicsEnabled: !!physicsEnabled,
       sceneUnderstandingEnabled: !!sceneUnderstandingEnabled,
+      environmentRaycastEnabled: !!environmentRaycastEnabled,
     },
     gitInit,
     xrFeatureStates,

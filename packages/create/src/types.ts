@@ -29,7 +29,8 @@ export type PromptResult = {
     locomotionUseWorker?: boolean; // only if enabled
     grabbingEnabled: boolean;
     physicsEnabled: boolean;
-    sceneUnderstandingEnabled: boolean; // AR-relevant
+    sceneUnderstandingEnabled: boolean; // AR-relevant, requires room scanning
+    environmentRaycastEnabled: boolean; // AR-relevant, no room scanning required
   };
   gitInit: boolean;
   xrFeatureStates: Record<string, TriState>;
