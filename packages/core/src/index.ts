@@ -22,6 +22,7 @@ export * from './input/index.js';
 export * from './environment/index.js';
 export * from './level/index.js';
 export * from './scene-understanding/index.js';
+export * from './environment-raycast/index.js';
 export * from './audio/index.js';
 export * from './physics/index.js';
 export * from './camera/index.js';

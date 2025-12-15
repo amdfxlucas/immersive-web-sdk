@@ -18,6 +18,10 @@ import {
   IBLGradient,
   EnvironmentSystem,
 } from '../environment/index.js';
+import {
+  EnvironmentRaycastSystem,
+  EnvironmentRaycastTarget,
+} from '../environment-raycast/index.js';
 import { GrabSystem } from '../grab/index.js';
 import { Interactable, Hovered, Pressed } from '../grab/index.js';
 import { InputSystem } from '../input/index.js';
@@ -101,6 +105,8 @@ export type WorldOptions = {
     physics?: boolean;
     /** Scene Understanding (planes/meshes/anchors). Boolean or config. @defaultValue false */
     sceneUnderstanding?: boolean | { showWireFrame?: boolean };
+    /** Environment Raycast (hit-test against real-world surfaces). @defaultValue false */
+    environmentRaycast?: boolean;
     /** Camera access for video streaming. @defaultValue false */
     camera?: boolean;
     /** Spatial UI systems (PanelUI/ScreenSpace/Follow). Boolean or config. @defaultValue true */
@@ -228,6 +234,7 @@ function extractConfiguration(options: WorldOptions) {
       grabbing: options.features?.grabbing ?? false,
       physics: options.features?.physics ?? false,
       sceneUnderstanding: options.features?.sceneUnderstanding ?? false,
+      environmentRaycast: options.features?.environmentRaycast ?? false,
       camera: options.features?.camera ?? false,
       spatialUI: options.features?.spatialUI ?? true,
     },
@@ -429,6 +436,7 @@ function registerFeatureSystems(
     | boolean
     | { showWireFrame?: boolean };
   const sceneUnderstandingEnabled = !!sceneUnderstanding;
+  const environmentRaycastEnabled = !!config.features.environmentRaycast;
   const cameraEnabled = !!config.features.camera;
   const spatialUI = config.features.spatialUI as
     | boolean
@@ -476,6 +484,15 @@ function registerFeatureSystems(
       .registerSystem(SceneUnderstandingSystem, {
         priority: -1,
         configData: sceneOpts,
+      });
+  }
+
+  // Environment Raycast system - requires hit-test feature
+  if (environmentRaycastEnabled) {
+    world
+      .registerComponent(EnvironmentRaycastTarget)
+      .registerSystem(EnvironmentRaycastSystem, {
+        priority: -1,
       });
   }
 

@@ -220,6 +220,14 @@ export class XRInputManager {
     return !!this.activeInputSources[deviceType][handedness]?.isPrimary;
   }
 
+  /**
+   * Get the primary input source for a given handedness.
+   * Returns the XRInputSource that is currently active for left or right hand.
+   */
+  getPrimaryInputSource(handedness: 'left' | 'right'): XRInputSource | undefined {
+    return this.primaryInputSources[handedness];
+  }
+
   private resetActiveInputSources(): void {
     this.activeInputSources.controller.left = undefined;
     this.activeInputSources.controller.right = undefined;

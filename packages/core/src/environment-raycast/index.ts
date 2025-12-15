@@ -5,8 +5,5 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-export * from './transform.js';
-export * from './transform-utils.js';
-export * from './synced-vector3.js';
-export * from './synced-quaternion.js';
-export * from './synced-euler.js';
+export * from './environment-raycast.js';
+export * from './raycast-target.js';
