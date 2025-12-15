@@ -31,18 +31,32 @@ export const MovementMode = {
 
 export class DistanceGrabHandle<T> extends HandleStore<T> {
   private previousPointerOrigin: Vector3 | undefined;
+  private isSnapped: boolean = false;
+  private static SNAP_THRESHOLD = 0.005;
+  private static MOVE_SPEED_SCALE = 100;
   private static _tmp = new Vector3();
+  private static _tmpQuat = new Quaternion();
   private static _posHelper = new Vector3();
   private static _quatHelper = new Quaternion();
+  private static _offsetPosHelper = new Vector3();
+  private static _offsetQuatHelper = new Quaternion();
 
   constructor(
     readonly target_: Object3D | { current?: Object3D | null },
     public readonly getOptions: () => HandleOptions<T> = () => ({}),
     public readonly movementMode: string,
     public readonly returnToOrigin: Boolean,
-    public readonly moveSpeed: number = 0.1,
+    public readonly moveSpeedFactor: number = 0.1,
+    public readonly targetPosOffset: Vector3 = new Vector3(0, 0, 0),
+    public readonly targetQuatOffset: Quaternion = new Quaternion(0, 0, 0, 1),
   ) {
     super(target_, getOptions);
+
+    this.targetQuatOffset.normalize();
+
+    (target_ as Object3D).addEventListener('pointerup', () => {
+      this.isSnapped = false;
+    });
   }
 
   update(time: number) {
@@ -95,30 +109,40 @@ export class DistanceGrabHandle<T> extends HandleStore<T> {
       case MovementMode.MoveTowardsTarget: {
         const [p1] = this.inputState.values();
         const pointerOrigin = p1.pointerWorldOrigin;
-        const distance = pointerOrigin.distanceTo(
+        const pointerQuaternion = p1.pointerWorldQuaternion;
+
+        // Calculate target position by applying position offset in pointer's local space
+        const targetPosition = DistanceGrabHandle._offsetPosHelper
+          .copy(this.targetPosOffset)
+          .applyQuaternion(pointerQuaternion)
+          .add(pointerOrigin);
+
+        // Calculate target rotation by multiplying pointer rotation with rotation offset
+        const targetQuaternion = DistanceGrabHandle._offsetQuatHelper
+          .copy(pointerQuaternion)
+          .multiply(this.targetQuatOffset);
+
+        const distance = targetPosition.distanceTo(
           DistanceGrabHandle._posHelper,
         );
 
-        if (distance > this.moveSpeed) {
-          const step = DistanceGrabHandle._tmp
-            .copy(pointerOrigin)
-            .sub(DistanceGrabHandle._posHelper)
-            .normalize()
-            .multiplyScalar(this.moveSpeed);
-          DistanceGrabHandle._posHelper.add(step);
+        if (!this.isSnapped && distance > DistanceGrabHandle.SNAP_THRESHOLD) {
+          DistanceGrabHandle._posHelper.lerp(
+            targetPosition,
+            this.moveSpeedFactor * time * DistanceGrabHandle.MOVE_SPEED_SCALE,
+          );
+          DistanceGrabHandle._quatHelper.slerp(
+            targetQuaternion,
+            this.moveSpeedFactor * time * DistanceGrabHandle.MOVE_SPEED_SCALE,
+          );
         } else {
-          DistanceGrabHandle._posHelper.set(
-            pointerOrigin.x,
-            pointerOrigin.y,
-            pointerOrigin.z,
-          );
-          DistanceGrabHandle._quatHelper.set(
-            p1.pointerWorldQuaternion.x,
-            p1.pointerWorldQuaternion.y,
-            p1.pointerWorldQuaternion.z,
-            p1.pointerWorldQuaternion.w,
-          );
+          if (!this.isSnapped) {
+            this.isSnapped = true;
+          }
+          DistanceGrabHandle._posHelper.copy(targetPosition);
+          DistanceGrabHandle._quatHelper.copy(targetQuaternion);
         }
+
         break;
       }
     }
@@ -137,7 +161,7 @@ export class DistanceGrabHandle<T> extends HandleStore<T> {
 
       // Transform desired world quaternion to local space
       const parentWorldQuaternionInverse = target.parent
-        .getWorldQuaternion(new Quaternion())
+        .getWorldQuaternion(DistanceGrabHandle._tmpQuat)
         .invert();
       quaternion
         .copy(DistanceGrabHandle._quatHelper)

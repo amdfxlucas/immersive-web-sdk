@@ -81,7 +81,15 @@ entities:
       tag: earth
     - components:
         com.iwsdk.components.DistanceGrabbable:
-          {}
+          targetPositionOffset:
+            - 0.100000001
+            - 0
+            - 0
+          targetQuaternionOffset:
+            - 0
+            - 120
+            - 0
+            - 1
         com.iwsdk.components.Interactable:
           {}
         com.meta.components.Animatable:
@@ -264,7 +272,16 @@ entities:
       tag: opera_house
     - components:
         com.iwsdk.components.DistanceGrabbable:
-          movementMode: 0
+          targetPositionOffset:
+            - 0
+            - 0.300000012
+            - 0
+          moveSpeedFactor: 0.5
+          targetQuaternionOffset:
+            - 12
+            - 0
+            - 0
+            - 1
         com.iwsdk.components.Interactable:
           {}
         com.meta.components.Animatable:

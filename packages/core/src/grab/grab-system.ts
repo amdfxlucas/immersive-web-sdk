@@ -8,7 +8,12 @@
 import { HandleStore } from '@pmndrs/handle';
 import { PointerEventsMap } from '@pmndrs/pointer-events';
 import { createSystem, Entity, Types } from '../ecs/index.js';
-import { Object3D, Object3DEventMap } from '../runtime/index.js';
+import {
+  Object3D,
+  Object3DEventMap,
+  Vector3,
+  Quaternion,
+} from '../runtime/index.js';
 import { DistanceGrabbable } from './distance-grabbable.js';
 import { DistanceGrabHandle, MovementMode, Handle } from './handles.js';
 import { OneHandGrabbable } from './one-hand-grabbable.js';
@@ -252,6 +257,14 @@ export class GrabSystem extends createSystem(
     const returnToOrigin = Boolean(
       entity.getValue(DistanceGrabbable, 'returnToOrigin'),
     );
+    const targetPosOffset = entity.getVectorView(
+      DistanceGrabbable,
+      'targetPositionOffset',
+    );
+    const targetQuatOffset = entity.getVectorView(
+      DistanceGrabbable,
+      'targetQuaternionOffset',
+    );
     const opts = () => ({
       rotate: entity.getValue(DistanceGrabbable, 'rotate')
         ? {
@@ -287,7 +300,14 @@ export class GrabSystem extends createSystem(
       opts,
       movementMode!,
       returnToOrigin,
-      entity.getValue(DistanceGrabbable, 'moveSpeed') ?? 0.1,
+      entity.getValue(DistanceGrabbable, 'moveSpeedFactor') ?? 0.1,
+      new Vector3(targetPosOffset[0], targetPosOffset[1], targetPosOffset[2]),
+      new Quaternion(
+        targetQuatOffset[0],
+        targetQuatOffset[1],
+        targetQuatOffset[2],
+        targetQuatOffset[3],
+      ),
     );
     handle.bind(obj);
     obj.pointerEventsType = { deny: 'grab' };

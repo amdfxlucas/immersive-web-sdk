@@ -19,6 +19,7 @@ import { MovementMode } from './handles.js';
  * - **RotateAtSource**: Object rotates in place without translation or scaling.
  * - Optional `returnToOrigin` makes objects snap back to their original position when released.
  * - Supports rotation, translation, and scaling with per‑axis constraints.
+ * - Configure target position and rotation offsets relative to the input source for MoveTowardsTarget mode.
  * - Works with the {@link GrabSystem} to create specialized distance grab handles.
  * - Perfect for telekinetic‑style interactions and remote object manipulation.
  *
@@ -44,6 +45,15 @@ import { MovementMode } from './handles.js';
  * ```ts
  * entity.addComponent(DistanceGrabbable, {
  *   movementMode: MovementMode.RotateAtSource,
+ * })
+ * ```
+ *
+ * @example Distance grabbable with offset (object stays 0.3m in front of controller)
+ * ```ts
+ * entity.addComponent(DistanceGrabbable, {
+ *   movementMode: MovementMode.MoveTowardsTarget,
+ *   targetPositionOffset: [0, 0, -0.3], // 0.3m forward in controller space
+ *   targetQuaternionOffset: [0, 0, 0, 1], // no rotation offset
  * })
  * ```
  *
@@ -100,8 +110,18 @@ export const DistanceGrabbable = createComponent(
     },
     /** A boolean value to set whether the object snap back to its original position and rotation. */
     returnToOrigin: { type: Types.Boolean, default: false },
-    /** Object movement speed for the MoveTowardsTarget movement mode. */
-    moveSpeed: { type: Types.Float32, default: 0.1 },
+    /** Object movement and rotation speed factor for the MoveTowardsTarget movement mode with a scale from 0 to 1. */
+    moveSpeedFactor: { type: Types.Float32, default: 0.1 },
+    /** Target position offset relative to the input source for MoveTowardsTarget mode in [x, y, z]. */
+    targetPositionOffset: {
+      type: Types.Vec3,
+      default: [0, 0, 0],
+    },
+    /** Target rotation offset as a quaternion relative to the input source for MoveTowardsTarget mode in [x, y, z, w]. */
+    targetQuaternionOffset: {
+      type: Types.Vec4,
+      default: [0, 0, 0, 1],
+    },
   },
   'Component for distance-based object grabbing and manipulation',
 );
