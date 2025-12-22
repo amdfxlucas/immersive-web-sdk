@@ -444,7 +444,11 @@ function registerFeatureSystems(
   const cameraEnabled = !!config.features.camera;
   const spatialUI = config.features.spatialUI as
     | boolean
-    | { forwardHtmlEvents?: boolean; kits?: any; preferredColorScheme?: ColorScheme };
+    | {
+        forwardHtmlEvents?: boolean;
+        kits?: any;
+        preferredColorScheme?: ColorScheme;
+      };
   const spatialUIEnabled = !!spatialUI;
 
   if (locomotionEnabled) {
@@ -529,7 +533,9 @@ function registerFeatureSystems(
         configData: {
           ...(forwardHtmlEvents !== undefined ? { forwardHtmlEvents } : {}),
           ...(kitsObj ? { kits: kitsObj } : {}),
-          ...(preferredColorScheme !== undefined ? { preferredColorScheme } : {}),
+          ...(preferredColorScheme !== undefined
+            ? { preferredColorScheme }
+            : {}),
         },
       })
       .registerSystem(ScreenSpaceUISystem)

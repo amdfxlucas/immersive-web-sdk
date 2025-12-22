@@ -99,8 +99,8 @@ The core of this example is the `EnvironmentRaycastTarget` component, which auto
 // Create a preview entity that follows the raycast
 const previewEntity = world.createTransformEntity(previewMesh);
 previewEntity.addComponent(EnvironmentRaycastTarget, {
-  space: RaycastSpace.Right,  // Use right controller
-  maxDistance: 10,            // Maximum raycast distance in meters
+  space: RaycastSpace.Right, // Use right controller
+  maxDistance: 10, // Maximum raycast distance in meters
 });
 
 // The entity's Object3D is automatically:
@@ -131,15 +131,18 @@ if (xrResult && gamepad.getSelectStart()) {
 ## Troubleshooting
 
 ### Raycast Not Working
+
 - Ensure `hitTest: { required: true }` in XR features
 - Verify `environmentRaycast: true` in World config
 - Check that you're in an AR session (not VR)
 
 ### Preview Object Not Visible
+
 - The object is hidden when there's no hit - point at a surface
 - Check maxDistance isn't too small
 
 ### Build Issues
+
 - Run `npm run fresh:build` for clean rebuild
 - Check that all IWSDK packages are properly linked
 

@@ -64,9 +64,9 @@ import { compileUIKit } from '@iwsdk/vite-plugin-uikitml';
 export default defineConfig({
   plugins: [
     compileUIKit({
-      sourceDir: 'ui',           // Directory containing .uikitml files
-      outputDir: 'public/ui',    // Where compiled .json files are written
-      verbose: true,             // Enable build logging
+      sourceDir: 'ui', // Directory containing .uikitml files
+      outputDir: 'public/ui', // Where compiled .json files are written
+      verbose: true, // Enable build logging
     }),
   ],
 });
@@ -127,7 +127,7 @@ import * as horizonKit from '@pmndrs/uikit-horizon';
 World.create(document.getElementById('scene-container'), {
   features: {
     spatialUI: {
-      kits: [horizonKit]
+      kits: [horizonKit],
     },
   },
 });
@@ -144,7 +144,7 @@ import * as defaultKit from '@pmndrs/uikit-default';
 World.create(document.getElementById('scene-container'), {
   features: {
     spatialUI: {
-      kits: [horizonKit, defaultKit]
+      kits: [horizonKit, defaultKit],
     },
   },
 });
@@ -156,15 +156,19 @@ For large icon libraries like `@pmndrs/uikit-lucide` (which contains over 1000 i
 
 ```typescript
 import * as horizonKit from '@pmndrs/uikit-horizon';
-import { LogInIcon, RectangleGogglesIcon, SettingsIcon } from '@pmndrs/uikit-lucide';
+import {
+  LogInIcon,
+  RectangleGogglesIcon,
+  SettingsIcon,
+} from '@pmndrs/uikit-lucide';
 
 World.create(document.getElementById('scene-container'), {
   features: {
     spatialUI: {
       kits: [
         horizonKit,
-        { LogInIcon, RectangleGogglesIcon, SettingsIcon }  // Only these icons
-      ]
+        { LogInIcon, RectangleGogglesIcon, SettingsIcon }, // Only these icons
+      ],
     },
   },
 });
@@ -186,7 +190,7 @@ import { ColorSchemeType } from '@iwsdk/core';
 World.create(document.getElementById('scene-container'), {
   features: {
     spatialUI: {
-      preferredColorScheme: ColorSchemeType.Dark,  // Force dark mode
+      preferredColorScheme: ColorSchemeType.Dark, // Force dark mode
     },
   },
 });
@@ -203,7 +207,9 @@ World.create(document.getElementById('scene-container'), {
 You can dynamically change the color scheme after initialization:
 
 ```typescript
-const world = await World.create(container, { /* ... */ });
+const world = await World.create(container, {
+  /* ... */
+});
 const panelSystem = world.getSystem(PanelUISystem);
 
 // Switch to light mode
@@ -223,13 +229,13 @@ Use the `:dark` pseudo-selector to define styles that apply only in dark mode:
 ```html
 <style>
   .heading {
-    color: #272727;              /* Light mode color */
+    color: #272727; /* Light mode color */
     font-size: 24px;
     font-weight: 700;
   }
 
   .heading:dark {
-    color: rgba(255, 255, 255, 0.9);  /* Dark mode color */
+    color: rgba(255, 255, 255, 0.9); /* Dark mode color */
   }
 
   .panel {

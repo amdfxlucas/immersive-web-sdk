@@ -33,7 +33,8 @@ export const ColorSchemeType = {
  * Type representing available color scheme options.
  * @category UI
  */
-export type ColorScheme = (typeof ColorSchemeType)[keyof typeof ColorSchemeType];
+export type ColorScheme =
+  (typeof ColorSchemeType)[keyof typeof ColorSchemeType];
 
 /**
  * Props accepted by the {@link PanelUI} component.

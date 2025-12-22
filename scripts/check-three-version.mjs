@@ -121,15 +121,17 @@ function checkThreeVersion() {
     console.error(
       `\n✅ Expected version: ${EXPECTED_THREE_VERSION} (aliased as "three")`,
     );
-    console.error(
-      `✅ Expected types: ${EXPECTED_TYPES_VERSION}\n`,
-    );
+    console.error(`✅ Expected types: ${EXPECTED_TYPES_VERSION}\n`);
     console.error('To fix this:');
-    console.error('  1. Check package.json files for direct dependencies on "three"');
+    console.error(
+      '  1. Check package.json files for direct dependencies on "three"',
+    );
     console.error(
       `  2. Ensure all packages use: "three": "npm:${EXPECTED_THREE_VERSION}"`,
     );
-    console.error('  3. Run: rm -rf node_modules pnpm-lock.yaml && pnpm install');
+    console.error(
+      '  3. Run: rm -rf node_modules pnpm-lock.yaml && pnpm install',
+    );
     process.exit(1);
   }
 

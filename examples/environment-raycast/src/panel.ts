@@ -6,16 +6,16 @@ import {
   VisibilityState,
   UIKitDocument,
   UIKit,
-} from "@iwsdk/core";
+} from '@iwsdk/core';
 
 export class PanelSystem extends createSystem({
   welcomePanel: {
     required: [PanelUI, PanelDocument],
-    where: [eq(PanelUI, "config", "./ui/welcome.json")],
+    where: [eq(PanelUI, 'config', './ui/welcome.json')],
   },
 }) {
   init() {
-    this.queries.welcomePanel.subscribe("qualify", (entity) => {
+    this.queries.welcomePanel.subscribe('qualify', (entity) => {
       const document = PanelDocument.data.document[
         entity.index
       ] as UIKitDocument;
@@ -23,8 +23,8 @@ export class PanelSystem extends createSystem({
         return;
       }
 
-      const xrButton = document.getElementById("xr-button") as UIKit.Text;
-      xrButton.addEventListener("click", () => {
+      const xrButton = document.getElementById('xr-button') as UIKit.Text;
+      xrButton.addEventListener('click', () => {
         if (this.world.visibilityState.value === VisibilityState.NonImmersive) {
           this.world.launchXR();
         } else {
@@ -33,9 +33,9 @@ export class PanelSystem extends createSystem({
       });
       this.world.visibilityState.subscribe((visibilityState) => {
         if (visibilityState === VisibilityState.NonImmersive) {
-          xrButton.setProperties({ text: "Enter XR" });
+          xrButton.setProperties({ text: 'Enter XR' });
         } else {
-          xrButton.setProperties({ text: "Exit to Browser" });
+          xrButton.setProperties({ text: 'Exit to Browser' });
         }
       });
     });

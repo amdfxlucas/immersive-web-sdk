@@ -23,17 +23,21 @@ The system creates a standard `HandleStore` with constraints derived directly fr
 ```ts
 // Simplified handle creation from GrabSystem
 const handle = new HandleStore(object, () => ({
-  rotate: entity.getValue(OneHandGrabbable, 'rotate') ? {
-    x: [rotateMin[0], rotateMax[0]],
-    y: [rotateMin[1], rotateMax[1]], 
-    z: [rotateMin[2], rotateMax[2]]
-  } : false,
-  translate: entity.getValue(OneHandGrabbable, 'translate') ? {
-    x: [translateMin[0], translateMax[0]],
-    y: [translateMin[1], translateMax[1]],
-    z: [translateMin[2], translateMax[2]]
-  } : false,
-  multitouch: false  // Single pointer only
+  rotate: entity.getValue(OneHandGrabbable, 'rotate')
+    ? {
+        x: [rotateMin[0], rotateMax[0]],
+        y: [rotateMin[1], rotateMax[1]],
+        z: [rotateMin[2], rotateMax[2]],
+      }
+    : false,
+  translate: entity.getValue(OneHandGrabbable, 'translate')
+    ? {
+        x: [translateMin[0], translateMax[0]],
+        y: [translateMin[1], translateMax[1]],
+        z: [translateMin[2], translateMax[2]],
+      }
+    : false,
+  multitouch: false, // Single pointer only
 }));
 ```
 
@@ -65,7 +69,7 @@ Dual-input manipulation enabling advanced operations including scaling through m
 Two-hand grabbing uses the relationship between controllers to derive transformations:
 
 - **Translation**: Controlled by primary hand position
-- **Rotation**: Derived from the orientation relationship between hands  
+- **Rotation**: Derived from the orientation relationship between hands
 - **Scaling**: Based on the distance between controllers — closer hands reduce scale, farther hands increase scale
 
 ### Implementation Details
@@ -78,7 +82,7 @@ const handle = new HandleStore(object, () => ({
   translate: /* translation constraints */,
   scale: entity.getValue(TwoHandsGrabbable, 'scale') ? {
     x: [scaleMin[0], scaleMax[0]],
-    y: [scaleMin[1], scaleMax[1]], 
+    y: [scaleMin[1], scaleMax[1]],
     z: [scaleMin[2], scaleMax[2]]
   } : false,
   multitouch: true  // Enables dual-pointer processing
@@ -113,13 +117,15 @@ Ray-based remote manipulation with specialized movement algorithms for telekinet
 Distance grabbing implements four distinct movement algorithms:
 
 #### MoveTowardsTarget Algorithm
+
 ```ts
 // From DistanceGrabHandle.update()
 const pointerOrigin = p1.pointerWorldOrigin;
 const distance = pointerOrigin.distanceTo(position);
 
 if (distance > this.moveSpeed) {
-  const step = pointerOrigin.sub(position)
+  const step = pointerOrigin
+    .sub(position)
     .normalize()
     .multiplyScalar(this.moveSpeed);
   position.add(step);
@@ -130,7 +136,8 @@ if (distance > this.moveSpeed) {
 }
 ```
 
-#### MoveAtSource Algorithm  
+#### MoveAtSource Algorithm
+
 ```ts
 // Delta-based movement tracking
 const current = p1.pointerWorldOrigin;
@@ -142,6 +149,7 @@ this.previousPointerOrigin.copy(current);
 ```
 
 #### MoveFromTarget & RotateAtSource
+
 - **MoveFromTarget**: Direct 1:1 mapping with ray endpoint (delegates to standard handle)
 - **RotateAtSource**: Rotation-only mode with automatic translation/scale disabling
 
@@ -165,7 +173,7 @@ The `returnToOrigin` feature overrides the standard handle application:
 // From DistanceGrabHandle.apply()
 if (this.returnToOrigin && this.outputState?.last) {
   target.position.copy(this.initialTargetPosition);
-  target.quaternion.copy(this.initialTargetQuaternion); 
+  target.quaternion.copy(this.initialTargetQuaternion);
   target.scale.copy(this.initialTargetScale);
   return; // Skip standard handle application
 }
@@ -180,7 +188,7 @@ if (this.returnToOrigin && this.outputState?.last) {
 ### Best Use Cases
 
 - Out-of-reach objects in large environments
-- Magical or supernatural interaction themes  
+- Magical or supernatural interaction themes
 - Accessibility — reaching objects without physical movement
 - Telekinetic gameplay mechanics
 
@@ -189,7 +197,7 @@ if (this.returnToOrigin && this.outputState?.last) {
 ### Interaction Context
 
 - **Immediate objects**: Use direct grabbing (one/two-hand)
-- **Remote objects**: Use distance grabbing  
+- **Remote objects**: Use distance grabbing
 - **Resizable content**: Requires two-hand grabbing
 - **Tool-like objects**: Usually one-hand grabbing
 

@@ -169,7 +169,9 @@ describe('Transform Integration Tests', () => {
       expect(quat.y).toBeCloseTo(Math.sin(0.05));
 
       // Update quaternion
-      quat.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.1));
+      quat.multiply(
+        new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.1),
+      );
       expect(euler.y).toBeCloseTo(0.2);
 
       // Update rotation again

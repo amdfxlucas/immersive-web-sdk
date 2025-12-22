@@ -234,7 +234,12 @@ describe('SyncedEuler', () => {
 
       // Apply the rotation twice - should be identity-ish
       const testVec = new Vector3(1, 0, 0);
-      const testQuat = new Quaternion(buffer[0], buffer[1], buffer[2], buffer[3]);
+      const testQuat = new Quaternion(
+        buffer[0],
+        buffer[1],
+        buffer[2],
+        buffer[3],
+      );
       testVec.applyQuaternion(testQuat);
       // After 360° rotation around Y, X axis vector should be roughly the same
       expect(testVec.x).toBeCloseTo(1, 1);

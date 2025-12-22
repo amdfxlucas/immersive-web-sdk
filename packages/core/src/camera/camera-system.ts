@@ -9,7 +9,12 @@ import { createSystem, Entity, VisibilityState } from '../ecs/index.js';
 import { LinearFilter, VideoTexture } from '../runtime/three.js';
 import { CameraSource } from './camera-source.js';
 import { CameraUtils } from './camera-utils.js';
-import { CameraFacing, CameraState, type CameraFacingType, type CameraStateType } from './types.js';
+import {
+  CameraFacing,
+  CameraState,
+  type CameraFacingType,
+  type CameraStateType,
+} from './types.js';
 
 /**
  * CameraSystem - Manages camera stream lifecycle for CameraSource components
@@ -68,12 +73,18 @@ export class CameraSystem extends createSystem({
         const devices = await CameraUtils.getDevices();
 
         // Check if we should abort (stopCamera was called during async operation)
-        const currentState = entity.getValue(CameraSource, 'state') as CameraStateType;
+        const currentState = entity.getValue(
+          CameraSource,
+          'state',
+        ) as CameraStateType;
         if (currentState !== CameraState.Starting) {
           return; // Aborted
         }
 
-        const facing = entity.getValue(CameraSource, 'facing') as CameraFacingType;
+        const facing = entity.getValue(
+          CameraSource,
+          'facing',
+        ) as CameraFacingType;
 
         if (facing === CameraFacing.Unknown) {
           // Unknown = any camera is fine, use first available
@@ -119,7 +130,10 @@ export class CameraSystem extends createSystem({
       });
 
       // Check if we should abort after getting stream
-      const currentState = entity.getValue(CameraSource, 'state') as CameraStateType;
+      const currentState = entity.getValue(
+        CameraSource,
+        'state',
+      ) as CameraStateType;
       if (currentState !== CameraState.Starting) {
         // Aborted - clean up the stream we just created
         this.cleanupCameraResources(stream, null, null);
@@ -152,7 +166,10 @@ export class CameraSystem extends createSystem({
       });
 
       // Check if we should abort after video ready
-      const finalState = entity.getValue(CameraSource, 'state') as CameraStateType;
+      const finalState = entity.getValue(
+        CameraSource,
+        'state',
+      ) as CameraStateType;
       if (finalState !== CameraState.Starting) {
         // Aborted - clean up everything
         this.cleanupCameraResources(stream, video, null);
@@ -168,7 +185,10 @@ export class CameraSystem extends createSystem({
       texture.magFilter = LinearFilter;
 
       // Final check before committing - ensure state is still Starting
-      const committingState = entity.getValue(CameraSource, 'state') as CameraStateType;
+      const committingState = entity.getValue(
+        CameraSource,
+        'state',
+      ) as CameraStateType;
       if (committingState !== CameraState.Starting) {
         // Aborted at the last moment - clean up everything
         this.cleanupCameraResources(stream, video, texture);

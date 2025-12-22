@@ -119,16 +119,16 @@ import { componentDiscoveryXMLPlugin } from '@iwsdk/vite-plugin-metaspatial';
 
 ### GLXF Generation Options (`generateGLXF`)
 
-| Option               | Type      | Default                                                      | Description                                     |
-| -------------------- | --------- | ------------------------------------------------------------ | ----------------------------------------------- |
-| `metaSpatialDir`     | `string`  | `'metaspatial'`                                              | Directory containing Meta Spatial project files |
-| `outputDir`          | `string`  | `'public/glxf'`                                              | Directory to output generated GLXF files        |
-| `watchDebounceMs`    | `number`  | `500`                                                        | Debounce time for file watcher (milliseconds)   |
-| `formats`            | `array`   | `['glxf']`                                                   | Export formats to generate                      |
+| Option               | Type      | Default                                                                   | Description                                                                                                  |
+| -------------------- | --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `metaSpatialDir`     | `string`  | `'metaspatial'`                                                           | Directory containing Meta Spatial project files                                                              |
+| `outputDir`          | `string`  | `'public/glxf'`                                                           | Directory to output generated GLXF files                                                                     |
+| `watchDebounceMs`    | `number`  | `500`                                                                     | Debounce time for file watcher (milliseconds)                                                                |
+| `formats`            | `array`   | `['glxf']`                                                                | Export formats to generate                                                                                   |
 | `metaSpatialCliPath` | `string`  | Platform-specific (see [CLI Path Configuration](#cli-path-configuration)) | Path to Meta Spatial CLI executable. Can also be set via `META_SPATIAL_EDITOR_CLI_PATH` environment variable |
-| `verbose`            | `boolean` | `false`                                                      | Enable verbose logging                          |
-| `enableWatcher`      | `boolean` | `true`                                                       | Enable file watcher in development mode         |
-| `ignorePattern`      | `RegExp`  | `/components\//`                                             | Regex pattern to ignore files/directories       |
+| `verbose`            | `boolean` | `false`                                                                   | Enable verbose logging                                                                                       |
+| `enableWatcher`      | `boolean` | `true`                                                                    | Enable file watcher in development mode                                                                      |
+| `ignorePattern`      | `RegExp`  | `/components\//`                                                          | Regex pattern to ignore files/directories                                                                    |
 
 ## Component Discovery
 
@@ -170,10 +170,11 @@ The plugin needs to locate the Meta Spatial Editor CLI executable. It uses the f
 1. **Environment Variable** (highest priority): Set `META_SPATIAL_EDITOR_CLI_PATH` to specify a custom path.
 
 2. **Plugin Option**: Specify `metaSpatialCliPath` in your Vite config
+
    ```javascript
    generateGLXF({
      metaSpatialCliPath: '/custom/path/to/CLI',
-   })
+   });
    ```
 
 3. **Platform Defaults** (lowest priority):

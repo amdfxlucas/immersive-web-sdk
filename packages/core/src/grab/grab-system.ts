@@ -243,8 +243,8 @@ export class GrabSystem extends createSystem(
     if (!(object instanceof Object3D)) return;
     const obj = object as Object3D<PointerEventsMap & Object3DEventMap>;
     const rootEntity = entity.hasComponent(LevelTag)
-                ? this.world.activeLevel.value
-                : this.world.sceneEntity;
+      ? this.world.activeLevel.value
+      : this.world.sceneEntity;
     const rotateMax = entity.getVectorView(DistanceGrabbable, 'rotateMax');
     const rotateMin = entity.getVectorView(DistanceGrabbable, 'rotateMin');
     const translateMax = entity.getVectorView(

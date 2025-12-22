@@ -224,7 +224,9 @@ export class XRInputManager {
    * Get the primary input source for a given handedness.
    * Returns the XRInputSource that is currently active for left or right hand.
    */
-  getPrimaryInputSource(handedness: 'left' | 'right'): XRInputSource | undefined {
+  getPrimaryInputSource(
+    handedness: 'left' | 'right',
+  ): XRInputSource | undefined {
     return this.primaryInputSources[handedness];
   }
 

@@ -11,12 +11,15 @@ IWSDK changes this by providing a **complete foundation** that handles the compl
 ## Built on Three Core Pillars
 
 ### **Modern Architecture**
+
 Built on **Three.js**, the most popular JavaScript 3D library, paired with a high-performance **Entity Component System** that scales from simple prototypes to complex applications. You get familiar foundations with the performance and flexibility to grow.
 
-### **Developer-First Workflow** 
+### **Developer-First Workflow**
+
 One-command setup gets you running in under a minute. Visual scene composition with **Meta Spatial Editor**, HTML-syntax spatial UI authoring, automated asset optimization, and **built-in emulation**—no VR hardware required to get started.
 
 ### **Production-Ready Systems**
+
 Pre-built systems for everything immersive experiences need: grab interactions, locomotion, spatial audio, physics integration, and scene understanding. These systems can save you months of development time and work seamlessly together.
 
 ## What You Get
@@ -41,7 +44,7 @@ Your IWSDK applications run immersively in VR/AR headsets and automatically prov
 Ready to build the future of web experiences? Choose your path:
 
 - **[📖 Guides](/guides/01-project-setup)** — Step-by-step tutorials from project setup to deployment
-- **[💡 Concepts](/concepts/)** — Deep dive into ECS architecture, locomotion, grabbing, and spatial UI systems  
+- **[💡 Concepts](/concepts/)** — Deep dive into ECS architecture, locomotion, grabbing, and spatial UI systems
 - **[📚 API Reference](/api/)** — Complete documentation for all components, systems, and utilities
 
 **One command. One minute. Unlimited possibilities.**

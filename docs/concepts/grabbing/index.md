@@ -7,7 +7,7 @@ title: Grabbing Overview
 Interactive object manipulation is foundational to immersive experiences. IWSDK provides a comprehensive grabbing system that enables natural, performant object interaction through three distinct manipulation patterns—each optimized for different use cases and comfort requirements.
 
 - **One-Hand Grabbing** — Direct single input manipulation for basic interactions
-- **Two-Hand Grabbing** — Dual-hand manipulation with scaling capabilities for precise control  
+- **Two-Hand Grabbing** — Dual-hand manipulation with scaling capabilities for precise control
 - **Distance Grabbing** — Ray-based remote manipulation with telekinetic-style interactions
 
 Under the hood, the system bridges IWSDK's ECS architecture with the `@pmndrs/handle` library, providing automatic handle lifecycle management, performance optimizations, and seamless integration with the input system.
@@ -37,7 +37,7 @@ The grabbing system operates through a unified `GrabSystem` that automatically c
 Entity with Grabbable Component
   ↓
 GrabSystem detects via queries
-  ↓  
+  ↓
 Creates HandleStore instance
   ↓
 Configures pointer events & constraints
@@ -59,16 +59,19 @@ The system uses reactive ECS queries to manage handle creation and cleanup:
 ## Core Design Principles
 
 ### Automatic Integration
+
 - The system discovers grabbable entities through ECS queries rather than manual registration
 - Handle creation, updates, and cleanup happen automatically based on component presence
 - Multi-pointer coordination (left/right hand sub-pointers) is enabled automatically when the system is active
 
 ### Constraint-Based Control
+
 - All transformation types (rotate, translate, scale) support per-axis min/max constraints
 - Specialized movement modes provide different manipulation semantics
 - Pointer event filtering prevents interaction conflicts
 
 ### Seamless Library Integration
+
 - Acts as a bridge between IWSDK's ECS and `@pmndrs/handle`'s imperative API
 - Translates component data into handle configurations automatically
 - Maintains separation of concerns between interaction logic and ECS lifecycle
@@ -94,8 +97,8 @@ World.create(document.getElementById('scene-container'), {
   entity.addComponent(OneHandGrabbable, {
     rotate: true,
     translate: true,
-    rotateMin: [-Math.PI/4, -Math.PI, -Math.PI/4],
-    rotateMax: [Math.PI/4, Math.PI, Math.PI/4],
+    rotateMin: [-Math.PI / 4, -Math.PI, -Math.PI / 4],
+    rotateMax: [Math.PI / 4, Math.PI, Math.PI / 4],
   });
 });
 ```
@@ -103,14 +106,17 @@ World.create(document.getElementById('scene-container'), {
 ## When to Use Which Pattern
 
 ### One-Hand Grabbing
+
 - Direct manipulation with immediate response
 - Best for: tools, simple objects, quick interactions
 
-### Two-Hand Grabbing  
+### Two-Hand Grabbing
+
 - Advanced manipulation including scaling operations
 - Best for: resizable objects, precise positioning, complex manipulation
 
 ### Distance Grabbing
+
 - Remote manipulation with specialized movement algorithms
 - Best for: out-of-reach objects, magical interactions, telekinetic experiences
 

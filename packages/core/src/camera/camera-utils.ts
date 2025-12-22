@@ -7,7 +7,11 @@
 
 import { Entity } from '../ecs/index.js';
 import { CameraSource } from './camera-source.js';
-import { CameraFacing, type CameraDeviceInfo, type CameraFacingType } from './types.js';
+import {
+  CameraFacing,
+  type CameraDeviceInfo,
+  type CameraFacingType,
+} from './types.js';
 
 /**
  * CameraUtils - Static utilities for camera discovery and selection

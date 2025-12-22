@@ -19,7 +19,7 @@ DistanceGrabHandle.update() called
   ↓
 Switch based on movementMode:
   ├─ MoveTowardsTarget → Step-based interpolation
-  ├─ MoveAtSource → Delta tracking  
+  ├─ MoveAtSource → Delta tracking
   ├─ MoveFromTarget → Direct ray mapping
   └─ RotateAtSource → Rotation-only mode
   ↓
@@ -40,7 +40,8 @@ const distance = pointerOrigin.distanceTo(position);
 
 if (distance > this.moveSpeed) {
   // Calculate step vector toward target
-  const step = pointerOrigin.sub(position)
+  const step = pointerOrigin
+    .sub(position)
     .normalize()
     .multiplyScalar(this.moveSpeed);
   position.add(step);
@@ -95,7 +96,7 @@ this.previousPointerOrigin.copy(current);
 - **Distance Independence**: Object depth doesn't affect lateral movement sensitivity
 - **Local Coordinate Response**: Movement feels natural in controller's reference frame
 
-#### Design Trade-offs  
+#### Design Trade-offs
 
 - **Naturalness vs Precision**: Feels intuitive but lacks absolute positioning
 - **Responsiveness vs Stability**: Immediate response but susceptible to hand jitter
@@ -147,11 +148,11 @@ Objects rotate in place without translation or scaling, using automatic constrai
 
 ```ts
 // Translation and scale automatically disabled
-translate: movementMode === MovementMode.RotateAtSource 
-  ? ('as-rotate' as const) 
+translate: movementMode === MovementMode.RotateAtSource
+  ? ('as-rotate' as const)
   : /* normal translate config */,
-scale: movementMode === MovementMode.RotateAtSource 
-  ? false 
+scale: movementMode === MovementMode.RotateAtSource
+  ? false
   : /* normal scale config */
 ```
 
@@ -215,12 +216,12 @@ The system captures initial transform state during handle creation:
 
 - **Magical/Fantasy**: MoveTowardsTarget for supernatural pull effects
 - **Technical/Precise**: MoveFromTarget for exact positioning
-- **Natural/Intuitive**: MoveAtSource for gesture-based manipulation  
+- **Natural/Intuitive**: MoveAtSource for gesture-based manipulation
 - **Constrained/Fixed**: RotateAtSource for orientation-only controls
 
 ### User Experience Goals
 
-- **Comfort First**: MoveTowardsTarget reduces motion sickness through predictable movement  
+- **Comfort First**: MoveTowardsTarget reduces motion sickness through predictable movement
 - **Control First**: MoveFromTarget provides maximum manipulation precision
 - **Natural First**: MoveAtSource feels most similar to direct hand movement
 - **Simplicity First**: RotateAtSource eliminates position complexity

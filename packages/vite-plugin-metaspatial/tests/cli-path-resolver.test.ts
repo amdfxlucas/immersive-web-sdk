@@ -6,7 +6,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { getHighestVersion, resolveMetaSpatialCliPath, validateCliPath } from '../src/generate-glxf/cli-path-resolver.js';
+import {
+  getHighestVersion,
+  resolveMetaSpatialCliPath,
+  validateCliPath,
+} from '../src/generate-glxf/cli-path-resolver.js';
 import fs from 'fs-extra';
 import * as path from 'path';
 
@@ -36,7 +40,15 @@ describe('CLI Path Resolver', () => {
 
   describe('getHighestVersion', () => {
     it('should return the highest version number', () => {
-      const mockFiles = ['v1', 'v2', 'v9', 'v11', 'v12', 'v20', 'other-file.txt'];
+      const mockFiles = [
+        'v1',
+        'v2',
+        'v9',
+        'v11',
+        'v12',
+        'v20',
+        'other-file.txt',
+      ];
 
       vi.mocked(fs.readdirSync).mockReturnValue(mockFiles as any);
       vi.mocked(fs.statSync).mockImplementation((filePath: any) => {
@@ -46,7 +58,9 @@ describe('CLI Path Resolver', () => {
         } as any;
       });
 
-      const result = getHighestVersion('C:\\Program Files\\Meta Spatial Editor\\');
+      const result = getHighestVersion(
+        'C:\\Program Files\\Meta Spatial Editor\\',
+      );
 
       expect(result).toBe('v20');
     });
@@ -62,7 +76,9 @@ describe('CLI Path Resolver', () => {
         } as any;
       });
 
-      const result = getHighestVersion('C:\\Program Files\\Meta Spatial Editor\\');
+      const result = getHighestVersion(
+        'C:\\Program Files\\Meta Spatial Editor\\',
+      );
 
       expect(result).toBe('v5');
     });
@@ -77,7 +93,9 @@ describe('CLI Path Resolver', () => {
         } as any;
       });
 
-      const result = getHighestVersion('C:\\Program Files\\Meta Spatial Editor\\');
+      const result = getHighestVersion(
+        'C:\\Program Files\\Meta Spatial Editor\\',
+      );
 
       expect(result).toBeNull();
     });
@@ -93,7 +111,9 @@ describe('CLI Path Resolver', () => {
         } as any;
       });
 
-      const result = getHighestVersion('C:\\Program Files\\Meta Spatial Editor\\');
+      const result = getHighestVersion(
+        'C:\\Program Files\\Meta Spatial Editor\\',
+      );
 
       expect(result).toBe('v100');
     });
@@ -103,9 +123,13 @@ describe('CLI Path Resolver', () => {
         throw new Error('Directory not found');
       });
 
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
 
-      const result = getHighestVersion('C:\\Program Files\\Meta Spatial Editor\\');
+      const result = getHighestVersion(
+        'C:\\Program Files\\Meta Spatial Editor\\',
+      );
 
       expect(result).toBeNull();
       expect(consoleWarnSpy).toHaveBeenCalled();
@@ -131,7 +155,9 @@ describe('CLI Path Resolver', () => {
 
       const result = resolveMetaSpatialCliPath();
 
-      expect(result).toBe('/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI');
+      expect(result).toBe(
+        '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI',
+      );
     });
 
     it('should return Windows path with highest version when platform is win32', () => {
@@ -197,7 +223,9 @@ describe('CLI Path Resolver', () => {
       const result = resolveMetaSpatialCliPath();
 
       expect(result).toBe('/override/path');
-      expect(result).not.toBe('/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI');
+      expect(result).not.toBe(
+        '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI',
+      );
     });
   });
 
@@ -210,7 +238,8 @@ describe('CLI Path Resolver', () => {
     });
 
     it('should pass validation when CLI exists and is executable on macOS', async () => {
-      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+      const cliPath =
+        '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
 
       vi.mocked(fs.pathExists).mockResolvedValue(true);
       vi.mocked(fs.access).mockResolvedValue(undefined);
@@ -223,7 +252,8 @@ describe('CLI Path Resolver', () => {
         value: 'win32',
       });
 
-      const cliPath = 'C:\\Program Files\\Meta Spatial Editor\\v20\\Resources\\CLI.exe';
+      const cliPath =
+        'C:\\Program Files\\Meta Spatial Editor\\v20\\Resources\\CLI.exe';
 
       vi.mocked(fs.pathExists).mockResolvedValue(true);
 
@@ -242,13 +272,20 @@ describe('CLI Path Resolver', () => {
     });
 
     it('should throw helpful error when CLI does not exist on macOS', async () => {
-      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+      const cliPath =
+        '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
 
       vi.mocked(fs.pathExists).mockResolvedValue(false);
 
-      await expect(validateCliPath(cliPath)).rejects.toThrow('Meta Spatial Editor CLI not found');
-      await expect(validateCliPath(cliPath)).rejects.toThrow('meta-spatial-editor-for-mac');
-      await expect(validateCliPath(cliPath)).rejects.toThrow('META_SPATIAL_EDITOR_CLI_PATH');
+      await expect(validateCliPath(cliPath)).rejects.toThrow(
+        'Meta Spatial Editor CLI not found',
+      );
+      await expect(validateCliPath(cliPath)).rejects.toThrow(
+        'meta-spatial-editor-for-mac',
+      );
+      await expect(validateCliPath(cliPath)).rejects.toThrow(
+        'META_SPATIAL_EDITOR_CLI_PATH',
+      );
     });
 
     it('should throw helpful error when CLI does not exist on Windows', async () => {
@@ -256,16 +293,22 @@ describe('CLI Path Resolver', () => {
         value: 'win32',
       });
 
-      const cliPath = 'C:\\Program Files\\Meta Spatial Editor\\v20\\Resources\\CLI.exe';
+      const cliPath =
+        'C:\\Program Files\\Meta Spatial Editor\\v20\\Resources\\CLI.exe';
 
       vi.mocked(fs.pathExists).mockResolvedValue(false);
 
-      await expect(validateCliPath(cliPath)).rejects.toThrow('Meta Spatial Editor CLI not found');
-      await expect(validateCliPath(cliPath)).rejects.toThrow('meta-spatial-editor-for-windows');
+      await expect(validateCliPath(cliPath)).rejects.toThrow(
+        'Meta Spatial Editor CLI not found',
+      );
+      await expect(validateCliPath(cliPath)).rejects.toThrow(
+        'meta-spatial-editor-for-windows',
+      );
     });
 
     it('should throw helpful error when CLI exists but is not executable on macOS', async () => {
-      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+      const cliPath =
+        '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
 
       vi.mocked(fs.pathExists).mockResolvedValue(true);
       vi.mocked(fs.access).mockRejectedValue(new Error('Permission denied'));
@@ -275,11 +318,14 @@ describe('CLI Path Resolver', () => {
     });
 
     it('should include download link in error message for unknown errors', async () => {
-      const cliPath = '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
+      const cliPath =
+        '/Applications/Meta Spatial Editor.app/Contents/MacOS/CLI';
 
       vi.mocked(fs.pathExists).mockRejectedValue(new Error('Unknown error'));
 
-      await expect(validateCliPath(cliPath)).rejects.toThrow('Error checking Meta Spatial Editor CLI');
+      await expect(validateCliPath(cliPath)).rejects.toThrow(
+        'Error checking Meta Spatial Editor CLI',
+      );
       await expect(validateCliPath(cliPath)).rejects.toThrow('download');
     });
   });

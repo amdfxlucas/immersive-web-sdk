@@ -12,9 +12,12 @@ import fs from 'fs-extra';
  * Download URLs for Meta Spatial Editor by platform
  */
 const DOWNLOAD_URLS = {
-  darwin: 'https://developers.meta.com/horizon/downloads/package/meta-spatial-editor-for-mac',
-  win32: 'https://developers.meta.com/horizon/downloads/package/meta-spatial-editor-for-windows',
-  linux: 'https://developers.meta.com/horizon/downloads/package/meta-spatial-editor-for-linux',
+  darwin:
+    'https://developers.meta.com/horizon/downloads/package/meta-spatial-editor-for-mac',
+  win32:
+    'https://developers.meta.com/horizon/downloads/package/meta-spatial-editor-for-windows',
+  linux:
+    'https://developers.meta.com/horizon/downloads/package/meta-spatial-editor-for-linux',
   default: 'https://developers.meta.com/horizon/downloads/spatial-sdk/',
 } as const;
 
@@ -28,7 +31,7 @@ export function getHighestVersion(directoryPath: string): string | null {
     const files = fs.readdirSync(directoryPath);
 
     // Filter for version directories (e.g., v1, v2, v20)
-    const versionDirs = files.filter(file => {
+    const versionDirs = files.filter((file) => {
       const fullPath = path.join(directoryPath, file);
       return fs.statSync(fullPath).isDirectory() && /^v\d+$/.test(file);
     });
@@ -134,7 +137,10 @@ export async function validateCliPath(cliPath: string): Promise<void> {
     }
   } catch (error) {
     // Re-throw our custom errors, or wrap system errors
-    if (error instanceof Error && error.message.includes('Meta Spatial Editor')) {
+    if (
+      error instanceof Error &&
+      error.message.includes('Meta Spatial Editor')
+    ) {
       throw error;
     }
 

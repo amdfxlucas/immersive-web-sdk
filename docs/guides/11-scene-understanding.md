@@ -528,4 +528,3 @@ class MeshSystem extends createSystem({
   }
 }
 ```
-

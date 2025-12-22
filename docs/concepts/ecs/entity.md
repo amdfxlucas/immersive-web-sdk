@@ -77,6 +77,7 @@ entity.dispose();
 
 ::: warning
 **Use with caution!** `dispose()` is destructive and will free GPU memory for:
+
 - All geometries attached to the entity's `object3D` and its children
 - All materials (including shared materials)
 - All textures referenced by those materials
@@ -86,12 +87,12 @@ If other entities share the same geometry, material, or texture, they will break
 
 ### When to use each
 
-| Scenario | Method |
-|----------|--------|
-| Removing an entity that uses shared/reusable assets | `destroy()` |
+| Scenario                                                   | Method      |
+| ---------------------------------------------------------- | ----------- |
+| Removing an entity that uses shared/reusable assets        | `destroy()` |
 | Removing an entity with unique, one-off geometry/materials | `dispose()` |
-| Level unloading with asset reuse | `destroy()` |
-| Full cleanup of procedurally generated content | `dispose()` |
+| Level unloading with asset reuse                           | `destroy()` |
+| Full cleanup of procedurally generated content             | `dispose()` |
 
 ### Example: Safe cleanup pattern
 
