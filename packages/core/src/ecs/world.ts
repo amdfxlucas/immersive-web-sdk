@@ -82,8 +82,8 @@ export class World extends ElicsWorld {
   /** Default XR options used when calling {@link World.launchXR} without overrides. */
   public xrDefaults: import('../init/xr.js').XROptions | undefined;
 
-  constructor() {
-    super();
+  constructor(entityCapacity: Number) {
+    super({ entityCapacity });
     const originalReleaseFunc = this.entityManager.releaseEntityInstance.bind(
       this.entityManager,
     );

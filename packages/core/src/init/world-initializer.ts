@@ -76,6 +76,8 @@ import {
 export type WorldOptions = {
   /** Asset manifest to preload before the first frame. */
   assets?: AssetManifest;
+  /** Size of preallocated Elics-ECS  ComponentStorage */
+  entityCapacity?: Number;
 
   /** Level to load after initialization. Accepts a GLXF URL string or an object with a `url` field. */
   level?: { url?: string } | string;
@@ -145,7 +147,7 @@ export function initializeWorld(
   options: WorldOptions = {},
 ): Promise<World> {
   // Create and configure world instance
-  const world = createWorldInstance();
+  const world = createWorldInstance(options.entityCapacity);
 
   // Extract configuration options
   const config = extractConfiguration(options);
@@ -204,8 +206,8 @@ export function initializeWorld(
 /**
  * Create a new World instance with basic ECS setup
  */
-function createWorldInstance(): World {
-  const world = new World();
+function createWorldInstance(entityCapacity: Number): World {
+  const world = new World(entityCapacity);
   world
     .registerComponent(Transform)
     .registerComponent(Visibility)
