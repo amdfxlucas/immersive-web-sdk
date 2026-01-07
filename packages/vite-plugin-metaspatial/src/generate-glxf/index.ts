@@ -9,9 +9,9 @@ import * as path from 'path';
 import type { FSWatcher } from 'chokidar';
 import fs from 'fs-extra';
 import type { Plugin, ViteDevServer } from 'vite';
+import { resolveMetaSpatialCliPath } from './cli-path-resolver.js';
 import { regenerateGLXF, createFileWatcher, cleanup } from './file-watcher.js';
 import type { GLXFGenerationOptions, ProcessedGLXFOptions } from './types.js';
-import { resolveMetaSpatialCliPath } from './cli-path-resolver.js';
 
 // Export types
 export type { GLXFGenerationOptions } from './types.js';
@@ -266,8 +266,8 @@ export function generateGLXF(options: GLXFGenerationOptions = {}): Plugin {
       console.log('👁️  GLXF file watcher started - monitoring for changes...');
     },
 
-    async buildStart() {
-      // Only generate GLXF during build, not during dev server
+    buildStart() {
+      // Only reset stats during build, not during dev server
       // config.command is 'serve' for dev, 'build' for production
       if (config.command === 'serve') {
         return;
@@ -275,19 +275,31 @@ export function generateGLXF(options: GLXFGenerationOptions = {}): Plugin {
 
       // Reset stats for each build
       generationStats = [];
-      await generateBuildGLXF(pluginOptions, generationStats);
     },
 
-    buildEnd() {
-      // Clean up watcher when build ends
-      if (watcher) {
-        watcher.close();
-        watcher = null;
-        cleanup(); // Clear any pending debounced operations
-        if (pluginOptions.verbose) {
-          console.log('👋 Meta Spatial file watcher closed');
+    // Use order: 'post' to ensure this runs AFTER discoverComponents.buildEnd()
+    // which writes the component XML files that the Meta Spatial CLI needs
+    buildEnd: {
+      order: 'post',
+      async handler() {
+        // Only generate GLXF during build, not during dev server
+        if (config.command === 'serve') {
+          return;
         }
-      }
+
+        // Generate GLXF files (after component XMLs have been written)
+        await generateBuildGLXF(pluginOptions, generationStats);
+
+        // Clean up watcher when build ends
+        if (watcher) {
+          watcher.close();
+          watcher = null;
+          cleanup(); // Clear any pending debounced operations
+          if (pluginOptions.verbose) {
+            console.log('👋 Meta Spatial file watcher closed');
+          }
+        }
+      },
     },
 
     // Display GLXF generation summary at the very end of build process
