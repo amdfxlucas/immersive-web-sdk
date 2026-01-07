@@ -25,7 +25,8 @@ export default defineConfig({
       // sem: {
       //   defaultScene: 'living_room'
       // },
-      activation: 'localhost',
+      activation: 'always',
+      injectOnBuild: true,
       verbose: true,
     }),
 
