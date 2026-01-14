@@ -14,6 +14,8 @@
     "doc": "typedoc",
     "format": "prettier --write ./src/**/*",
     "prepublishOnly": "npm run build",
+    "prepack": "node ../../scripts/replace-workspace-with-files.cjs .",
+    "postpack": "node ../../scripts/restore-package-json.cjs .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

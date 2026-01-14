@@ -18,7 +18,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint-staged": "lint-staged",
-    "prepare": "node scripts/setup-git-hooks.cjs",
+    "prepare": "node scripts/setup-git-hooks.cjs && bash ./scripts/build-tgz.sh",
     "setup-hooks": "node scripts/setup-git-hooks.cjs",
     "engines:audit": "node scripts/check-engines.mjs",
     "headers:check": "node scripts/check-headers.mjs --dry-run",

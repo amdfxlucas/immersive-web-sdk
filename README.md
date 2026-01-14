@@ -80,6 +80,8 @@ The examples use `file:` dependencies pointing to `.tgz` files built from local 
 
 This ensures examples always test against the latest local build.
 
+Install from Git: You can add a package directly from this repository with pnpm (for example: `pnpm add github:facebook/immersive-web-sdk`). When installing from a git URL the repository's `prepare` script will create local `.tgz` files and package `prepack` scripts will swap `workspace:` dependencies for `file:` references to those tarballs so installation succeeds.
+
 ## License
 
 IWSDK is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
