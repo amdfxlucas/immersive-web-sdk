@@ -6,7 +6,7 @@
  */
 
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { UltraHDRLoader as HDRLoader } from 'three/examples/jsm/loaders/UltraHDRLoader.js';
 import {
   EquirectangularReflectionMapping,
   LoadingManager,
