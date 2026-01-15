@@ -78,7 +78,8 @@ export type WorldOptions = {
   assets?: AssetManifest;
   /** Size of preallocated Elics-ECS  ComponentStorage */
   entityCapacity?: Number;
-
+  /** Enables runtime validations for debugging purposes (default is true). It's recommended to disable checks in production for better performance. */
+  checksOn?: Boolean;
   /** Level to load after initialization. Accepts a GLXF URL string or an object with a `url` field. */
   level?: { url?: string } | string;
 
@@ -147,7 +148,7 @@ export function initializeWorld(
   options: WorldOptions = {},
 ): Promise<World> {
   // Create and configure world instance
-  const world = createWorldInstance(options.entityCapacity);
+  const world = createWorldInstance(options.entityCapacity, options.checksOn);
 
   // Extract configuration options
   const config = extractConfiguration(options);
