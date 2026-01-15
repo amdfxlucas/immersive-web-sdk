@@ -85,8 +85,8 @@ export class World extends ElicsWorld {
   /** MCP runtime for framework-specific tools. Set automatically during World.create(). */
   public mcpRuntime?: MCPRuntime;
 
-  constructor(entityCapacity: Number) {
-    super({ entityCapacity });
+  constructor(entityCapacity: Number, checksOn: Boolean = false) {
+    super({ entityCapacity, checksOn });
     const originalReleaseFunc = this.entityManager.releaseEntityInstance.bind(
       this.entityManager,
     );
