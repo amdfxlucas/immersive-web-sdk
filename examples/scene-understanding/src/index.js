@@ -21,6 +21,7 @@ import {
   FrontSide,
   MovementMode,
   Vector3,
+  ReferenceSpaceType,
   eq,
 } from '@iwsdk/core';
 
@@ -92,11 +93,13 @@ World.create(document.getElementById('scene-container'), {
   undefined,
   xr: {
     sessionMode: SessionMode.ImmersiveAR,
+    referenceSpace: ReferenceSpaceType.Unbounded,
     features: {
-      hitTest: true,
+      hitTest: { required: true },
       planeDetection: { required: true },
       meshDetection: { required: true },
       anchors: { required: true },
+      unbounded: { required: true },
     },
   },
   features: {

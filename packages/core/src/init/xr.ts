@@ -56,6 +56,7 @@ export type XRFeatureOptions = {
    * You may set `{ required: true }` to require layers.
    */
   layers?: FeatureFlag;
+  unbounded?: FeatureFlag;
 };
 
 /** Reference space configuration. @category Runtime */
@@ -120,6 +121,7 @@ export function buildSessionInit(opts: XROptions): XRSessionInit {
     lightEstimation: 'light-estimation',
     depthSensing: 'depth-sensing',
     layers: 'layers',
+    unbounded: 'unbounded',
   } as const;
 
   const push = (
@@ -145,6 +147,7 @@ export function buildSessionInit(opts: XROptions): XRSessionInit {
   push('meshDetection', normalizeFlag(f.meshDetection));
   push('lightEstimation', normalizeFlag(f.lightEstimation));
   push('layers', normalizeFlag(f.layers));
+  push('unbounded', normalizeFlag(f.unbounded));
 
   // Depth sensing (may include preferences)
   if (f.depthSensing) {
