@@ -16,7 +16,8 @@ import {
   TypeValueToType,
 } from 'elics';
 import type { QueryManager } from 'elics/lib/query-manager.js';
-import { Object3D } from 'three';
+import { Object3D, Vector3 } from 'three';
+import type { IPresenter, GeographicCoords } from '../presenter/index.js';
 import {
   PerspectiveCamera,
   Scene,
@@ -38,6 +39,8 @@ type SystemConfigSignals<S extends SystemSchema> = {
  * - Config values are exposed as reactive Signals on `this.config.<key>`.
  * - Common world resources are available as readonly properties (`player`, `input`,
  *   `scene`, `camera`, `renderer`, `visibilityState`).
+ * - When using presenter mode, additional methods are available for coordinate
+ *   transforms and content root management.
  * - Use `cleanupFuncs.push(() => ...)` to register teardown callbacks.
  *
  * @category ECS
@@ -62,11 +65,30 @@ export interface System<S extends SystemSchema, Q extends SystemQueries>
   readonly visibilityState: Signal<VisibilityState>;
   readonly cleanupFuncs: Array<() => void>;
 
+  /** The active presenter (if using presenter mode) */
+  readonly presenter: IPresenter | undefined;
+
   init(): void;
   update(delta: number, time: number): void;
   play(): void;
   stop(): void;
   createEntity: () => Entity;
+
+  // Presenter-mode methods
+  /** Get the content root for GIS/application content */
+  getContentRoot(): Object3D;
+  /** Add an object to the content root */
+  addToContentRoot(object3D: Object3D, isENU?: boolean): void;
+  /** Notify presenter that scene needs re-rendering (Map mode) */
+  notifyChange(): void;
+  /** Convert geographic coordinates to scene coordinates */
+  geographicToScene(coords: GeographicCoords): Vector3;
+  /** Convert scene coordinates to geographic coordinates */
+  sceneToGeographic(sceneCoords: Vector3): GeographicCoords;
+  /** Convert CRS coordinates to scene coordinates */
+  crsToScene(x: number, y: number, z?: number): Vector3;
+  /** Convert scene coordinates to CRS coordinates */
+  sceneToCRS(sceneCoords: Vector3): { x: number; y: number; z: number };
 }
 
 /**
@@ -134,6 +156,13 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
       return this.xrManager.getFrame();
     }
 
+    /**
+     * Get the active presenter (if using presenter mode)
+     */
+    get presenter(): IPresenter | undefined {
+      return this.world.presenter;
+    }
+
     createEntity(): Entity {
       return this.world.createEntity();
     }
@@ -156,6 +185,77 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
 
     destroy(): void {
       this.cleanupFuncs.forEach((func) => func());
+    }
+
+    // ========================================================================
+    // PRESENTER-MODE METHODS
+    // ========================================================================
+
+    /**
+     * Get the content root for GIS/application content.
+     *
+     * When using presenter mode, returns the presenter's content root.
+     * Otherwise returns the world's active root.
+     */
+    getContentRoot(): Object3D {
+      return this.world.getContentRoot();
+    }
+
+    /**
+     * Add an object to the content root.
+     *
+     * When using presenter mode, this ensures proper handling of
+     * ENU-coordinate geometry (automatic wrapping in Map mode).
+     *
+     * @param object3D - Object to add
+     * @param isENU - Whether object is in ENU coordinates (default true)
+     */
+    addToContentRoot(object3D: Object3D, isENU: boolean = true): void {
+      if (this.presenter) {
+        this.presenter.addObject(object3D, { isENU });
+      } else {
+        this.getContentRoot().add(object3D);
+      }
+    }
+
+    /**
+     * Notify presenter that scene needs re-rendering.
+     *
+     * For Map mode's on-demand rendering, this triggers a render.
+     * For XR mode's continuous rendering, this is a no-op.
+     */
+    notifyChange(): void {
+      this.presenter?.notifyChange();
+    }
+
+    /**
+     * Convert geographic coordinates to scene coordinates.
+     *
+     * Works in both XR (ENU) and Map (CRS) modes when presenter is active.
+     */
+    geographicToScene(coords: GeographicCoords): Vector3 {
+      return this.world.geographicToScene(coords);
+    }
+
+    /**
+     * Convert scene coordinates to geographic coordinates.
+     */
+    sceneToGeographic(sceneCoords: Vector3): GeographicCoords {
+      return this.world.sceneToGeographic(sceneCoords);
+    }
+
+    /**
+     * Convert CRS coordinates to scene coordinates.
+     */
+    crsToScene(x: number, y: number, z: number = 0): Vector3 {
+      return this.world.crsToScene(x, y, z);
+    }
+
+    /**
+     * Convert scene coordinates to CRS coordinates.
+     */
+    sceneToCRS(sceneCoords: Vector3): { x: number; y: number; z: number } {
+      return this.world.sceneToCRS(sceneCoords);
     }
   };
 }
