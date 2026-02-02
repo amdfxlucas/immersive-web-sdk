@@ -22,6 +22,7 @@
 import type { Object3D, Vector3 } from 'three';
 import type { Entity } from '../ecs/entity.js';
 import type { IPresenter } from './presenter.js';
+import type {World} from '../ecs/index.js';
 
 /**
  * Geographic coordinates (WGS84)
@@ -101,6 +102,17 @@ export interface IGISPresenter extends IPresenter {
   // GIS ROOT
   // ============================================================================
 
+
+  /**
+   * Initialize the GIS root entity.
+   *
+   * This creates a proper Transform Entity with GISRootComponent
+   * to serve as the parent for all GIS content.
+   *
+   * @param world - World instance for entity creation
+   * @internal Called by World when setting up presenter mode
+   */
+  initGISRoot(world: World): void;
   /**
    * Get the GIS content root entity.
    *

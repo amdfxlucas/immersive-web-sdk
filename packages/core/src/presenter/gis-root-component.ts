@@ -16,7 +16,10 @@
  * @category Runtime
  */
 
+import type { Group } from 'three';
 import { createComponent } from '../ecs/index.js';
+import type { Entity } from '../ecs/entity.js';
+import type { World } from '../ecs/world.js';
 
 /**
  * GIS Root Component
@@ -56,3 +59,83 @@ export const GISRootComponent = createComponent(
  * @category Runtime
  */
 export type GISRootComponentType = typeof GISRootComponent;
+
+/**
+ * Initialize the GIS root entity for a presenter.
+ *
+ * This helper function creates a proper Transform Entity with GISRootComponent
+ * to serve as the parent for all GIS content. It is used by both XRPresenter
+ * and MapPresenter to avoid code duplication.
+ *
+ * @param world - World instance for entity creation
+ * @param contentRoot - The Group object to use as the GIS root
+ * @returns The created GIS root entity
+ *
+ * @internal Used by presenter implementations
+ * @category Runtime
+ */
+export function initGISRootEntity(world: World, contentRoot: Group): Entity {
+  // Create Transform Entity for GIS root
+  const gisRootEntity = world.createEntity();
+  gisRootEntity.object3D = contentRoot;
+  contentRoot.name = 'GIS_ROOT';
+
+  // Store entity index on the Object3D for ECS lookups
+  (contentRoot as any).entityIdx = gisRootEntity.index;
+
+  // Add GISRootComponent tag
+  gisRootEntity.addComponent(GISRootComponent);
+
+  // Store reference on world for queries
+  (world as any).gisRootIndex = gisRootEntity.index;
+
+  // Parent to active root (moves with XR)
+  world.getActiveRoot().add(gisRootEntity.object3D);
+
+  return gisRootEntity;
+}
+
+/*
+import * as elics from 'elics; 
+import { DataType, TypedSchema, Component } from 'elics;
+
+// patch
+export function initializeComponentStorage<T extends DataType, S extends TypedSchema<T>>(
+  component: Component<S>, 
+  entityCapacity: number
+): void {
+  //  Add your custom logic here
+  console.log(`Patching storage for component: ${component.name}`);
+  if(component.name == "GISRootComponent"){
+    entityCapacity = 1;
+  }
+
+  //  Call the original function
+  elics.initializeComponentStorage(component, entityCapacity);
+
+  // 3. Add any post-initialization logic
+  console.log("Patch applied successfully.");
+}
+
+// 3. Re-export everything ELSE from the original library
+export * from 'elics;
+// OR -------------------------------------------------
+If the library is truly global (meaning it attaches to window or globalThis 
+and you want to trick other libraries into using your version),
+ you need to combine the export with an assignment:
+
+const original = window.initializeComponentStorage;
+
+// Overwrite the global object
+window.initializeComponentStorage = function<T extends DataType, S extends TypedSchema<T>>(
+  component: Component<S>,
+  entityCapacity: number
+): void {
+  // Your Patch logic
+  console.log("Global hook intercepted!");
+  return original(component, entityCapacity);
+};
+
+// Re-export for module-based users
+export const initializeComponentStorage = window.initializeComponentStorage;
+*/

@@ -43,7 +43,7 @@ import type {
   IGISPresenter,
   ProjectCRS,
 } from './gis-presenter.js';
-import { GISRootComponent } from './gis-root-component.js';
+import { initGISRootEntity } from './gis-root-component.js';
 import {
   FlyToOptions,
   IPresenter,
@@ -497,7 +497,8 @@ export class XRPresenter implements IPresenter, IGISPresenter {
    * to serve as the parent for all GIS content.
    *
    * @param world - World instance for entity creation
-   * @internal Called by World when setting up presenter mode
+   * @internal Called by World when setting up presenter mode.
+   * Only call after presenter was initialized
    */
   initGISRoot(world: World): void {
     if (this._gisRootEntity) {
@@ -506,20 +507,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     }
 
     this._world = world;
-
-    // Create Transform Entity for GIS root
-    this._gisRootEntity = world.createEntity();
-    this._gisRootEntity.object3D = this._contentRoot;
-    this._contentRoot.name = 'GIS_ROOT';
-
-    // Store entity index on the Object3D for ECS lookups
-    (this._contentRoot as any).entityIdx = this._gisRootEntity.index;
-
-    // Add GISRootComponent tag
-    this._gisRootEntity.addComponent(GISRootComponent);
-
-    // Store reference on world for queries
-    (world as any).gisRootIndex = this._gisRootEntity.index;
+    this._gisRootEntity = initGISRootEntity(world, this._contentRoot);
   }
 
   // ============================================================================
