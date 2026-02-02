@@ -32,10 +32,20 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
+import type { Entity } from '../ecs/entity.js';
+import type { World } from '../ecs/world.js';
+import { ReferenceSpaceType } from '../init/xr.js';
 import { CoordinateAdapter } from './coordinate-adapter.js';
+import type {
+  CRSExtent,
+  FitToExtentOptions,
+  GeographicCoords,
+  IGISPresenter,
+  ProjectCRS,
+} from './gis-presenter.js';
+import { GISRootComponent } from './gis-root-component.js';
 import {
   FlyToOptions,
-  GeographicCoords,
   IPresenter,
   PointerCallback,
   PointerEventData,
@@ -50,6 +60,9 @@ import {
  * XR Presenter
  *
  * Implements IPresenter for WebXR-based immersive rendering.
+ * When configured with CRS and origin, also implements IGISPresenter
+ * for geographic coordinate support.
+ *
  * This is the "traditional" IWSDK rendering path, now encapsulated
  * in the presenter abstraction.
  *
@@ -58,6 +71,7 @@ import {
  * - Continuous render loop via requestAnimationFrame
  * - ENU coordinate system centered on XR session origin
  * - Optional geographic coordinate transforms via CoordinateAdapter
+ * - GIS root entity for coordinate-aware content management
  *
  * @example
  * ```ts
@@ -74,7 +88,7 @@ import {
  *
  * @category Runtime
  */
-export class XRPresenter implements IPresenter {
+export class XRPresenter implements IPresenter, IGISPresenter {
   // ============================================================================
   // PRIVATE STATE
   // ============================================================================
@@ -97,8 +111,20 @@ export class XRPresenter implements IPresenter {
   /** Content root for application geometry */
   private _contentRoot!: Group;
 
+  /** GIS root entity (Transform Entity with GISRootComponent) */
+  private _gisRootEntity: Entity | null = null;
+
+  /** Reference to the World for entity creation */
+  private _world: World | null = null;
+
   /** Coordinate adapter for geographic transforms */
   private _coordAdapter: CoordinateAdapter | null = null;
+
+  /** CRS configuration */
+  private _crs: ProjectCRS | undefined;
+
+  /** Geographic origin */
+  private _origin: GeographicCoords | undefined;
 
   /** Active XR session */
   private _session: XRSession | null = null;
@@ -201,6 +227,10 @@ export class XRPresenter implements IPresenter {
 
     this._container = container;
     this._config = config as XRPresenterOptions;
+
+    // Store GIS configuration
+    this._crs = config.crs;
+    this._origin = config.origin;
 
     // Initialize coordinate adapter if CRS provided
     if (config.crs && config.origin) {
@@ -342,7 +372,7 @@ export class XRPresenter implements IPresenter {
   /**
    * Add an object to the content root
    */
-  addObject(object3D: Object3D, options?: { isENU?: boolean }): void {
+  addObject(object3D: Object3D, _options?: { isENU?: boolean }): void {
     // In XR mode, ENU objects are added directly (no offset needed)
     // The scene coordinates ARE ENU coordinates
     this._contentRoot.add(object3D);
@@ -416,6 +446,80 @@ export class XRPresenter implements IPresenter {
       return { x: sceneCoords.x, y: -sceneCoords.z, z: sceneCoords.y };
     }
     return this._coordAdapter.enuToCRS(sceneCoords);
+  }
+
+  // ============================================================================
+  // GIS ROOT (IGISPresenter)
+  // ============================================================================
+
+  /**
+   * Get the GIS root entity.
+   *
+   * Returns the Transform Entity with GISRootComponent that serves
+   * as the parent for all GIS content.
+   */
+  getGISRootEntity(): Entity {
+    if (!this._gisRootEntity) {
+      throw new Error(
+        'GIS root entity not initialized. Call initGISRoot() with a World reference first.',
+      );
+    }
+    return this._gisRootEntity;
+  }
+
+  /**
+   * Get the GIS root Object3D.
+   *
+   * Shorthand for `getGISRootEntity().object3D`.
+   */
+  getGISRoot(): Object3D {
+    return this.getGISRootEntity().object3D!;
+  }
+
+  /**
+   * Get the configured CRS.
+   */
+  getCRS(): ProjectCRS | undefined {
+    return this._crs;
+  }
+
+  /**
+   * Get the geographic origin.
+   */
+  getOrigin(): GeographicCoords | undefined {
+    return this._origin;
+  }
+
+  /**
+   * Initialize the GIS root entity.
+   *
+   * This creates a proper Transform Entity with GISRootComponent
+   * to serve as the parent for all GIS content.
+   *
+   * @param world - World instance for entity creation
+   * @internal Called by World when setting up presenter mode
+   */
+  initGISRoot(world: World): void {
+    if (this._gisRootEntity) {
+      console.warn('GIS root entity already initialized');
+      return;
+    }
+
+    this._world = world;
+
+    // Create Transform Entity for GIS root
+    this._gisRootEntity = world.createEntity();
+    this._gisRootEntity.object3D = this._contentRoot;
+    this._contentRoot.name = 'GIS_ROOT';
+
+    // Store entity index on the Object3D for ECS lookups
+    (this._contentRoot as any).entityIdx = this._gisRootEntity.index;
+
+    // Add GISRootComponent tag
+    this._gisRootEntity.addComponent(GISRootComponent);
+
+    // Store reference on world for queries
+    (world as any).gisRootIndex = this._gisRootEntity.index;
   }
 
   // ============================================================================
@@ -497,11 +601,13 @@ export class XRPresenter implements IPresenter {
   }
 
   /**
-   * Fit view to extent
+   * Fit view to extent.
+   *
+   * Not directly supported in XR mode since the user controls their view.
    */
   async fitToExtent(
-    _extent: { minX: number; maxX: number; minY: number; maxY: number },
-    _options?: { duration?: number },
+    _extent: CRSExtent,
+    _options?: FitToExtentOptions,
   ): Promise<void> {
     // Not directly applicable in XR mode
     console.warn('fitToExtent not supported in XR mode');
@@ -593,7 +699,9 @@ export class XRPresenter implements IPresenter {
 
     try {
       // Set reference space type
-      this._renderer.xr.setReferenceSpaceType('local-floor');
+      this._renderer.xr.setReferenceSpaceType(
+        ReferenceSpaceType.LocalFloor as unknown as XRReferenceSpaceType,
+      );
       await this._renderer.xr.setSession(session);
       this._session = session;
     } catch (err) {

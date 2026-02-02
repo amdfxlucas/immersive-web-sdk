@@ -41,6 +41,10 @@ import type {
   WebGLRenderer,
   Vector3,
 } from 'three';
+import type { GeographicCoords, ProjectCRS, CRSExtent } from './gis-presenter.js';
+
+// Re-export GIS types for convenience
+export type { GeographicCoords, ProjectCRS, CRSExtent };
 
 /**
  * Supported presentation modes
@@ -59,48 +63,17 @@ export enum PresentationMode {
 }
 
 /**
- * Geographic coordinates (WGS84)
- *
- * @category Runtime
- */
-export interface GeographicCoords {
-  /** Latitude in degrees */
-  lat: number;
-  /** Longitude in degrees */
-  lon: number;
-  /** Height/altitude in meters (optional) */
-  h?: number;
-}
-
-/**
- * Project Coordinate Reference System configuration
- *
- * @category Runtime
- */
-export interface ProjectCRS {
-  /** EPSG code (e.g., 'EPSG:25833') */
-  code: string;
-  /** Proj4 definition string */
-  proj4: string;
-}
-
-/**
  * Presenter configuration options
  *
  * @category Runtime
  */
 export interface PresenterConfig {
-  /** Project coordinate reference system */
+  /** Project coordinate reference system (enables GIS features) */
   crs?: ProjectCRS;
   /** Geographic origin for ENU transforms */
   origin?: GeographicCoords;
   /** Project extent in CRS units */
-  extent?: {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-  };
+  extent?: CRSExtent;
 }
 
 /**
@@ -325,44 +298,6 @@ export interface IPresenter {
   notifyChange(): void;
 
   // ============================================================================
-  // COORDINATE TRANSFORMS
-  // ============================================================================
-
-  /**
-   * Convert geographic coordinates (WGS84) to scene coordinates
-   *
-   * @param coords - Geographic coordinates (lat/lon/height)
-   * @returns Scene coordinates as Vector3
-   */
-  geographicToScene(coords: GeographicCoords): Vector3;
-
-  /**
-   * Convert scene coordinates to geographic coordinates (WGS84)
-   *
-   * @param sceneCoords - Scene coordinates
-   * @returns Geographic coordinates
-   */
-  sceneToGeographic(sceneCoords: Vector3): GeographicCoords;
-
-  /**
-   * Convert project CRS coordinates to scene coordinates
-   *
-   * @param x - CRS X coordinate (Easting)
-   * @param y - CRS Y coordinate (Northing)
-   * @param z - CRS Z coordinate (Height)
-   * @returns Scene coordinates as Vector3
-   */
-  crsToScene(x: number, y: number, z?: number): Vector3;
-
-  /**
-   * Convert scene coordinates to project CRS coordinates
-   *
-   * @param sceneCoords - Scene coordinates
-   * @returns CRS coordinates
-   */
-  sceneToCRS(sceneCoords: Vector3): { x: number; y: number; z: number };
-
-  // ============================================================================
   // INPUT
   // ============================================================================
 
@@ -401,16 +336,6 @@ export interface IPresenter {
    */
   getCameraPosition(): GeographicCoords;
 
-  /**
-   * Fit view to show an extent in CRS coordinates
-   *
-   * @param extent - Extent to fit
-   * @param options - Animation options
-   */
-  fitToExtent(
-    extent: { minX: number; maxX: number; minY: number; maxY: number },
-    options?: { duration?: number },
-  ): Promise<void>;
 
   // ============================================================================
   // RENDER LOOP INTEGRATION

@@ -54,8 +54,6 @@ export {
   // Interfaces
   type IPresenter,
   type PresenterConfig,
-  type GeographicCoords,
-  type ProjectCRS,
   type PointerEventData,
   type FlyToOptions,
   type XRPresenterOptions,
@@ -66,6 +64,19 @@ export {
   type PointerEventType,
   type PointerCallback,
 } from './presenter.js';
+
+// GIS-specific types and interfaces
+export {
+  type IGISPresenter,
+  type GeographicCoords,
+  type ProjectCRS,
+  type CRSExtent,
+  type FitToExtentOptions,
+  isGISPresenter,
+} from './gis-presenter.js';
+
+// GIS Root Component
+export { GISRootComponent, type GISRootComponentType } from './gis-root-component.js';
 
 // ============================================================================
 // PRESENTER IMPLEMENTATIONS
