@@ -94,6 +94,7 @@ export class World extends ElicsWorld {
   /** MCP runtime for framework-specific tools. Set automatically during World.create(). */
   public mcpRuntime?: MCPRuntime;
 
+  public onSetPresenter: any;
   // ============================================================================
   // PRESENTER ABSTRACTION
   // ============================================================================
@@ -146,9 +147,14 @@ export class World extends ElicsWorld {
     this._presenter = presenter;
     this._container = container;
     this._presenterConfig = config;
-    if(isGISPresenter(presenter))
+   
+   /* if(isGISPresenter(presenter)) // TODO move to after assignRendering -> into onSetPresenter
     {
       presenter.initGISRoot(this);
+    }*/
+    if(this.onSetPresenter)
+    {
+      this.onSetPresenter(this, presenter, config);
     }
   }
 
