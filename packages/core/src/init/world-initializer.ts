@@ -35,12 +35,13 @@ import {
   PhysicsSystem,
 } from '../physics/index.js';
 import {
-  Clock,
-  PerspectiveCamera,
-  SRGBColorSpace,
-  Scene,
-  WebGLRenderer,
-} from '../runtime/index.js';
+  PresentationMode,
+  PresenterConfig,
+  isGISPresenter,
+  IPresenter,
+} from '../presenter/index.js';
+import { XRPresenter } from '../presenter/xr-presenter.js';
+import { Clock, WebGLRenderer } from '../runtime/index.js';
 import {
   SceneUnderstandingSystem,
   XRAnchor,
@@ -66,6 +67,7 @@ import {
   resolveReferenceSpaceType,
   buildSessionInit,
 } from './index.js';
+import { IGISPresenter } from '../presenter/gis-presenter.js';
 
 /** Options for {@link initializeWorld} / {@link World.create}.
  *
@@ -74,6 +76,9 @@ import {
  * Defaults are tuned for VR; you can override camera frustum and default lighting via {@link WorldOptions.render}.
  */
 export type WorldOptions = {
+  presenter?: {mode?: PresentationMode,
+              options?: PresenterConfig
+  },
   /** Asset manifest to preload before the first frame. */
   assets?: AssetManifest;
   /** Size of preallocated Elics-ECS  ComponentStorage */
@@ -143,7 +148,7 @@ export type WorldOptions = {
  * @remarks
  * This function powers {@link World.create}. Prefer using that static helper.
  */
-export function initializeWorld(
+export async function initializeWorld(
   container: HTMLDivElement,
   options: WorldOptions = {},
 ): Promise<World> {
@@ -153,62 +158,103 @@ export function initializeWorld(
   // Extract configuration options
   const config = extractConfiguration(options);
 
-  // Setup core rendering components
-  const { camera, renderer, scene } = setupRendering(container, config);
-  assignRenderingToWorld(world, camera, renderer, scene);
+  const initImpl = (world: World,
+                   config: ReturnType<typeof extractConfiguration>|PresenterConfig,
+                    presenter: IPresenter) => {
 
-  // Setup input management
-  setupInputManagement(world);
-
-  // Store XR defaults for later explicit launch/offer calls
-  world.xrDefaults = {
-    sessionMode: config.xr.sessionMode,
-    referenceSpace: config.xr.referenceSpace,
-    features: config.xr.features,
+      // Store XR defaults for later explicit launch/offer calls
+      world.xrDefaults = {
+        sessionMode: config.xr.sessionMode,
+        referenceSpace: config.xr.referenceSpace,
+        features: config.xr.features,
+      };
+    
+      // Register core systems (LevelSystem receives defaultLighting)
+      registerCoreSystems(world, config);
+    
+      // Initialize asset manager
+      initializeAssetManager(world.renderer, world);
+    
+      // Register additional systems (UI + Audio on by default)
+      registerAdditionalSystems(world);
+    
+      // Register input and feature systems with explicit priorities
+      registerFeatureSystems(world, config);
+    
+      // Setup render loop (integrates presenter hooks with World update)
+      setupRenderLoop(world, presenter);
+    
+      // Note: Resize handling is now managed by the presenter
+    
+      // Manage XR offer flow if configured
+      if (config.xr.offer && config.xr.offer !== 'none') {
+        manageOfferFlow(world, config.xr.offer);  // requires world.xrDefaults
+      }
   };
 
-  // Register core systems (LevelSystem receives defaultLighting)
-  registerCoreSystems(world, config);
+  // if presenter mode is known, create one
+  if(options?.presenter)
+  {
 
-  // Initialize asset manager
-  initializeAssetManager(renderer, world);
+    // Create and initialize presenter based on session mode
+    const presenter = createPresenter(config); // TODO use createPresenter(mode: PresentationMode,_options?: PresenterConfig,)
+    const presenterConfig = buildPresenterConfig(config);
+    await presenter.initialize(container, presenterConfig);
 
-  // Register additional systems (UI + Audio on by default)
-  registerAdditionalSystems(world);
+    // Get rendering components from presenter and assign to world
+    assignRenderingToWorld(world, presenter, container, presenterConfig);
 
-  // Register input and feature systems with explicit priorities
-  registerFeatureSystems(world, config);
+    // Setup input management (uses world.camera and world.scene from presenter)
+    setupInputManagement(world); 
+    initImpl(world, config, presenter);
+    // Return promise that resolves after asset preloading
+     return finalizeInitialization(world, options.assets).then(async (w) => {
+       // Load initial level or create empty level
+       const levelUrl =
+         typeof options.level === 'string' ? options.level : options.level?.url;
+       if (levelUrl) {
+         await w.loadLevel(levelUrl);
+       } else {
+         await w.loadLevel();
+       }
+       return w;
+     });
+  } else {
+    // otherwise defer complete world initialization until user calls world.setPresenter(pr)
+    // NOTE could save world parameter by binding to 'this'
+    world.onSetPresenter = (world: World, presenter: IPresenter, pconfig: PresenterConfig ) => 
+      {
+      // Get rendering components from presenter and assign to world
+      assignRenderingToWorld(world, presenter, container, pconfig);
 
-  // Setup render loop
-  setupRenderLoop(world, renderer);
+      // Setup input management (uses world.camera and world.scene from presenter)
+      setupInputManagement(world);
 
-  // Setup resize handling
-  setupResizeHandling(camera, renderer);
+      // TODO ... 
+      const config = extractConfiguration(options);
+      initImpl(world, config, presenter);
 
-  // Manage XR offer flow if configured
-  if (config.xr.offer && config.xr.offer !== 'none') {
-    manageOfferFlow(world, config.xr.offer);
+      if(isGISPresenter(presenter))
+      { // only call this now, once LevelSystem is initialized and ActiveLevelRoot exists
+        (presenter as IGISPresenter).initGISRoot(world);
+      }
+
+      return world;
+    };
   }
 
-  // Return promise that resolves after asset preloading
-  return finalizeInitialization(world, options.assets).then(async (w) => {
-    // Load initial level or create empty level
-    const levelUrl =
-      typeof options.level === 'string' ? options.level : options.level?.url;
-    if (levelUrl) {
-      await w.loadLevel(levelUrl);
-    } else {
-      await w.loadLevel();
-    }
-    return w;
-  });
+
+  
 }
 
 /**
  * Create a new World instance with basic ECS setup
  */
-function createWorldInstance(entityCapacity: Number): World {
-  const world = new World(entityCapacity);
+function createWorldInstance(
+  entityCapacity: Number | undefined,
+  checksOn: Boolean | undefined,
+): World {
+  const world = new World(entityCapacity ?? 1024, checksOn ?? false);
   world
     .registerComponent(Transform)
     .registerComponent(Visibility)
@@ -248,59 +294,68 @@ function extractConfiguration(options: WorldOptions) {
 }
 
 /**
- * Setup camera, renderer, and scene
+ * Create the appropriate presenter based on session mode
  */
-function setupRendering(sceneContainer: HTMLDivElement, config: any) {
-  // Camera Setup
-  const camera = new PerspectiveCamera(
-    config.cameraFov,
-    window.innerWidth / window.innerHeight,
-    config.cameraNear,
-    config.cameraFar,
-  );
-  camera.position.set(0, 1.7, 0);
+function createPresenter(
+  config: ReturnType<typeof extractConfiguration>,
+): IPresenter {
+  // Determine presentation mode from XR session mode
+  const mode =
+    config.xr.sessionMode === SessionMode.ImmersiveAR
+      ? PresentationMode.ImmersiveAR
+      : PresentationMode.ImmersiveVR;
 
-  // Renderer Setup
-  const renderer = new WebGLRenderer({
-    antialias: true,
-    alpha: config.xr.sessionMode === SessionMode.ImmersiveAR,
-    // @ts-ignore
-    multiviewStereo: true,
-    stencil: config.stencil,
-  });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.outputColorSpace = SRGBColorSpace;
-  renderer.xr.enabled = true;
-  sceneContainer.appendChild(renderer.domElement);
-
-  // Scene Setup
-  const scene = new Scene();
-
-  return { camera, renderer, scene };
+  return new XRPresenter(mode);
 }
 
 /**
- * Assign rendering components to world instance
+ * Build presenter configuration from world options
+ */
+function buildPresenterConfig(
+  config: ReturnType<typeof extractConfiguration>,
+): PresenterConfig & { fov?: number; near?: number; far?: number } {
+  return {
+    fov: config.cameraFov,
+    near: config.cameraNear,
+    far: config.cameraFar,
+  };
+}
+
+/**
+ * Assign rendering components from presenter to world instance
+ * @note presenter must be initialized! i.e. have scene, renderer constructed
  */
 function assignRenderingToWorld(
   world: World,
-  camera: PerspectiveCamera,
-  renderer: WebGLRenderer,
-  scene: Scene,
+  presenter: IPresenter,
+  container: HTMLDivElement,
+  presenterConfig: PresenterConfig,
 ) {
-  world.scene = scene;
-  world.camera = camera;
-  world.renderer = renderer;
-  // Scene entity (wrap Scene in an entity for parenting convenience)
-  world.sceneEntity = world.createTransformEntity(scene);
+  // REDUNDANT with setPresenter() implementation
+  // Get rendering components from presenter
+  world.scene = presenter.scene;
+  world.camera = presenter.camera;
+  world.renderer = presenter.renderer;
+
+    // Scene entity (wrap Scene in an entity for parenting convenience) required by LevelSystem
+  world.sceneEntity = world.createTransformEntity(presenter.scene);
+
   // Create a default level root so activeLevel is always defined
+  // REDUNDANT with LevelSystem::init()
+  /*
   const levelRootEntity = world.createTransformEntity(undefined, {
     parent: world.sceneEntity,
   });
   levelRootEntity.object3D!.name = 'LevelRoot';
   // @ts-ignore init signal now; LevelSystem will enforce identity each frame
   world.activeLevel = signal(levelRootEntity);
+  */
+
+  if(!world?.presenter)
+  { // Register presenter with world (this also initializes GIS root if applicable)
+    world.setPresenter(presenter, container, presenterConfig);
+  }
+
 }
 
 /**
@@ -310,6 +365,8 @@ function assignRenderingToWorld(
 
 /**
  * Setup XR input management
+ * @note requires world has camera, scene.
+ * Generally world.setPresenter() [actually assignRenderingToWorld] must have been called first
  */
 function setupInputManagement(world: World): XRInputManager {
   const inputManager = new XRInputManager({
@@ -405,8 +462,8 @@ function registerCoreSystems(
     .registerComponent(IBLTexture)
     .registerComponent(IBLGradient)
     // Unified environment system (background + IBL)
-    .registerSystem(EnvironmentSystem)
-    .registerSystem(LevelSystem, {
+    .registerSystem(EnvironmentSystem) // requires world.renderer
+    .registerSystem(LevelSystem, { // requires sceneEntity -> creates ActiveLevelRoot child -> init() must be called before presenter initGISRoot
       configData: { defaultLighting: config.defaultLighting },
     });
 }
@@ -548,41 +605,46 @@ function registerFeatureSystems(
 
 /**
  * Setup the main render loop
+ *
+ * The render loop integrates the presenter's lifecycle hooks with
+ * the World's ECS update cycle:
+ * 1. presenter.preUpdate() - Before ECS systems run
+ * 2. world.update() - Run all ECS systems
+ * 3. presenter.postUpdate() - After ECS systems complete
+ * 4. presenter.render() - Perform the actual render
  */
-function setupRenderLoop(world: World, renderer: WebGLRenderer) {
+function setupRenderLoop(world: World, presenter: IPresenter) {
   const clock = new Clock();
 
   const render = () => {
     const delta = clock.getDelta();
     const elapsedTime = clock.elapsedTime;
+
+    // Update visibility state from XR session
     world.visibilityState.value = (world.session?.visibilityState ??
       VisibilityState.NonImmersive) as VisibilityState;
+
+    // Presenter pre-update hook (before ECS systems)
+    presenter.preUpdate(delta, elapsedTime);
+
     // Run ECS systems in priority order (InputSystem => LocomotionSystem => GrabSystem)
     world.update(delta, elapsedTime);
-    renderer.render(world.scene, world.camera);
+
+    // Presenter post-update hook (after ECS systems)
+    presenter.postUpdate(delta, elapsedTime);
+
+    // Delegate rendering to presenter
+    presenter.render();
   };
 
-  renderer.setAnimationLoop(render);
+  // Use the presenter's renderer to set the animation loop
+  presenter.renderer.setAnimationLoop(render);
 
   // No explicit sessionend handling required on r177; WebXRManager handles
   // render target and canvas sizing restoration internally.
 }
 
-/**
- * Setup window resize handling
- */
-function setupResizeHandling(
-  camera: PerspectiveCamera,
-  renderer: WebGLRenderer,
-) {
-  const onWindowResize = () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  };
-
-  window.addEventListener('resize', onWindowResize, false);
-}
+// Note: setupResizeHandling has been removed - the presenter now handles resize events
 
 /**
  * Finalize initialization with asset preloading

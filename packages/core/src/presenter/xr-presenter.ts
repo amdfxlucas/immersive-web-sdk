@@ -292,7 +292,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
 
     // Start the render loop
     this._clock.start();
-    this._renderer.setAnimationLoop(this._renderLoop.bind(this));
+    this._renderer.setAnimationLoop(this._renderLoop.bind(this)); // maybe store and start the world's render loop here instead ?!
     this._state.value = PresenterState.Running;
   }
 

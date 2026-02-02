@@ -90,6 +90,8 @@ export function initGISRootEntity(world: World, contentRoot: Group): Entity {
   (world as any).gisRootIndex = gisRootEntity.index;
 
   // Parent to active root (moves with XR)
+  // FIXME this creates dependency on LevelSystem! 
+  // It might be possible to insert under sceneEntity directly instead ?!
   world.getActiveRoot().add(gisRootEntity.object3D);
 
   return gisRootEntity;

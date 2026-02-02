@@ -90,7 +90,7 @@ export class World extends ElicsWorld {
   public _resolveLevelLoad: (() => void) | undefined;
   /** Default XR options used when calling {@link World.launchXR} without overrides. */
   public xrDefaults: import('../init/xr.js').XROptions | undefined;
-
+  public onSetPresenter: any;
   // ============================================================================
   // PRESENTER ABSTRACTION
   // ============================================================================
@@ -143,9 +143,14 @@ export class World extends ElicsWorld {
     this._presenter = presenter;
     this._container = container;
     this._presenterConfig = config;
-    if(isGISPresenter(presenter))
+   
+   /* if(isGISPresenter(presenter)) // TODO move to after assignRendering -> into onSetPresenter
     {
       presenter.initGISRoot(this);
+    }*/
+    if(this.onSetPresenter)
+    {
+      this.onSetPresenter(this, presenter, config);
     }
   }
 
