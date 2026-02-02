@@ -33,10 +33,19 @@ import {
   WebGLRenderer,
 } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
+import type { Entity } from '../ecs/entity.js';
+import type { World } from '../ecs/world.js';
 import { CoordinateAdapter } from './coordinate-adapter.js';
+import type {
+  CRSExtent,
+  FitToExtentOptions,
+  GeographicCoords,
+  IGISPresenter,
+  ProjectCRS,
+} from './gis-presenter.js';
+import { GISRootComponent } from './gis-root-component.js';
 import {
   FlyToOptions,
-  GeographicCoords,
   IPresenter,
   MapPresenterOptions,
   PointerCallback,
@@ -169,7 +178,7 @@ class ENUGeometryWrapper {
  *
  * @category Runtime
  */
-export class MapPresenter implements IPresenter {
+export class MapPresenter implements IPresenter, IGISPresenter {
   // ============================================================================
   // PRIVATE STATE
   // ============================================================================
@@ -197,6 +206,18 @@ export class MapPresenter implements IPresenter {
 
   /** Content root for application geometry */
   private _contentRoot!: Group;
+
+  /** GIS root entity (Transform Entity with GISRootComponent) */
+  private _gisRootEntity: Entity | null = null;
+
+  /** Reference to the World for entity creation */
+  private _world: World | null = null;
+
+  /** CRS configuration */
+  private _crs: ProjectCRS | undefined;
+
+  /** Geographic origin */
+  private _origin: GeographicCoords | undefined;
 
   /** Map of ENU geometry wrappers by object UUID */
   private _enuWrappers = new Map<string, ENUGeometryWrapper>();
@@ -311,6 +332,10 @@ export class MapPresenter implements IPresenter {
 
     this._container = container;
     this._config = config as MapPresenterOptions;
+
+    // Store GIS configuration
+    this._crs = config.crs;
+    this._origin = config.origin;
 
     // Initialize coordinate adapter
     if (config.crs && config.origin) {
@@ -534,6 +559,80 @@ export class MapPresenter implements IPresenter {
   }
 
   // ============================================================================
+  // GIS ROOT (IGISPresenter)
+  // ============================================================================
+
+  /**
+   * Get the GIS root entity.
+   *
+   * Returns the Transform Entity with GISRootComponent that serves
+   * as the parent for all GIS content.
+   */
+  getGISRootEntity(): Entity {
+    if (!this._gisRootEntity) {
+      throw new Error(
+        'GIS root entity not initialized. Call initGISRoot() with a World reference first.',
+      );
+    }
+    return this._gisRootEntity;
+  }
+
+  /**
+   * Get the GIS root Object3D.
+   *
+   * Shorthand for `getGISRootEntity().object3D`.
+   */
+  getGISRoot(): Object3D {
+    return this.getGISRootEntity().object3D!;
+  }
+
+  /**
+   * Get the configured CRS.
+   */
+  getCRS(): ProjectCRS | undefined {
+    return this._crs;
+  }
+
+  /**
+   * Get the geographic origin.
+   */
+  getOrigin(): GeographicCoords | undefined {
+    return this._origin;
+  }
+
+  /**
+   * Initialize the GIS root entity.
+   *
+   * This creates a proper Transform Entity with GISRootComponent
+   * to serve as the parent for all GIS content.
+   *
+   * @param world - World instance for entity creation
+   * @internal Called by World when setting up presenter mode
+   */
+  initGISRoot(world: World): void {
+    if (this._gisRootEntity) {
+      console.warn('GIS root entity already initialized');
+      return;
+    }
+
+    this._world = world;
+
+    // Create Transform Entity for GIS root
+    this._gisRootEntity = world.createEntity();
+    this._gisRootEntity.object3D = this._contentRoot;
+    this._contentRoot.name = 'GIS_ROOT';
+
+    // Store entity index on the Object3D for ECS lookups
+    (this._contentRoot as any).entityIdx = this._gisRootEntity.index;
+
+    // Add GISRootComponent tag
+    this._gisRootEntity.addComponent(GISRootComponent);
+
+    // Store reference on world for queries
+    (world as any).gisRootIndex = this._gisRootEntity.index;
+  }
+
+  // ============================================================================
   // INPUT
   // ============================================================================
 
@@ -707,11 +806,13 @@ export class MapPresenter implements IPresenter {
   }
 
   /**
-   * Fit view to extent
+   * Fit view to extent.
+   *
+   * Animates the camera to show the specified CRS extent.
    */
   async fitToExtent(
-    extent: { minX: number; maxX: number; minY: number; maxY: number },
-    options?: { duration?: number },
+    extent: CRSExtent,
+    options?: FitToExtentOptions,
   ): Promise<void> {
     const duration = options?.duration || 500;
 
@@ -751,7 +852,7 @@ export class MapPresenter implements IPresenter {
   /**
    * Pre-update hook
    */
-  preUpdate(delta: number, time: number): void {
+  preUpdate(_delta: number, _time: number): void {
     // Update controls
     if (this._controls) {
       this._controls.update();
@@ -761,7 +862,7 @@ export class MapPresenter implements IPresenter {
   /**
    * Post-update hook
    */
-  postUpdate(delta: number, time: number): void {
+  postUpdate(_delta: number, _time: number): void {
     // Nothing specific needed
   }
 

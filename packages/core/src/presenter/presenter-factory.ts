@@ -52,7 +52,7 @@ import { MapPresenter } from './map-presenter.js';
  */
 export function createPresenter(
   mode: PresentationMode,
-  options?: PresenterConfig,
+  _options?: PresenterConfig,
 ): IPresenter {
   switch (mode) {
     case PresentationMode.ImmersiveAR:

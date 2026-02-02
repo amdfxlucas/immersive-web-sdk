@@ -17,7 +17,7 @@ import {
 } from 'elics';
 import type { QueryManager } from 'elics/lib/query-manager.js';
 import { Object3D, Vector3 } from 'three';
-import type { IPresenter, GeographicCoords } from '../presenter/index.js';
+import type { IPresenter, IGISPresenter, GeographicCoords } from '../presenter/index.js';
 import {
   PerspectiveCamera,
   Scene,
@@ -67,6 +67,9 @@ export interface System<S extends SystemSchema, Q extends SystemQueries>
 
   /** The active presenter (if using presenter mode) */
   readonly presenter: IPresenter | undefined;
+
+  /** The GIS presenter (if presenter supports GIS operations) */
+  readonly gisPresenter: IGISPresenter | undefined;
 
   init(): void;
   update(delta: number, time: number): void;
@@ -161,6 +164,13 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
      */
     get presenter(): IPresenter | undefined {
       return this.world.presenter;
+    }
+
+    /**
+     * Get the GIS presenter (if presenter supports GIS operations)
+     */
+    get gisPresenter(): IGISPresenter | undefined {
+      return this.world.gisPresenter;
     }
 
     createEntity(): Entity {

@@ -19,11 +19,13 @@ import {
   launchXR,
 } from '../init/index.js';
 import { LevelTag } from '../level/index.js';
-import type {
-  IPresenter,
-  PresentationMode,
-  GeographicCoords,
-  PresenterConfig,
+import {
+  isGISPresenter,
+  type IPresenter,
+  type IGISPresenter,
+  type PresentationMode,
+  type GeographicCoords,
+  type PresenterConfig,
 } from '../presenter/index.js';
 import type { Object3DEventMap } from '../runtime/index.js';
 import {
@@ -434,9 +436,19 @@ export class World extends ElicsWorld {
   // ============================================================================
 
   /**
+   * Get the GIS presenter if available.
+   *
+   * Returns the presenter cast to IGISPresenter if it supports GIS operations,
+   * or undefined otherwise.
+   */
+  get gisPresenter(): IGISPresenter | undefined {
+    return isGISPresenter(this._presenter) ? this._presenter : undefined;
+  }
+
+  /**
    * Convert geographic coordinates (WGS84) to scene coordinates.
    *
-   * Requires presenter mode with CRS and origin configured.
+   * Requires a GIS-enabled presenter with CRS and origin configured.
    *
    * @param coords - Geographic coordinates (lat/lon/height)
    * @returns Scene coordinates as Vector3
@@ -448,33 +460,35 @@ export class World extends ElicsWorld {
    * ```
    */
   geographicToScene(coords: GeographicCoords): Vector3 {
-    if (!this._presenter) {
-      console.warn('geographicToScene requires presenter mode');
+    const gis = this.gisPresenter;
+    if (!gis) {
+      console.warn('geographicToScene requires a GIS-enabled presenter');
       return new Vector3(0, coords.h || 0, 0);
     }
-    return this._presenter.geographicToScene(coords);
+    return gis.geographicToScene(coords);
   }
 
   /**
    * Convert scene coordinates to geographic coordinates (WGS84).
    *
-   * Requires presenter mode with CRS and origin configured.
+   * Requires a GIS-enabled presenter with CRS and origin configured.
    *
    * @param sceneCoords - Scene coordinates
    * @returns Geographic coordinates
    */
   sceneToGeographic(sceneCoords: Vector3): GeographicCoords {
-    if (!this._presenter) {
-      console.warn('sceneToGeographic requires presenter mode');
+    const gis = this.gisPresenter;
+    if (!gis) {
+      console.warn('sceneToGeographic requires a GIS-enabled presenter');
       return { lat: 0, lon: 0, h: sceneCoords.y };
     }
-    return this._presenter.sceneToGeographic(sceneCoords);
+    return gis.sceneToGeographic(sceneCoords);
   }
 
   /**
    * Convert project CRS coordinates to scene coordinates.
    *
-   * Requires presenter mode with CRS and origin configured.
+   * Requires a GIS-enabled presenter with CRS and origin configured.
    *
    * @param x - CRS X coordinate (Easting)
    * @param y - CRS Y coordinate (Northing)
@@ -482,27 +496,29 @@ export class World extends ElicsWorld {
    * @returns Scene coordinates as Vector3
    */
   crsToScene(x: number, y: number, z: number = 0): Vector3 {
-    if (!this._presenter) {
-      console.warn('crsToScene requires presenter mode');
+    const gis = this.gisPresenter;
+    if (!gis) {
+      console.warn('crsToScene requires a GIS-enabled presenter');
       return new Vector3(x, z, -y);
     }
-    return this._presenter.crsToScene(x, y, z);
+    return gis.crsToScene(x, y, z);
   }
 
   /**
    * Convert scene coordinates to project CRS coordinates.
    *
-   * Requires presenter mode with CRS and origin configured.
+   * Requires a GIS-enabled presenter with CRS and origin configured.
    *
    * @param sceneCoords - Scene coordinates
    * @returns CRS coordinates
    */
   sceneToCRS(sceneCoords: Vector3): { x: number; y: number; z: number } {
-    if (!this._presenter) {
-      console.warn('sceneToCRS requires presenter mode');
+    const gis = this.gisPresenter;
+    if (!gis) {
+      console.warn('sceneToCRS requires a GIS-enabled presenter');
       return { x: sceneCoords.x, y: -sceneCoords.z, z: sceneCoords.y };
     }
-    return this._presenter.sceneToCRS(sceneCoords);
+    return gis.sceneToCRS(sceneCoords);
   }
 
   // ============================================================================
@@ -532,7 +548,7 @@ export class World extends ElicsWorld {
   /**
    * Fit view to show an extent in CRS coordinates.
    *
-   * Requires presenter mode. Not supported in XR mode.
+   * Requires a GIS-enabled presenter. Not supported in XR mode.
    *
    * @param extent - CRS extent to fit
    * @param options - Animation options
@@ -541,11 +557,12 @@ export class World extends ElicsWorld {
     extent: { minX: number; maxX: number; minY: number; maxY: number },
     options?: { duration?: number },
   ): Promise<void> {
-    if (!this._presenter) {
-      console.warn('fitToExtent requires presenter mode');
+    const gis = this.gisPresenter;
+    if (!gis) {
+      console.warn('fitToExtent requires a GIS-enabled presenter');
       return;
     }
-    return this._presenter.fitToExtent(extent, options);
+    return gis.fitToExtent(extent, options);
   }
 
   /**
