@@ -146,6 +146,10 @@ export class World extends ElicsWorld {
     this._presenter = presenter;
     this._container = container;
     this._presenterConfig = config;
+    if(isGISPresenter(presenter))
+    {
+      presenter.initGISRoot(this);
+    }
   }
 
   constructor(entityCapacity: Number, checksOn: Boolean = false) {
