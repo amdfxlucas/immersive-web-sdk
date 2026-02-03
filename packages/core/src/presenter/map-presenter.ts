@@ -211,7 +211,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   private _gisRootEntity: Entity | null = null;
 
   /** Reference to the World for entity creation */
-  private _world: World | null = null;
+  private _world!: World ;
 
   /** CRS configuration */
   private _crs: ProjectCRS | undefined;
@@ -392,6 +392,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._instance.notifyChange();
 
     // TODO this._renderer.setAnimationLoop( original Giro3D loop + Elics ECS render loop)
+  }
+
+  setWorld(world: World){
+    this._world = world;
   }
 
   /**

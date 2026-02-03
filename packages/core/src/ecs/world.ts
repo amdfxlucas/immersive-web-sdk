@@ -144,10 +144,7 @@ export class World extends ElicsWorld {
     this._container = container;
     this._presenterConfig = config;
    
-   /* if(isGISPresenter(presenter)) // TODO move to after assignRendering -> into onSetPresenter
-    {
-      presenter.initGISRoot(this);
-    }*/
+    presenter.setWorld(this);
     if(this.onSetPresenter)
     {
       this.onSetPresenter(this, presenter, config);
