@@ -170,7 +170,7 @@ export async function initializeWorld(
       };
     
       // Register core systems (LevelSystem receives defaultLighting)
-      registerCoreSystems(world, config);
+      registerCoreSystems(world, config as ReturnType<typeof extractConfiguration>);
     
       // Initialize asset manager
       initializeAssetManager(world.renderer, world);
@@ -241,6 +241,7 @@ export async function initializeWorld(
 
       return world;
     };
+    return world;
   }
 
 
@@ -638,7 +639,8 @@ function setupRenderLoop(world: World, presenter: IPresenter) {
   };
 
   // Use the presenter's renderer to set the animation loop
-  presenter.renderer.setAnimationLoop(render);
+  // presenter.renderer.setAnimationLoop(render);
+  presenter.start(render);
 
   // No explicit sessionend handling required on r177; WebXRManager handles
   // render target and canvas sizing restoration internally.

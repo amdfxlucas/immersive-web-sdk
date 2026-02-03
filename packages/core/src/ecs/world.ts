@@ -346,7 +346,7 @@ export class World extends ElicsWorld {
     }
 
     // Start the presenter
-    await this._presenter.start();
+   //  await this._presenter.start(); // already done in setupRenderLoop()
 
     // For XR modes, request a session
     if (mode === 'immersive-ar' || mode === 'immersive-vr') {

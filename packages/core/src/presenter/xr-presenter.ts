@@ -285,14 +285,17 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   /**
    * Start the render loop
    */
-  async start(): Promise<void> {
+  async start(loop: any): Promise<void> {
     if (this._state.value !== PresenterState.Ready) {
       throw new Error('XRPresenter not ready to start');
     }
 
     // Start the render loop
     this._clock.start();
-    this._renderer.setAnimationLoop(this._renderLoop.bind(this)); // maybe store and start the world's render loop here instead ?!
+  //  this._renderer.setAnimationLoop(this._renderLoop.bind(this));
+    //  store and start the world's render loop here 
+    this._renderer.setAnimationLoop(loop);
+
     this._state.value = PresenterState.Running;
   }
 
@@ -308,7 +311,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
       }
     }
 
-    this._renderer.setAnimationLoop(null);
+ //   this._renderer.setAnimationLoop(null);  // done by world ?!
     this._clock.stop();
     this._state.value = PresenterState.Ready;
   }
