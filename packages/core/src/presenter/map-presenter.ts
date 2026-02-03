@@ -379,8 +379,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
   /**
    * Start the presenter
+   * @TODO cannot discard world's animation loop, because it drives the updates in the ECS systems
    */
-  async start(): Promise<void> {
+  async start(_: any = null): Promise<void> {
     if (this._state.value !== PresenterState.Ready) {
       throw new Error('MapPresenter not ready to start');
     }
@@ -389,6 +390,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._state.value = PresenterState.Running;
     this._needsRender = true;
     this._instance.notifyChange();
+
+    // TODO this._renderer.setAnimationLoop( original Giro3D loop + Elics ECS render loop)
   }
 
   /**

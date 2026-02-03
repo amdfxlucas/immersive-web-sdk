@@ -237,8 +237,10 @@ export interface IPresenter {
 
   /**
    * Start the render loop
+   * @param loop (time, frame) =>{} WebGLRenderer animation loop, for renderer.setAnimationLoop(loop)
+   *          installed by World on Presenter
    */
-  start(): Promise<void>;
+  start(loop: any): Promise<void>;
 
   /**
    * Stop the render loop
