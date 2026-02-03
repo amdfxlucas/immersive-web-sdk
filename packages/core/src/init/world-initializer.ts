@@ -6,11 +6,10 @@
  */
 
 import { XRInputManager } from '@iwsdk/xr-input';
-import { signal } from '@preact/signals-core';
 import { AssetManager, AssetManifest } from '../asset/index.js';
 import { AudioSource, AudioSystem } from '../audio/index.js';
 import { CameraSource, CameraSystem } from '../camera/index.js';
-import { World, VisibilityState } from '../ecs/index.js';
+import { World, VisibilityState, type WorldConstructor } from '../ecs/index.js';
 import {
   DomeTexture,
   DomeGradient,
@@ -143,23 +142,25 @@ export type WorldOptions = {
  *
  * @param sceneContainer HTML container for the renderer canvas.
  * @param options Configuration options for the world.
+ * @param WorldClass Optional World constructor to use (defaults to World, can be GISWorld).
  * @returns Promise that resolves to the initialized {@link World} instance.
  *
  * @remarks
  * This function powers {@link World.create}. Prefer using that static helper.
  */
-export async function initializeWorld(
+export async function initializeWorld<T extends World = World>(
   container: HTMLDivElement,
   options: WorldOptions = {},
-): Promise<World> {
+  WorldClass?: WorldConstructor<T>,
+): Promise<T> {
   // Create and configure world instance
-  const world = createWorldInstance(options.entityCapacity, options.checksOn);
+  const world = createWorldInstance(options.entityCapacity, options.checksOn, WorldClass) as T;
 
   // Extract configuration options
   const config = extractConfiguration(options);
 
   const initImpl = (world: World,
-                   config: ReturnType<typeof extractConfiguration>|PresenterConfig,
+                   config: ReturnType<typeof extractConfiguration>,
                     presenter: IPresenter) => {
 
       // Store XR defaults for later explicit launch/offer calls
@@ -168,24 +169,24 @@ export async function initializeWorld(
         referenceSpace: config.xr.referenceSpace,
         features: config.xr.features,
       };
-    
+
       // Register core systems (LevelSystem receives defaultLighting)
-      registerCoreSystems(world, config as ReturnType<typeof extractConfiguration>);
-    
+      registerCoreSystems(world, config);
+
       // Initialize asset manager
       initializeAssetManager(world.renderer, world);
-    
+
       // Register additional systems (UI + Audio on by default)
       registerAdditionalSystems(world);
-    
+
       // Register input and feature systems with explicit priorities
       registerFeatureSystems(world, config);
-    
+
       // Setup render loop (integrates presenter hooks with World update)
       setupRenderLoop(world, presenter);
-    
+
       // Note: Resize handling is now managed by the presenter
-    
+
       // Manage XR offer flow if configured
       if (config.xr.offer && config.xr.offer !== 'none') {
         manageOfferFlow(world, config.xr.offer);  // requires world.xrDefaults
@@ -208,7 +209,7 @@ export async function initializeWorld(
     setupInputManagement(world); 
     initImpl(world, config, presenter);
     // Return promise that resolves after asset preloading
-     return finalizeInitialization(world, options.assets).then(async (w) => {
+     return finalizeInitialization<T>(world, options.assets).then(async (w) => {
        // Load initial level or create empty level
        const levelUrl =
          typeof options.level === 'string' ? options.level : options.level?.url;
@@ -251,16 +252,21 @@ export async function initializeWorld(
 /**
  * Create a new World instance with basic ECS setup
  */
-function createWorldInstance(
+function createWorldInstance<T extends World = World>(
   entityCapacity: Number | undefined,
   checksOn: Boolean | undefined,
-): World {
-  const world = new World(entityCapacity ?? 1024, checksOn ?? false);
+  WorldClass?: WorldConstructor<T>,
+): T {
+  const Constructor = WorldClass ?? World;
+  const world = new Constructor(
+    (entityCapacity ?? 1024) as number,
+    (checksOn ?? false) as boolean,
+  ) as T;
   world
     .registerComponent(Transform)
     .registerComponent(Visibility)
-    .registerComponent(LevelTag)
-    .registerSystem(TransformSystem)
+    .registerComponent(LevelTag); // required by LevelSystem
+    world.registerSystem(TransformSystem)
     .registerSystem(VisibilitySystem);
   return world;
 }
@@ -461,10 +467,10 @@ function registerCoreSystems(
     .registerComponent(DomeTexture)
     .registerComponent(DomeGradient)
     .registerComponent(IBLTexture)
-    .registerComponent(IBLGradient)
+    .registerComponent(IBLGradient);
     // Unified environment system (background + IBL)
-    .registerSystem(EnvironmentSystem) // requires world.renderer
-    .registerSystem(LevelSystem, { // requires sceneEntity -> creates ActiveLevelRoot child -> init() must be called before presenter initGISRoot
+    world.registerSystem(EnvironmentSystem); // requires world.renderer
+    world.registerSystem(LevelSystem, { // requires sceneEntity -> creates ActiveLevelRoot child -> init() must be called before presenter initGISRoot
       configData: { defaultLighting: config.defaultLighting },
     });
 }
@@ -651,11 +657,11 @@ function setupRenderLoop(world: World, presenter: IPresenter) {
 /**
  * Finalize initialization with asset preloading
  */
-function finalizeInitialization(
-  world: World,
+function finalizeInitialization<T extends World = World>(
+  world: T,
   assets?: AssetManifest,
-): Promise<World> {
-  return new Promise<World>((resolve, reject) => {
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
     if (!assets || Object.keys(assets).length === 0) {
       return resolve(world);
     }

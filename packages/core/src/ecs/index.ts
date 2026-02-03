@@ -7,6 +7,7 @@
 
 export * from './system.js';
 export * from './world.js';
+export * from './gis-world.js';
 export * from './component.js';
 export * from './entity.js';
 export * from './component-registry.js';

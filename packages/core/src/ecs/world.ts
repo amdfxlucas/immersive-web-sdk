@@ -9,7 +9,6 @@ import { XRInputManager, XROrigin } from '@iwsdk/xr-input';
 import type { PointerEventsMap } from '@pmndrs/pointer-events';
 import { Signal, signal } from '@preact/signals-core';
 import { AnyComponent, World as ElicsWorld } from 'elics';
-import { Vector3 } from 'three';
 import { AssetManager } from '../asset/index.js';
 // Environment is driven by components/systems; no world helpers
 import {
@@ -20,11 +19,8 @@ import {
 } from '../init/index.js';
 import { LevelTag } from '../level/index.js';
 import {
-  isGISPresenter,
   type IPresenter,
-  type IGISPresenter,
   type PresentationMode,
-  type GeographicCoords,
   type PresenterConfig,
 } from '../presenter/index.js';
 import type { Object3DEventMap } from '../runtime/index.js';
@@ -44,6 +40,18 @@ export enum VisibilityState {
   Visible = 'visible',
   VisibleBlurred = 'visible-blurred',
 }
+
+/**
+ * Constructor type for World and its subclasses.
+ *
+ * Used by initializeWorld to create instances of World or GISWorld.
+ *
+ * @category Runtime
+ */
+export type WorldConstructor<T extends World = World> = new (
+  entityCapacity: number,
+  checksOn?: boolean,
+) => T;
 
 export type GradientColors = {
   sky: number;
@@ -151,7 +159,7 @@ export class World extends ElicsWorld {
     }
   }
 
-  constructor(entityCapacity: Number, checksOn: Boolean = false) {
+  constructor(entityCapacity: number, checksOn: boolean = false) {
     super({ entityCapacity, checksOn });
     const originalReleaseFunc = this.entityManager.releaseEntityInstance.bind(
       this.entityManager,
@@ -417,7 +425,9 @@ export class World extends ElicsWorld {
     }
 
     // Start the new presenter
-    await this._presenter.start();
+    // Note: When switching modes, the render loop is already managed by the world
+    // The presenter.start() receives null here as the loop continues from the previous state
+    await this._presenter.start(null);
   }
 
   /**
@@ -435,140 +445,6 @@ export class World extends ElicsWorld {
     this.scene.add(this.input.xrOrigin);
     this.input.xrOrigin.add(this.camera);
     this.player = this.input.xrOrigin;
-  }
-
-  // ============================================================================
-  // COORDINATE TRANSFORMATIONS
-  // ============================================================================
-
-  /**
-   * Get the GIS presenter if available.
-   *
-   * Returns the presenter cast to IGISPresenter if it supports GIS operations,
-   * or undefined otherwise.
-   */
-  get gisPresenter(): IGISPresenter | undefined {
-    return isGISPresenter(this._presenter) ? this._presenter : undefined;
-  }
-
-  /**
-   * Convert geographic coordinates (WGS84) to scene coordinates.
-   *
-   * Requires a GIS-enabled presenter with CRS and origin configured.
-   *
-   * @param coords - Geographic coordinates (lat/lon/height)
-   * @returns Scene coordinates as Vector3
-   *
-   * @example
-   * ```ts
-   * const scenePos = world.geographicToScene({ lat: 51.05, lon: 13.74, h: 100 });
-   * mesh.position.copy(scenePos);
-   * ```
-   */
-  geographicToScene(coords: GeographicCoords): Vector3 {
-    const gis = this.gisPresenter;
-    if (!gis) {
-      console.warn('geographicToScene requires a GIS-enabled presenter');
-      return new Vector3(0, coords.h || 0, 0);
-    }
-    return gis.geographicToScene(coords);
-  }
-
-  /**
-   * Convert scene coordinates to geographic coordinates (WGS84).
-   *
-   * Requires a GIS-enabled presenter with CRS and origin configured.
-   *
-   * @param sceneCoords - Scene coordinates
-   * @returns Geographic coordinates
-   */
-  sceneToGeographic(sceneCoords: Vector3): GeographicCoords {
-    const gis = this.gisPresenter;
-    if (!gis) {
-      console.warn('sceneToGeographic requires a GIS-enabled presenter');
-      return { lat: 0, lon: 0, h: sceneCoords.y };
-    }
-    return gis.sceneToGeographic(sceneCoords);
-  }
-
-  /**
-   * Convert project CRS coordinates to scene coordinates.
-   *
-   * Requires a GIS-enabled presenter with CRS and origin configured.
-   *
-   * @param x - CRS X coordinate (Easting)
-   * @param y - CRS Y coordinate (Northing)
-   * @param z - CRS Z coordinate (Height)
-   * @returns Scene coordinates as Vector3
-   */
-  crsToScene(x: number, y: number, z: number = 0): Vector3 {
-    const gis = this.gisPresenter;
-    if (!gis) {
-      console.warn('crsToScene requires a GIS-enabled presenter');
-      return new Vector3(x, z, -y);
-    }
-    return gis.crsToScene(x, y, z);
-  }
-
-  /**
-   * Convert scene coordinates to project CRS coordinates.
-   *
-   * Requires a GIS-enabled presenter with CRS and origin configured.
-   *
-   * @param sceneCoords - Scene coordinates
-   * @returns CRS coordinates
-   */
-  sceneToCRS(sceneCoords: Vector3): { x: number; y: number; z: number } {
-    const gis = this.gisPresenter;
-    if (!gis) {
-      console.warn('sceneToCRS requires a GIS-enabled presenter');
-      return { x: sceneCoords.x, y: -sceneCoords.z, z: sceneCoords.y };
-    }
-    return gis.sceneToCRS(sceneCoords);
-  }
-
-  // ============================================================================
-  // CAMERA / NAVIGATION
-  // ============================================================================
-
-  /**
-   * Animate camera to geographic coordinates.
-   *
-   * Requires presenter mode. In XR mode, this may offset content rather
-   * than move the user.
-   *
-   * @param coords - Target geographic coordinates
-   * @param options - Animation options
-   */
-  async flyTo(
-    coords: GeographicCoords,
-    options?: { duration?: number; altitude?: number },
-  ): Promise<void> {
-    if (!this._presenter) {
-      console.warn('flyTo requires presenter mode');
-      return;
-    }
-    return this._presenter.flyTo(coords, options);
-  }
-
-  /**
-   * Fit view to show an extent in CRS coordinates.
-   *
-   * Requires a GIS-enabled presenter. Not supported in XR mode.
-   *
-   * @param extent - CRS extent to fit
-   * @param options - Animation options
-   */
-  async fitToExtent(
-    extent: { minX: number; maxX: number; minY: number; maxY: number },
-    options?: { duration?: number },
-  ): Promise<void> {
-    const gis = this.gisPresenter;
-    if (!gis) {
-      console.warn('fitToExtent requires a GIS-enabled presenter');
-      return;
-    }
-    return gis.fitToExtent(extent, options);
   }
 
   /**
