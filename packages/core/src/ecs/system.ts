@@ -17,7 +17,7 @@ import {
 } from 'elics';
 import type { QueryManager } from 'elics/lib/query-manager.js';
 import { Object3D, Vector3 } from 'three';
-import type { IPresenter, IGISPresenter, GeographicCoords } from '../presenter/index.js';
+import { isGISPresenter, type IPresenter, type IGISPresenter, type GeographicCoords } from '../presenter/index.js';
 import {
   PerspectiveCamera,
   Scene,
@@ -170,7 +170,7 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
      * Get the GIS presenter (if presenter supports GIS operations)
      */
     get gisPresenter(): IGISPresenter | undefined {
-      return this.world.gisPresenter;
+      return isGISPresenter(this.presenter) ? this.presenter : undefined;
     }
 
     createEntity(): Entity {
@@ -241,31 +241,58 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
     /**
      * Convert geographic coordinates to scene coordinates.
      *
-     * Works in both XR (ENU) and Map (CRS) modes when presenter is active.
+     * Works in both XR (ENU) and Map (CRS) modes when a GIS presenter is active.
+     * Returns a zero-height vector if no GIS presenter is available.
      */
     geographicToScene(coords: GeographicCoords): Vector3 {
-      return this.world.geographicToScene(coords);
+      const gis = this.gisPresenter;
+      if (!gis) {
+        console.warn('geographicToScene requires a GIS-enabled presenter');
+        return new Vector3(0, coords.h || 0, 0);
+      }
+      return gis.geographicToScene(coords);
     }
 
     /**
      * Convert scene coordinates to geographic coordinates.
+     *
+     * Returns null coordinates if no GIS presenter is available.
      */
     sceneToGeographic(sceneCoords: Vector3): GeographicCoords {
-      return this.world.sceneToGeographic(sceneCoords);
+      const gis = this.gisPresenter;
+      if (!gis) {
+        console.warn('sceneToGeographic requires a GIS-enabled presenter');
+        return { lat: 0, lon: 0, h: sceneCoords.y };
+      }
+      return gis.sceneToGeographic(sceneCoords);
     }
 
     /**
      * Convert CRS coordinates to scene coordinates.
+     *
+     * Returns a simple mapping if no GIS presenter is available.
      */
     crsToScene(x: number, y: number, z: number = 0): Vector3 {
-      return this.world.crsToScene(x, y, z);
+      const gis = this.gisPresenter;
+      if (!gis) {
+        console.warn('crsToScene requires a GIS-enabled presenter');
+        return new Vector3(x, z, -y);
+      }
+      return gis.crsToScene(x, y, z);
     }
 
     /**
      * Convert scene coordinates to CRS coordinates.
+     *
+     * Returns a simple mapping if no GIS presenter is available.
      */
     sceneToCRS(sceneCoords: Vector3): { x: number; y: number; z: number } {
-      return this.world.sceneToCRS(sceneCoords);
+      const gis = this.gisPresenter;
+      if (!gis) {
+        console.warn('sceneToCRS requires a GIS-enabled presenter');
+        return { x: sceneCoords.x, y: -sceneCoords.z, z: sceneCoords.y };
+      }
+      return gis.sceneToCRS(sceneCoords);
     }
   };
 }
