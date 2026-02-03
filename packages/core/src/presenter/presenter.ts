@@ -46,6 +46,8 @@ import type { GeographicCoords, ProjectCRS, CRSExtent } from './gis-presenter.js
 // Re-export GIS types for convenience
 export type { GeographicCoords, ProjectCRS, CRSExtent };
 
+
+import type { World } from '../ecs/world.js';
 /**
  * Supported presentation modes
  *
@@ -242,6 +244,8 @@ export interface IPresenter {
    */
   start(loop: any): Promise<void>;
 
+
+  setWorld(world: World): void;
   /**
    * Stop the render loop
    */

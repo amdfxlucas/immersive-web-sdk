@@ -115,7 +115,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   private _gisRootEntity: Entity | null = null;
 
   /** Reference to the World for entity creation */
-  private _world: World | null = null;
+  private _world!: World;
 
   /** Coordinate adapter for geographic transforms */
   private _coordAdapter: CoordinateAdapter | null = null;
@@ -282,6 +282,11 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     this._state.value = PresenterState.Ready;
   }
 
+  /**@note called by world in setPresenter() */
+  setWorld(world: World){
+    this._world = world;
+  }
+
   /**
    * Start the render loop
    */
@@ -292,7 +297,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
 
     // Start the render loop
     this._clock.start();
-  //  this._renderer.setAnimationLoop(this._renderLoop.bind(this));
+
     //  store and start the world's render loop here 
     this._renderer.setAnimationLoop(loop);
 
@@ -691,7 +696,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     try {
       // Set reference space type
       this._renderer.xr.setReferenceSpaceType(
-        ReferenceSpaceType.LocalFloor as unknown as XRReferenceSpaceType,
+        ReferenceSpaceType.LocalFloor as unknown as XRReferenceSpaceType, // TODO remove hardcoding
       );
       await this._renderer.xr.setSession(session);
       this._session = session;
@@ -708,6 +713,13 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   private _onSessionEnd(): void {
     this._session?.removeEventListener('end', this._onSessionEnd.bind(this));
     this._session = null;
+    // TODO reset state to ready ?!
+
+    // end of xr session stops rendering // but it should only pause it !!
+    this._world.visibilityState.value = VisibilityState.NonImmersive;
+    // this._renderer.setAnimationLoop(null);
+    this._clock.stop();
+    this._state.value = PresenterState.Ready; 
   }
 
   /**
