@@ -175,13 +175,24 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
     if (res.metaspatial) {
       const metaProjectPath = join(outDir, 'metaspatial');
       const metaMainPath = join(metaProjectPath, 'Main.metaspatial');
-      prereqs.push({
-        level: 'important',
-        message:
-          `Open the Meta Spatial Editor project.\n` +
-          `Project Folder: ${metaProjectPath}\n` +
-          `Open in Meta Spatial Editor: ${metaMainPath}`,
-      });
+
+      if (res.mseInstallResult?.installed && !res.mseInstallResult.manual) {
+        prereqs.push({
+          level: 'info',
+          message:
+            `Meta Spatial Editor is ready!\n` +
+            `Project Folder: ${metaProjectPath}\n` +
+            `Open in Meta Spatial Editor: ${metaMainPath}`,
+        });
+      } else {
+        prereqs.push({
+          level: 'important',
+          message:
+            `After installing Meta Spatial Editor, open the project:\n` +
+            `Project Folder: ${metaProjectPath}\n` +
+            `Open in Meta Spatial Editor: ${metaMainPath}`,
+        });
+      }
     }
     // Print prerequisites first, then next steps
     printPrerequisites(prereqs);

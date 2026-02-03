@@ -6,7 +6,8 @@
  */
 
 import prompts from 'prompts';
-import { PromptResult, TriState, VariantId } from './types.js';
+import { installMSE } from './mse-installer.js';
+import { MSEInstallResult, PromptResult, TriState, VariantId } from './types.js';
 
 export async function promptFlow(nameArg?: string): Promise<PromptResult> {
   let cancelled = false;
@@ -242,11 +243,11 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
       name: 'metaspatialChoice',
       message: 'Enable Meta Spatial Editor integration?',
       choices: [
-        { title: 'No (Can change later)', value: false },
         {
-          title: 'Yes (Additional software required)',
+          title: 'Yes (Install Meta Spatial Editor if needed)',
           value: true,
         },
+        { title: 'No (Can change later)', value: false },
       ],
       initial: 0,
     },
@@ -254,12 +255,18 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
   );
   const metaspatial = !!metaAnswer.metaspatialChoice;
 
+  let mseInstallResult: MSEInstallResult | undefined;
+
   if (metaspatial) {
-    prerequisites.push({
-      level: 'important',
-      message:
-        'Required: Install Meta Spatial Editor (v9 or later). The build pipeline depends on its CLI tool; without it, build or dev WILL FAIL. Download: https://developers.meta.com/horizon/documentation/spatial-sdk/spatial-editor-overview',
-    });
+    mseInstallResult = await installMSE();
+
+    if (mseInstallResult.manual || mseInstallResult.outdated) {
+      prerequisites.push({
+        level: 'important',
+        message:
+          'Required: Install Meta Spatial Editor (v9 or later). The build pipeline depends on its CLI tool; without it, build or dev WILL FAIL. Download: https://developers.meta.com/horizon/documentation/spatial-sdk/spatial-editor-overview',
+      });
+    }
   }
 
   const { gitInit, installNow } = await prompts(
@@ -307,5 +314,6 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
     xrFeatureStates,
     actionItems,
     prerequisites,
+    mseInstallResult,
   };
 }
