@@ -106,8 +106,8 @@ export interface XRPresenterOptions extends PresenterConfig {
  * @category Runtime
  */
 export interface MapPresenterOptions extends PresenterConfig {
-  // Giro3d InstanceOptions
-  camera?: PerspectiveCamera | OrthographicCamera;
+  // -------  Giro3d InstanceOptions  ---------------
+  camera?: PerspectiveCamera | OrthographicCamera; // TODO move to PresenterContext  Abstraction
   renderer?: WebGLRenderer | WebGLRendererParameters;
   scene3D?: Scene;
   backgroundColor?: string;
@@ -121,7 +121,7 @@ export interface MapPresenterOptions extends PresenterConfig {
   };
   /** Initial camera altitude in meters */
   initialAltitude?: number;
-  // Giro3d MapOptions
+  // ---------Giro3d MapOptions -----------------------
   name?: string;
   /*
     castShadow?: boolean;

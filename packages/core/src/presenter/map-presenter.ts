@@ -56,6 +56,8 @@ import {
   PresenterConfig,
   PresenterState,
 } from './presenter.js';
+import { AnySchema, ComponentRegistry } from 'elics';
+import { getComponent } from '../ecs/helpers.js';
 
 // ============================================================================
 // GIRO3D TYPES (dynamically loaded)
@@ -66,6 +68,8 @@ let Instance: any;
 /** Giro3D Extent class */
 let Extent: any;
 let ElevationLayer: any;
+let Object3DLayer: any;
+let Object3DSource: any;
 let CoordinateSystem: any; 
 /** Giro3D Map class */
 let Giro3DMap: any;
@@ -95,7 +99,9 @@ async function loadGiro3D(): Promise<boolean> {
     Giro3DMap = giro3d.Map;
     CoordinateSystem = giro3d.geographic.CoordinateSystem;
     ColorLayer = giro3d.layer.ColorLayer;
+    Object3DLayer = giro3d.layer.Object3DLayer;
     ElevationLayer = giro3d.layer.ElevationLayer;
+    Object3DSource = giro3d.Object3DSource;
     TiledImageSource = giro3d.TiledImageSource;
     giro3dLoaded = true;
     return true;
@@ -104,6 +110,45 @@ async function loadGiro3D(): Promise<boolean> {
     return false;
   }
 }
+
+export interface FeatureSourceOptions {
+  crs: typeof CoordinateSystem;
+  extent: typeof Extent;
+  fetcher: any;
+  featureclass_name: string;
+}
+
+class FeatureSource extends Object3DSource
+{
+  constructor(opts: FeatureSourceOptions){
+    super();
+    this._fetcher = opts.fetcher;
+    this.featureclass_name = opts.featureclass_name;
+    this.crs = opts.crs;
+    this.extent = opts.xtent;
+  }
+
+  async getObjects({ extent, signal }) {
+    const bbox = `${extent.west},${extent.south},${extent.east},${extent.north}`;
+    const meshes = await myBackend.fetchFeatures(bbox, { signal });
+    return { objects: meshes };
+  }
+  // getCrs() { return 'EPSG:3857'; }
+  // getExtent() { return this.dataExtent; }
+
+      /**
+     * Returns the CRS of this source.
+     * @returns The coordinate reference system.
+     */
+    getCrs(): CoordinateSystem;
+
+    /**
+     * Returns the extent of this source, or undefined if unbounded.
+     * @returns The extent of the source data.
+     */
+    getExtent(): Extent | undefined;
+}
+
 
 // ============================================================================
 // ENU GEOMETRY WRAPPER
@@ -180,6 +225,32 @@ class ENUGeometryWrapper {
  * });
  * await presenter.start();
  * ```
+ * 
+ * Scene Graph Structure
+ *  ```
+ *  Instance.scene (THREE.Scene)
+ *  └── map.object3d (THREE.Group)
+ *      ├── TileMesh (LOD 0, tile 0)
+ *      │   ├── TileMesh (LOD 1, child 0)
+ *      │   │   └── ... (deeper tiles - higher zoom)
+ *      │   ├── TileMesh (LOD 1, child 1)
+ *      │   └── ...
+ *      └── TileMesh (LOD 0, tile 1)
+ *          └── ...
+ *  ```
+ * 
+ * In the context of Object3DLayer, when objects are attached to tiles, the hierarchy becomes:
+
+  ```
+  . . . 
+  :
+  └── TileMesh
+      └── Group (object3d-layer-{layerId}-tile-{tileId})
+          ├── BuildingMesh1
+          :
+          ├── BuildingMesh2
+          └── BatchedMesh (if batching enabled)
+  ```
  *
  * @category Runtime
  */
@@ -340,6 +411,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     if(!config.crs){
       throw "Not CRS for MapPresenter specified";
     }
+    if (!config.extent) {
+      throw `No extent specified for MapPresenter`;
+    }
 
     this._container = container;
     this._config = config as MapPresenterOptions;
@@ -373,14 +447,17 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._renderer = this._instance.renderer;
 
     // Create map entity if extent provided
-    if (config.extent) {
-      await this._createMap(config.extent, crs);
-    }
-
+    await this._createMap(config.extent, crs);
+      // root group that contains tiles at root of hierarchy (LOD 0) as children
+    this._contentRoot = this._map.object3D;
+    
+    /*
     // Create GIS content root
     this._contentRoot = new Group();
     this._contentRoot.name = 'ContentRoot';
     this._instance.add(this._contentRoot); // FIXME add to the Map instead ?!
+    */
+    await this._setupSources(this._config.fetcher);
 
     // Setup controls
     this._setupControls();
@@ -389,6 +466,97 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._setupInput();
 
     this._state.value = PresenterState.Ready;
+  }
+
+  async _setupSources(fetcher: any){
+    const dsc  = ComponentRegistry.getById('DataSource'); //as Component<AnySchema>;
+    if(!dsc){
+      throw "No DataSourceComponent in ECS world";
+    }
+    // find all datasource entities in this._world
+    const sources_query = this._world.queryManager.registerQuery({
+	    required: [dsc] });
+
+
+
+       await Promise.all(Array.from(sources_query.entities).map(async (s) => {
+      let src_config = getComponent(dsc, s);
+      if(!src_config)
+      {
+        throw `implementation error: invalid datasource with index: ${s.index}`;
+      }
+
+      const features = (src_config.feature_types as string).split?.(',');
+       if (features.length == 0) {
+        console.warn("No feature-classes for DataSource ");
+      }
+      await Promise.all( features.map(async (fc, i, _) => {
+
+        const fdef = src_config.feature_definition[i];
+          if (!fdef) {
+            throw "ImplementationError";
+          }
+          console.log(`created layer for feature: ${fc} of src: ${src_config.name}`);
+          const source = new FeatureSource( {fetcher: fetcher,
+                                        featureclass_name:  'buildings',
+                                        crs: src_config?.srsname || this._map.crs, // must be same as this._instance.coordinateSystem
+                                        extent: src_config?.extent || this._map.extent
+                                      } );
+
+      // Create layer with elevation support
+      const layer = new Object3DLayer({
+        source: source,
+        name: 'Buildings',
+        // minLevel: 14,
+        /*
+        // Use map's elevation to place objects on terrain
+        elevationProvider: (coords: Coordinates) => {
+            const result = map.getElevation({ coordinates: coords });
+            return result.samples?.[0]?.elevation;
+        },*/
+        });
+      this._map.addLayer(layer);
+      }));
+
+
+      
+
+      /*
+      const opts = {
+        bbox: `${Array.from(tile_desc.globalExtent).join(',')},EPSG:3857`,
+        tile_index: tile_desc.id,
+        parent: tile_entity.object3D,
+        // parent_entity: tile_entity
+        // TODO add 'origin' here !!!
+      };
+
+      opts.dataSource = src_config;
+      opts.dataSource.feature_types = opts.dataSource.feature_types.split(',');
+      if (opts.dataSource.feature_types.length == 0) {
+        log.warn(`No feature-classes for DataSource: ${s.name}`);
+      }
+      await Promise.all(src_config.feature_types.map(async (fc, i, _) => {
+
+        try {
+          await tile_loader.projectMgr.loadExternalFeatureClass(fc, opts);
+          const fdef = src_config.feature_definition[i];
+          if (!fdef) {
+            throw "ImplementationError";
+          }
+          log.debug(`loaded feature: ${fc} from src: ${src_config.name} into ${fdef?.component_name || fdef.components.map(f => f.component_name).join(',')}`);
+        } catch (err) {
+          log.warn(`failed to load feature: ${fc} from src: ${src_config.name} into ${src_config.feature_definition[i].component_name} ERROR: ${err}`);
+        }
+      }));
+      */
+
+    }));
+      
+
+  }
+
+  _setupSourcesImpl( src: any){
+
   }
 
   /**
