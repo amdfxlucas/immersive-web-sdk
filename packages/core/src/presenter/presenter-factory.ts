@@ -241,7 +241,7 @@ export function createPresenterConfig(
       const mapConfig: MapPresenterOptions = {
         ...baseConfig,
         backgroundColor: '#87CEEB',
-        enableTerrain: false,
+        terrain: false,
         initialAltitude: 500,
       };
       return mapConfig;

@@ -37,8 +37,10 @@ import type { Signal } from '@preact/signals-core';
 import type {
   Object3D,
   PerspectiveCamera,
+  OrthographicCamera,
   Scene,
   WebGLRenderer,
+  WebGLRendererParameters,
   Vector3,
 } from 'three';
 import type { GeographicCoords, ProjectCRS, CRSExtent } from './gis-presenter.js';
@@ -69,7 +71,7 @@ export enum PresentationMode {
  *
  * @category Runtime
  */
-export interface PresenterConfig {
+export interface PresenterConfig { // TODO rename GISPresenterConfig
   /** Project coordinate reference system (enables GIS features) */
   crs?: ProjectCRS;
   /** Geographic origin for ENU transforms */
@@ -104,10 +106,14 @@ export interface XRPresenterOptions extends PresenterConfig {
  * @category Runtime
  */
 export interface MapPresenterOptions extends PresenterConfig {
-  /** Background color */
+  // Giro3d InstanceOptions
+  camera?: PerspectiveCamera | OrthographicCamera;
+  renderer?: WebGLRenderer | WebGLRendererParameters;
+  scene3D?: Scene;
   backgroundColor?: string;
+  backgroundOpacity?: number;
   /** Enable terrain rendering */
-  enableTerrain?: boolean;
+  terrain?: boolean; // | Partial<TerrainOptions>
   /** Basemap source configuration */
   basemapSource?: {
     url: string;
@@ -115,6 +121,28 @@ export interface MapPresenterOptions extends PresenterConfig {
   };
   /** Initial camera altitude in meters */
   initialAltitude?: number;
+  // Giro3d MapOptions
+  name?: string;
+  /*
+    castShadow?: boolean;
+    colorimetry?: ColorimetryOptions;
+    contourLines?: boolean | Partial<ContourLineOptions>;
+    depthTest?: boolean;
+    discardNoData?: boolean;
+    elevationRange?: ElevationRange;
+   // extent: Extent; -> in PresenterConfig
+    forceTextureAtlases?: boolean;
+    graticule?: boolean | Partial<GraticuleOptions>;
+    lighting?: boolean | MapLightingOptions;
+    maxSubdivisionLevel?: number;
+    object3d?: Object3D<Object3DEventMap>;
+    outlineColor?: ColorRepresentation;
+    receiveShadow?: boolean;
+    showOutline?: boolean;
+    side?: Side;
+    subdivisionStrategy?: MapSubdivisionStrategy;
+    subdivisionThreshold?: number;
+   */
 }
 
 /**

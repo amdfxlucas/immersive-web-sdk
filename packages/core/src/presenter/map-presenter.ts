@@ -36,12 +36,13 @@ import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import type { Entity } from '../ecs/entity.js';
 import type { World } from '../ecs/world.js';
 import { CoordinateAdapter } from './coordinate-adapter.js';
-import type {
-  CRSExtent,
-  FitToExtentOptions,
-  GeographicCoords,
-  IGISPresenter,
-  ProjectCRS,
+import {
+  crsFromBBox,
+  type CRSExtent,
+  type FitToExtentOptions,
+  type GeographicCoords,
+  type IGISPresenter,
+  type ProjectCRS,
 } from './gis-presenter.js';
 import { initGISRootEntity } from './gis-root-component.js';
 import {
@@ -64,8 +65,10 @@ import {
 let Instance: any;
 /** Giro3D Extent class */
 let Extent: any;
+let ElevationLayer: any;
+let CoordinateSystem: any; 
 /** Giro3D Map class */
-let Map: any;
+let Giro3DMap: any;
 /** Giro3D ColorLayer class */
 let ColorLayer: any;
 /** Giro3D TiledImageSource class */
@@ -88,9 +91,11 @@ async function loadGiro3D(): Promise<boolean> {
   try {
     const giro3d = await import('@giro3d/giro3d');
     Instance = giro3d.Instance;
-    Extent = giro3d.Extent;
-    Map = giro3d.Map;
-    ColorLayer = giro3d.ColorLayer;
+    Extent = giro3d.geographic.Extent;
+    Giro3DMap = giro3d.Map;
+    CoordinateSystem = giro3d.geographic.CoordinateSystem;
+    ColorLayer = giro3d.layer.ColorLayer;
+    ElevationLayer = giro3d.layer.ElevationLayer;
     TiledImageSource = giro3d.TiledImageSource;
     giro3dLoaded = true;
     return true;
@@ -329,6 +334,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         'Giro3D is required for MapPresenter. Install it with: npm install @giro3d/giro3d',
       );
     }
+    if(!container){
+      throw "No target container for Giro3d MapPresenter specified";
+    }
+    if(!config.crs){
+      throw "Not CRS for MapPresenter specified";
+    }
 
     this._container = container;
     this._config = config as MapPresenterOptions;
@@ -337,19 +348,22 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._crs = config.crs;
     this._origin = config.origin;
 
+    // Register CRS with Giro3D
+    const crs = CoordinateSystem.register(config.crs.code, config.crs.proj4);
+
     // Initialize coordinate adapter
-    if (config.crs && config.origin) {
+    if (config.origin) {
       this._coordAdapter = new CoordinateAdapter(config.crs, config.origin);
       await this._coordAdapter.initialize();
-
-      // Register CRS with Giro3D
-      Instance.registerCRS(config.crs.code, config.crs.proj4);
     }
 
-    // Create Giro3D instance
     this._instance = new Instance({
       target: container,
-      crs: config.crs?.code || 'EPSG:3857',
+      // TODO reuse THREE context between presenters -> PresenterContext abstraction
+      //  camera: config.camera,
+      //  renderer: config.renderer,
+      //  scene3D: config.scene
+      crs: crs,
       backgroundColor: this._config.backgroundColor || '#87CEEB',
     });
 
@@ -359,14 +373,14 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._renderer = this._instance.renderer;
 
     // Create map entity if extent provided
-    if (config.extent && config.crs) {
-      await this._createMap(config.extent, config.crs.code);
+    if (config.extent) {
+      await this._createMap(config.extent, crs);
     }
 
-    // Create content root
+    // Create GIS content root
     this._contentRoot = new Group();
     this._contentRoot.name = 'ContentRoot';
-    this._instance.add(this._contentRoot);
+    this._instance.add(this._contentRoot); // FIXME add to the Map instead ?!
 
     // Setup controls
     this._setupControls();
@@ -881,9 +895,14 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * @internal
    */
   private async _createMap(
-    extent: { minX: number; maxX: number; minY: number; maxY: number },
-    crsCode: string,
-  ): Promise<void> {
+    extent: CRSExtent|{ minX: number; maxX: number; minY: number; maxY: number }|string, 
+    crsCode: any, //|CoordinateSystem,
+  ): Promise<void> 
+  {
+    if(typeof extent=='string'){
+      extent = crsFromBBox(extent);
+    }
+
     const giro3dExtent = new Extent(
       crsCode,
       extent.minX,
@@ -892,10 +911,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       extent.maxY,
     );
 
-    this._map = new Map({
+    this._map = new Giro3DMap({
+      name: this._config.name || "giro3d_map",
       extent: giro3dExtent,
-      backgroundColor: '#f0f0f0',
-      backgroundOpacity: 1.0,
+      backgroundColor: this._config.backgroundColor || '#f0f0f0',
+      backgroundOpacity: this._config.backgroundOpacity || 1.0,
     });
 
     this._instance.add(this._map);

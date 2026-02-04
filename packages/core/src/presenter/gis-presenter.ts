@@ -56,10 +56,22 @@ export interface ProjectCRS {
  * @category Runtime
  */
 export interface CRSExtent {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
+  minX: number; // bottom-left lon
+  maxX: number; // bottom-left lat
+  minY: number; // top-right lon
+  maxY: number; // top-right lat
+  crs?: string; // EPSG CRS code
+}
+
+export function crsFromBBox(bbox: string): CRSExtent {
+  const tkn = bbox.split(',');
+  const box = tkn.slice(0,4)?.map(s => Number(s.trim()));
+
+  let extent: CRSExtent = {minX: box[0], minY: box[1], maxX: box[2], maxY: box[3]};
+  if(box.length==5){
+    extent.crs = tkn[4];
+  }
+  return extent;
 }
 
 /**

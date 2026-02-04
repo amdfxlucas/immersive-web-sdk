@@ -33,7 +33,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import type { Entity } from '../ecs/entity.js';
-import type { World } from '../ecs/world.js';
+import type { World, VisibilityState } from '../ecs/world.js';
 import { ReferenceSpaceType } from '../init/xr.js';
 import { CoordinateAdapter } from './coordinate-adapter.js';
 import type {
