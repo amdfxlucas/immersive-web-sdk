@@ -24,8 +24,11 @@
 
 import { signal, Signal } from '@preact/signals-core';
 import {
+  BoxGeometry,
   Clock,
   Group,
+  Mesh,
+  MeshBasicMaterial,
   Object3D,
   PerspectiveCamera,
   Scene,
@@ -534,12 +537,23 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       backgroundColor: this._config.backgroundColor || '#87CEEB',
     });
 
-    // Set explicit near/far planes to avoid Infinity issues
-    // Giro3D computes these automatically but needs valid scene bounds
+    // CRITICAL: Disable Giro3D's automatic near/far plane computation
+    // It computes Infinity when the scene is empty, breaking frustum culling
+    // The property is on instance.mainLoop, not instance.view
+    const mainLoop = (this._instance as any).mainLoop;
+    if (mainLoop && typeof mainLoop.automaticCameraPlaneComputation !== 'undefined') {
+      mainLoop.automaticCameraPlaneComputation = false;
+      console.log('[MapPresenter] Disabled automatic near/far plane computation');
+    } else {
+      console.warn('[MapPresenter] Could not access mainLoop.automaticCameraPlaneComputation');
+    }
+
+    // Set explicit near/far planes
     const camera = this._instance.view.camera as PerspectiveCamera;
     camera.near = 1;
     camera.far = 100000;
     camera.updateProjectionMatrix();
+    console.log('[MapPresenter] Set camera near/far:', camera.near, camera.far);
 
     // Position camera at CRS origin (will be repositioned in _setupControls after map is created)
     // DON'T set to (0, 0, 0) - that's outside the UTM extent!
@@ -558,10 +572,24 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._camera = this._instance.view.camera;
     this._renderer = this._instance.renderer;
 
+    // Add a helper object to instance.threeObjects (NOT scene) to provide valid bounds
+    // Giro3D only uses threeObjects for near/far plane computation
+    const helperGeom = new BoxGeometry(100, 100, 100); // Larger box for better bounds
+    const helperMat = new MeshBasicMaterial({ visible: false });
+    const helperMesh = new Mesh(helperGeom, helperMat);
+    helperMesh.name = '_boundsHelper';
+    helperMesh.position.copy(camera.position);
+    helperMesh.position.y = 0; // Put it at ground level
+    // Compute bounding sphere so Giro3D can use it
+    helperMesh.geometry.computeBoundingSphere();
+    // Add to threeObjects, not scene - this is what Giro3D traverses for bounds
+    this._instance.threeObjects.add(helperMesh);
+    console.log('[MapPresenter] Added bounds helper at:', helperMesh.position);
+
     // Create map entity if extent provided
     await this._createMap(config.extent, crs);
       // root group that contains tiles at root of hierarchy (LOD 0) as children
-    this._contentRoot = this._map.object3d;
+    this._contentRoot = this._map.object3d; // FIXME or should i use the Instance's
     if(!this._contentRoot){throw "implementation error";}
     
     /*
@@ -688,6 +716,14 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         await this._map.addLayer(layer);
         console.log(`[MapPresenter] Layer added: ${fc}, map now has ${this._map.layerCount} layers`);
         console.log(`[MapPresenter] Layer visible:`, layer.visible, 'Layer frozen:', layer.frozen);
+        console.log(`[MapPresenter] Layer ready:`, (layer as any).ready);
+
+        // Debug: Check if source contains the map extent
+        const mapExt = this._map.extent;
+        const sourceContains = source.contains ? source.contains(mapExt) : 'no contains method';
+        console.log(`[MapPresenter] Source contains map extent:`, sourceContains);
+        console.log(`[MapPresenter] Source extent:`, source.getExtent());
+        console.log(`[MapPresenter] Source CRS:`, source.getCrs());
       }));
     }));
 
@@ -695,6 +731,18 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     console.log(`[MapPresenter] All layers added. Notifying Giro3D to update...`);
     console.log(`[MapPresenter] Camera position:`, this._camera.position);
     console.log(`[MapPresenter] Map extent:`, this._map.extent);
+
+    // Debug: Check map tiles
+    console.log(`[MapPresenter] Map object3d children:`, this._map.object3d?.children?.length);
+    if (this._map.object3d?.children?.[0]) {
+      const firstChild = this._map.object3d.children[0];
+      console.log(`[MapPresenter] First map child:`, firstChild.name, 'visible:', firstChild.visible);
+      if (firstChild.children?.[0]) {
+        const tile = firstChild.children[0];
+        console.log(`[MapPresenter] First tile:`, tile.name, 'visible:', tile.visible);
+      }
+    }
+
     this._instance.notifyChange();
   }
 
@@ -1348,12 +1396,22 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       backgroundOpacity: this._config.backgroundOpacity || 1.0,
     });
 
-    this._instance.add(this._map);
+    /*Add THREE object or Entity to the instance.
+    If the object or entity has no parent, it will be added to the default tree 
+    (i.e under .scene for entities and under .threeObjects for regular Object3Ds.).
+    If the object or entity already has a parent, then it will not be changed.
+    Check that this parent is present in the scene graph
+   (i.e has the .scene object as ancestor), otherwise it will never be displayed. */
+    const _maplayer = await this._instance.add(this._map);
 
     // Add basemap if configured
     if (this._config.basemapSource) {
       await this._addBasemapLayer(this._config.basemapSource);
     }
+
+    // Force initial tile generation by notifying change
+    console.log('[MapPresenter] Map created, triggering initial update');
+    this._instance.notifyChange();
   }
 
   /**
