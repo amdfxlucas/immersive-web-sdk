@@ -106,6 +106,7 @@ export interface XRPresenterOptions extends PresenterConfig {
  * @category Runtime
  */
 export interface MapPresenterOptions extends PresenterConfig {
+  fetcher?: any, // ReturnType< (featureclass_name: string, options: Object )=> Object3D>
   // -------  Giro3d InstanceOptions  ---------------
   camera?: PerspectiveCamera | OrthographicCamera; // TODO move to PresenterContext  Abstraction
   renderer?: WebGLRenderer | WebGLRendererParameters;
