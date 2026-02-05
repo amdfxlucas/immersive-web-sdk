@@ -152,11 +152,12 @@ export class World extends ElicsWorld {
     this._container = container;
     this._presenterConfig = config;
    
-    presenter.setWorld(this);
+//    presenter.setWorld(this);
     if(this.onSetPresenter)
     {
       this.onSetPresenter(this, presenter, config);
     }
+    presenter.setWorld(this);
   }
 
   constructor(entityCapacity: number, checksOn: boolean = false) {

@@ -81,6 +81,9 @@ let TiledImageSource: any;
 /** Whether Giro3D has been loaded */
 let giro3dLoaded = false;
 
+/** FeatureSource class (created dynamically after Giro3D loads) */
+let FeatureSourceClass: any = null;
+
 /**
  * Load Giro3D modules dynamically
  *
@@ -103,6 +106,10 @@ async function loadGiro3D(): Promise<boolean> {
     ElevationLayer = giro3d.layer.ElevationLayer;
     Object3DSource = giro3d.Object3DSource;
     TiledImageSource = giro3d.TiledImageSource;
+
+    // Define FeatureSource class after Object3DSource is loaded
+    FeatureSourceClass = createFeatureSourceClass();
+
     giro3dLoaded = true;
     return true;
   } catch (err) {
@@ -113,40 +120,99 @@ async function loadGiro3D(): Promise<boolean> {
 
 export interface FeatureSourceOptions {
   crs: typeof CoordinateSystem;
+  crs_name?: string; // i.e. 'EPSG:4326'
+  config: any; // datasource configuration object from project file
   extent: typeof Extent;
   fetcher: any;
   featureclass_name: string;
 }
 
-class FeatureSource extends Object3DSource
-{
-  constructor(opts: FeatureSourceOptions){
-    super();
-    this._fetcher = opts.fetcher;
-    this.featureclass_name = opts.featureclass_name;
-    this.crs = opts.crs;
-    this.extent = opts.xtent;
-  }
+/**
+ * Factory function to create FeatureSource class after Giro3D is loaded.
+ * This is necessary because Object3DSource is dynamically imported.
+ * @internal
+ */
+function createFeatureSourceClass() {
+  /**
+   * FeatureSource - extends Giro3D's Object3DSource for ECS feature loading
+   * Should this move into Giro3D as a very special case of datasource?!
+   */
+  return class FeatureSource extends Object3DSource {
+    _config: any;
+    _fetcher: any;
+    featureclass_name: string;
+    crs: any;
+    extent: any;
 
-  async getObjects({ extent, signal }) {
-    const bbox = `${extent.west},${extent.south},${extent.east},${extent.north}`;
-    const meshes = await myBackend.fetchFeatures(bbox, { signal });
-    return { objects: meshes };
-  }
-  // getCrs() { return 'EPSG:3857'; }
-  // getExtent() { return this.dataExtent; }
+    constructor(opts: FeatureSourceOptions) {
+      super();
+      this._config = opts.config;
+      this._fetcher = opts.fetcher;
+      this.featureclass_name = opts.featureclass_name;
+      this.crs = opts.crs;
+      this.extent = opts.extent;
+    }
 
-      /**
+    /**
+     * Called by Giro3D's Object3DLayer when it needs objects for a tile.
+     *
+     * @param { GetObjectsOptions } param0
+     * @returns { objects: Object3D[], id: string } - Array of Object3D instances
+     */
+    async getObjects({ id, extent, signal }: { id: string; extent: any; signal?: AbortSignal }) {
+      console.log(`[FeatureSource] getObjects called for ${this.featureclass_name}, tile: ${id}`);
+      console.log(`[FeatureSource] extent:`, extent.west, extent.south, extent.east, extent.north);
+
+      const bbox = `${extent.west},${extent.south},${extent.east},${extent.north},${extent.crs.name}`;
+      const opts = {
+        bbox: bbox,
+        dataSource: this._config,
+        // tile_index: tile_desc.id, z-x-y
+        // origin:
+        // parent: .. tile that triggered the load
+      };
+
+      try {
+        const features = await this._fetcher(this.featureclass_name, opts);
+        console.log(`[FeatureSource] fetcher returned:`, features);
+
+        // Normalize return value to array
+        // Giro3D expects { objects: Object3D[], id }
+        let objects: any[];
+        if (Array.isArray(features)) {
+          objects = features;
+        } else if (features && features.isObject3D) {
+          // Single Object3D or Group - wrap in array
+          objects = [features];
+        } else {
+          console.warn(`[FeatureSource] fetcher returned unexpected value:`, features);
+          objects = [];
+        }
+
+        console.log(`[FeatureSource] returning ${objects.length} objects for tile ${id}`);
+        return { objects, id };
+      } catch (err) {
+        console.error(`[FeatureSource] Error fetching ${this.featureclass_name}:`, err);
+        return { objects: [], id };
+      }
+    }
+
+    /**
      * Returns the CRS of this source.
      * @returns The coordinate reference system.
      */
-    getCrs(): CoordinateSystem;
+    getCrs() {
+      return this.crs;
+    }
 
     /**
      * Returns the extent of this source, or undefined if unbounded.
      * @returns The extent of the source data.
      */
-    getExtent(): Extent | undefined;
+    getExtent() {
+      return this.extent;
+    }
+  };
 }
 
 
@@ -322,6 +388,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   /** Whether Giro3D is loaded */
   private _giro3dLoaded = false;
 
+  /** Animation frame ID for the ECS update loop */
+  private _animationFrameId: number | null = null;
+
+  /** External loop callback (ECS update) */
+  private _externalLoop: ((time: number, frame?: XRFrame) => void) | null = null;
+
   // ============================================================================
   // CONSTRUCTOR
   // ============================================================================
@@ -441,6 +513,13 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       backgroundColor: this._config.backgroundColor || '#87CEEB',
     });
 
+    
+    // const position = this._instance.view.camera.position;
+
+    // Set the camera position to be located 10,000 meters above the center of the coordinate system.
+    this._instance.view.camera.position.set(0, this._config?.initialAltitude || 1000, 0);
+    //this._instance.view.camera.lookAt(lookAt);
+
     // Get Three.js references from Giro3D
     this._scene = this._instance.scene;
     this._camera = this._instance.view.camera;
@@ -449,7 +528,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     // Create map entity if extent provided
     await this._createMap(config.extent, crs);
       // root group that contains tiles at root of hierarchy (LOD 0) as children
-    this._contentRoot = this._map.object3D;
+    this._contentRoot = this._map.object3d;
+    if(!this._contentRoot){throw "implementation error";}
     
     /*
     // Create GIS content root
@@ -457,8 +537,6 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._contentRoot.name = 'ContentRoot';
     this._instance.add(this._contentRoot); // FIXME add to the Map instead ?!
     */
-    await this._setupSources(this._config.fetcher);
-
     // Setup controls
     this._setupControls();
 
@@ -468,58 +546,77 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._state.value = PresenterState.Ready;
   }
 
-  async _setupSources(fetcher: any){
-    const dsc  = ComponentRegistry.getById('DataSource'); //as Component<AnySchema>;
-    if(!dsc){
-      throw "No DataSourceComponent in ECS world";
+  async _setupSources(fetcher: any) {
+    console.log('[MapPresenter] _setupSources called');
+
+    const dsc = ComponentRegistry.getById('DataSource');
+    if (!dsc) {
+      console.warn('[MapPresenter] DataSource component not registered - no sources to setup');
+      return;
     }
-    // find all datasource entities in this._world
+
+    // Find all datasource entities in this._world
     const sources_query = this._world.queryManager.registerQuery({
-	    required: [dsc] });
+      required: [dsc]
+    });
 
+    const entityCount = sources_query.entities.size;
+    console.log(`[MapPresenter] Found ${entityCount} DataSource entities`);
 
+    if (entityCount === 0) {
+      console.warn('[MapPresenter] No DataSource entities found. Call setupSources() after creating DataSource entities.');
+      return;
+    }
 
-       await Promise.all(Array.from(sources_query.entities).map(async (s) => {
+    // Create a source-layer pair for each feature of each datasource
+    await Promise.all(Array.from(sources_query.entities).map(async (s) => {
       let src_config = getComponent(dsc, s);
-      if(!src_config)
-      {
+      if (!src_config) {
         throw `implementation error: invalid datasource with index: ${s.index}`;
       }
 
       const features = (src_config.feature_types as string).split?.(',');
-       if (features.length == 0) {
+      if (features.length == 0) {
         console.warn("No feature-classes for DataSource ");
       }
-      await Promise.all( features.map(async (fc, i, _) => {
+      await Promise.all(features.map(async (fc, i, _) => {
 
-        const fdef = src_config.feature_definition[i];
-          if (!fdef) {
-            throw "ImplementationError";
-          }
-          console.log(`created layer for feature: ${fc} of src: ${src_config.name}`);
-          const source = new FeatureSource( {fetcher: fetcher,
-                                        featureclass_name:  'buildings',
-                                        crs: src_config?.srsname || this._map.crs, // must be same as this._instance.coordinateSystem
-                                        extent: src_config?.extent || this._map.extent
-                                      } );
-
-      // Create layer with elevation support
-      const layer = new Object3DLayer({
-        source: source,
-        name: 'Buildings',
-        // minLevel: 14,
-        /*
-        // Use map's elevation to place objects on terrain
-        elevationProvider: (coords: Coordinates) => {
-            const result = map.getElevation({ coordinates: coords });
-            return result.samples?.[0]?.elevation;
-        },*/
+        const fdef = (src_config.feature_definition as unknown[])?.[i];
+        if (!fdef) {
+          throw "ImplementationError";
+        }
+        console.log(`[MapPresenter] Creating layer for feature: ${fc} of src: ${src_config.name}`);
+        const source = new FeatureSourceClass({
+          fetcher: fetcher,
+          crs_name: (src_config.srsname as string),
+          config: src_config,
+          featureclass_name: fc,
+          crs: this._map.crs, // must be same as this._instance.coordinateSystem and crs_name
+          extent: src_config?.extent || this._map.extent
         });
-      this._map.addLayer(layer);
+
+        // Create layer with elevation support
+        const layer = new Object3DLayer({
+          source: source,
+          name: fc,
+          // minLevel: 14,
+          /*
+          // Use map's elevation to place objects on terrain
+          elevationProvider: (coords: Coordinates) => {
+              const result = map.getElevation({ coordinates: coords });
+              return result.samples?.[0]?.elevation;
+          },*/
+        });
+
+        await this._map.addLayer(layer);
+        console.log(`[MapPresenter] Layer added: ${fc}, map now has ${this._map.layerCount} layers`);
       }));
 
+    // Notify Giro3D that it needs to update after adding layers
+    this._instance.notifyChange();
 
-      
+
+
 
       /*
       const opts = {
@@ -551,39 +648,103 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       */
 
     }));
-      
+
 
   }
 
-  _setupSourcesImpl( src: any){
 
-  }
 
   /**
    * Start the presenter
-   * @TODO cannot discard world's animation loop, because it drives the updates in the ECS systems
+   *
+   * IMPORTANT: Unlike XRPresenter, MapPresenter does NOT use renderer.setAnimationLoop().
+   * Giro3D manages its own render loop internally via requestAnimationFrame and on-demand
+   * rendering triggered by notifyChange(). Calling setAnimationLoop() would override
+   * Giro3D's internal frame management, breaking tile subdivision, layer updates,
+   * and source queries (like FeatureSource).
+   *
+   * Instead, we run our own rAF loop for ECS updates and let Giro3D handle rendering.
    */
-  async start(_: any = null): Promise<void> {
+  async start(loop: any = null): Promise<void> {
     if (this._state.value !== PresenterState.Ready) {
       throw new Error('MapPresenter not ready to start');
     }
 
     this._clock.start();
     this._state.value = PresenterState.Running;
+    this._externalLoop = loop;
     this._needsRender = true;
-    this._instance.notifyChange();
 
-    // TODO this._renderer.setAnimationLoop( original Giro3D loop + Elics ECS render loop)
+    // Start our own animation frame loop for ECS updates
+    // This runs alongside Giro3D's internal render loop
+    const ecsLoop = (time: number) => {
+      if (this._state.value !== PresenterState.Running) {
+        return;
+      }
+
+      // Call the external loop (ECS update from World)
+      if (this._externalLoop) {
+        this._externalLoop(time);
+      }
+
+      // Continue the loop
+      this._animationFrameId = requestAnimationFrame(ecsLoop);
+    };
+
+    this._animationFrameId = requestAnimationFrame(ecsLoop);
+
+    // Trigger initial Giro3D render
+    this._instance.notifyChange();
   }
 
+  /**
+   * Called by World on setPresenter()
+   *
+   * NOTE: This does NOT automatically set up sources/layers. Call setupSources()
+   * separately after DataSource entities have been created in the ECS world.
+   */
   setWorld(world: World){
     this._world = world;
+    // Don't call _setupSources here - DataSource entities may not exist yet!
+    // The app should call setupSources() after creating DataSource entities.
+  }
+
+  /**
+   * Set up Object3DLayers for all DataSource entities in the world.
+   *
+   * This queries for DataSource entities and creates corresponding Giro3D
+   * Object3DLayers with FeatureSources. Call this AFTER DataSource entities
+   * have been created (e.g., after projectManager.init()).
+   *
+   * @param fetcher - Optional fetcher callback. If not provided, uses the one from config.
+   * @returns Promise that resolves when all layers are set up
+   *
+   * @example
+   * ```ts
+   * // After creating DataSource entities
+   * await projectManager.init();
+   * await mapPresenter.setupSources();
+   * ```
+   */
+  async setupSources(fetcher?: any): Promise<void> {
+    const actualFetcher = fetcher ?? this._config.fetcher;
+    if (!actualFetcher) {
+      console.warn('MapPresenter.setupSources: No fetcher provided');
+      return;
+    }
+    return this._setupSources(actualFetcher);
   }
 
   /**
    * Stop the presenter
    */
   async stop(): Promise<void> {
+    // Cancel the ECS update loop
+    if (this._animationFrameId !== null) {
+      cancelAnimationFrame(this._animationFrameId);
+      this._animationFrameId = null;
+    }
+    this._externalLoop = null;
     this._clock.stop();
     this._state.value = PresenterState.Ready;
   }
@@ -592,6 +753,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * Pause rendering
    */
   pause(): void {
+    // Cancel the ECS update loop (it will check state and not reschedule)
+    if (this._animationFrameId !== null) {
+      cancelAnimationFrame(this._animationFrameId);
+      this._animationFrameId = null;
+    }
     this._state.value = PresenterState.Paused;
   }
 
@@ -601,6 +767,19 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   resume(): void {
     if (this._state.value === PresenterState.Paused) {
       this._state.value = PresenterState.Running;
+
+      // Restart the ECS update loop
+      const ecsLoop = (time: number) => {
+        if (this._state.value !== PresenterState.Running) {
+          return;
+        }
+        if (this._externalLoop) {
+          this._externalLoop(time);
+        }
+        this._animationFrameId = requestAnimationFrame(ecsLoop);
+      };
+      this._animationFrameId = requestAnimationFrame(ecsLoop);
+
       this._instance.notifyChange();
     }
   }
@@ -609,6 +788,13 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * Dispose all resources
    */
   dispose(): void {
+    // Cancel the ECS update loop
+    if (this._animationFrameId !== null) {
+      cancelAnimationFrame(this._animationFrameId);
+      this._animationFrameId = null;
+    }
+    this._externalLoop = null;
+
     // Dispose ENU wrappers
     for (const wrapper of this._enuWrappers.values()) {
       if (wrapper.wrapper.parent) {
