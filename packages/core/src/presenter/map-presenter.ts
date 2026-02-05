@@ -135,7 +135,9 @@ export interface FeatureSourceOptions {
 function createFeatureSourceClass() {
   /**
    * FeatureSource - extends Giro3D's Object3DSource for ECS feature loading
-   * Should this move into Giro3D as a very special case of datasource?!
+   *
+   * IMPORTANT: The fetcher returns geometries in ENU coordinates (centered at geo-origin 0,0,0).
+   * These need to be wrapped with an offset to position them correctly in CRS space (UTM meters).
    */
   return class FeatureSource extends Object3DSource {
     _config: any;
@@ -143,25 +145,32 @@ function createFeatureSourceClass() {
     featureclass_name: string;
     crs: any;
     extent: any;
+    /** CRS coordinates of the ENU origin (for transforming ENU geometry to CRS) */
+    originCRS: { x: number; y: number };
 
-    constructor(opts: FeatureSourceOptions) {
+    constructor(opts: FeatureSourceOptions & { originCRS: { x: number; y: number } }) {
       super();
       this._config = opts.config;
       this._fetcher = opts.fetcher;
       this.featureclass_name = opts.featureclass_name;
       this.crs = opts.crs;
       this.extent = opts.extent;
+      this.originCRS = opts.originCRS;
     }
 
     /**
      * Called by Giro3D's Object3DLayer when it needs objects for a tile.
      *
+     * The fetcher returns ENU-centered geometry (origin at 0,0,0 at the geo-origin).
+     * We wrap it in a Group positioned at the CRS origin to transform it to CRS coordinates.
+     *
      * @param { GetObjectsOptions } param0
-     * @returns { objects: Object3D[], id: string } - Array of Object3D instances
+     * @returns { objects: Object3D[], id: string } - Array of Object3D instances in CRS coordinates
      */
     async getObjects({ id, extent, signal }: { id: string; extent: any; signal?: AbortSignal }) {
       console.log(`[FeatureSource] getObjects called for ${this.featureclass_name}, tile: ${id}`);
       console.log(`[FeatureSource] extent:`, extent.west, extent.south, extent.east, extent.north);
+      console.log(`[FeatureSource] ENU origin in CRS:`, this.originCRS);
 
       const bbox = `${extent.west},${extent.south},${extent.east},${extent.north},${extent.crs.name}`;
       const opts = {
@@ -173,24 +182,36 @@ function createFeatureSourceClass() {
       };
 
       try {
+        console.log(`[FeatureSource] called fetcher with bbox: ${bbox}`);
         const features = await this._fetcher(this.featureclass_name, opts);
         console.log(`[FeatureSource] fetcher returned:`, features);
 
         // Normalize return value to array
-        // Giro3D expects { objects: Object3D[], id }
-        let objects: any[];
+        let rawObjects: any[];
         if (Array.isArray(features)) {
-          objects = features;
+          rawObjects = features;
         } else if (features && features.isObject3D) {
-          // Single Object3D or Group - wrap in array
-          objects = [features];
+          rawObjects = [features];
         } else {
           console.warn(`[FeatureSource] fetcher returned unexpected value:`, features);
-          objects = [];
+          rawObjects = [];
         }
 
-        console.log(`[FeatureSource] returning ${objects.length} objects for tile ${id}`);
-        return { objects, id };
+        // Wrap ENU geometry in a group positioned at CRS origin
+        // This transforms ENU (0,0,0) -> CRS (originCRS.x, 0, originCRS.y)
+        // Giro3D coordinate system: X=Easting, Y=Up, Z=Northing
+        const wrappedObjects = rawObjects.map(obj => {
+          const wrapper = new Group();
+          wrapper.name = `ENUWrapper_${obj.name || this.featureclass_name}`;
+          wrapper.add(obj);
+          // Position wrapper at CRS origin so ENU (0,0,0) maps to correct CRS location
+          wrapper.position.set(this.originCRS.x, 0, this.originCRS.y);
+          console.log(`[FeatureSource] Wrapped ${obj.name} at CRS position:`, this.originCRS.x, 0, this.originCRS.y);
+          return wrapper;
+        });
+
+        console.log(`[FeatureSource] returning ${wrappedObjects.length} wrapped objects for tile ${id}`);
+        return { objects: wrappedObjects, id };
       } catch (err) {
         console.error(`[FeatureSource] Error fetching ${this.featureclass_name}:`, err);
         return { objects: [], id };
@@ -513,12 +534,24 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       backgroundColor: this._config.backgroundColor || '#87CEEB',
     });
 
-    
-    // const position = this._instance.view.camera.position;
+    // Set explicit near/far planes to avoid Infinity issues
+    // Giro3D computes these automatically but needs valid scene bounds
+    const camera = this._instance.view.camera as PerspectiveCamera;
+    camera.near = 1;
+    camera.far = 100000;
+    camera.updateProjectionMatrix();
 
-    // Set the camera position to be located 10,000 meters above the center of the coordinate system.
-    this._instance.view.camera.position.set(0, this._config?.initialAltitude || 1000, 0);
-    //this._instance.view.camera.lookAt(lookAt);
+    // Position camera at CRS origin (will be repositioned in _setupControls after map is created)
+    // DON'T set to (0, 0, 0) - that's outside the UTM extent!
+    if (this._coordAdapter) {
+      const origin = this._coordAdapter.getOrigin();
+      const altitude = this._config?.initialAltitude || 500;
+      camera.position.set(origin.crs.x, altitude, origin.crs.y);
+      console.log('[MapPresenter] Initial camera position at CRS origin:', origin.crs.x, altitude, origin.crs.y);
+    } else {
+      // Fallback - will be corrected when map extent is known
+      camera.position.set(0, this._config?.initialAltitude || 1000, 0);
+    }
 
     // Get Three.js references from Giro3D
     this._scene = this._instance.scene;
@@ -585,21 +618,64 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         if (!fdef) {
           throw "ImplementationError";
         }
+        // Ensure extent is a Giro3D Extent object in CRS coordinates
+        let sourceExtent = this._map.extent; // Default to map extent (already a Giro3D Extent)
+        if (src_config?.extent) {
+          const ext = src_config.extent as any;
+          if (ext.crs && ext.west !== undefined) {
+            // Already a Giro3D Extent-like object
+            sourceExtent = ext;
+          } else if (ext.minX !== undefined) {
+            let minX = ext.minX;
+            let maxX = ext.maxX;
+            let minY = ext.minY;
+            let maxY = ext.maxY;
+
+            // Check if extent is in geographic coordinates and convert if needed
+            const isGeographic = Math.abs(minX) < 180 && Math.abs(maxX) < 180 &&
+                                 Math.abs(minY) < 90 && Math.abs(maxY) < 90;
+
+            if (isGeographic && this._coordAdapter) {
+              console.log(`[MapPresenter] Source extent for ${fc} is in geographic coords, converting...`);
+              const sw = this._coordAdapter.geographicToCRS(minY, minX);
+              const ne = this._coordAdapter.geographicToCRS(maxY, maxX);
+              minX = sw.x;
+              maxX = ne.x;
+              minY = sw.y;
+              maxY = ne.y;
+              console.log(`[MapPresenter] Converted source extent:`, minX, maxX, minY, maxY);
+            }
+
+            sourceExtent = new Extent(this._map.extent.crs, minX, maxX, minY, maxY);
+          }
+        }
+
+        // Get CRS coordinates of the ENU origin for transforming geometry
+        const originCRS = this._coordAdapter?.getOrigin()?.crs || { x: 0, y: 0 };
+
         console.log(`[MapPresenter] Creating layer for feature: ${fc} of src: ${src_config.name}`);
+        console.log(`[MapPresenter] Source extent:`, sourceExtent);
+        console.log(`[MapPresenter] Map extent:`, this._map.extent);
+        console.log(`[MapPresenter] Map extent CRS:`, this._map.extent.crs);
+        console.log(`[MapPresenter] ENU origin CRS:`, originCRS);
+
         const source = new FeatureSourceClass({
           fetcher: fetcher,
           crs_name: (src_config.srsname as string),
           config: src_config,
           featureclass_name: fc,
-          crs: this._map.crs, // must be same as this._instance.coordinateSystem and crs_name
-          extent: src_config?.extent || this._map.extent
+          crs: this._map.extent.crs, // Use map extent's CRS (properly initialized)
+          extent: sourceExtent,
+          originCRS: originCRS, // Pass ENU origin for coordinate transform
         });
 
-        // Create layer with elevation support
+        // Create layer - extent is important for Giro3D to know when to query the source
         const layer = new Object3DLayer({
           source: source,
           name: fc,
-          // minLevel: 14,
+          // minLevel: ...
+          // maxLevel: ...
+          extent: sourceExtent, // Giro3D Extent object
           /*
           // Use map's elevation to place objects on terrain
           elevationProvider: (coords: Coordinates) => {
@@ -608,48 +684,18 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           },*/
         });
 
+        console.log(`[MapPresenter] Adding layer ${fc} to map...`);
         await this._map.addLayer(layer);
         console.log(`[MapPresenter] Layer added: ${fc}, map now has ${this._map.layerCount} layers`);
+        console.log(`[MapPresenter] Layer visible:`, layer.visible, 'Layer frozen:', layer.frozen);
       }));
-
-    // Notify Giro3D that it needs to update after adding layers
-    this._instance.notifyChange();
-
-
-
-
-      /*
-      const opts = {
-        bbox: `${Array.from(tile_desc.globalExtent).join(',')},EPSG:3857`,
-        tile_index: tile_desc.id,
-        parent: tile_entity.object3D,
-        // parent_entity: tile_entity
-        // TODO add 'origin' here !!!
-      };
-
-      opts.dataSource = src_config;
-      opts.dataSource.feature_types = opts.dataSource.feature_types.split(',');
-      if (opts.dataSource.feature_types.length == 0) {
-        log.warn(`No feature-classes for DataSource: ${s.name}`);
-      }
-      await Promise.all(src_config.feature_types.map(async (fc, i, _) => {
-
-        try {
-          await tile_loader.projectMgr.loadExternalFeatureClass(fc, opts);
-          const fdef = src_config.feature_definition[i];
-          if (!fdef) {
-            throw "ImplementationError";
-          }
-          log.debug(`loaded feature: ${fc} from src: ${src_config.name} into ${fdef?.component_name || fdef.components.map(f => f.component_name).join(',')}`);
-        } catch (err) {
-          log.warn(`failed to load feature: ${fc} from src: ${src_config.name} into ${src_config.feature_definition[i].component_name} ERROR: ${err}`);
-        }
-      }));
-      */
-
     }));
 
-
+    // Notify Giro3D that it needs to update after adding layers
+    console.log(`[MapPresenter] All layers added. Notifying Giro3D to update...`);
+    console.log(`[MapPresenter] Camera position:`, this._camera.position);
+    console.log(`[MapPresenter] Map extent:`, this._map.extent);
+    this._instance.notifyChange();
   }
 
 
@@ -1249,21 +1295,51 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * @internal
    */
   private async _createMap(
-    extent: CRSExtent|{ minX: number; maxX: number; minY: number; maxY: number }|string, 
+    extent: CRSExtent|{ minX: number; maxX: number; minY: number; maxY: number }|string,
     crsCode: any, //|CoordinateSystem,
-  ): Promise<void> 
+  ): Promise<void>
   {
     if(typeof extent=='string'){
       extent = crsFromBBox(extent);
     }
 
+    // Check if extent is in geographic coordinates (lat/lon) and convert to CRS if needed
+    // Geographic coords are typically: lon in [-180, 180], lat in [-90, 90]
+    // CRS coords (like UTM) are typically in meters: easting 100,000-900,000, northing millions
+    let minX = extent.minX;
+    let maxX = extent.maxX;
+    let minY = extent.minY;
+    let maxY = extent.maxY;
+
+    const isGeographic = Math.abs(minX) < 180 && Math.abs(maxX) < 180 &&
+                         Math.abs(minY) < 90 && Math.abs(maxY) < 90;
+
+    if (isGeographic && this._coordAdapter) {
+      console.log('[MapPresenter] Extent appears to be in geographic coordinates, converting to CRS...');
+      console.log('[MapPresenter] Geographic extent:', minX, maxX, minY, maxY);
+
+      // Convert corners from geographic to CRS
+      // Note: minX/maxX are longitudes, minY/maxY are latitudes
+      const sw = this._coordAdapter.geographicToCRS(minY, minX); // lat, lon
+      const ne = this._coordAdapter.geographicToCRS(maxY, maxX);
+
+      minX = sw.x;
+      maxX = ne.x;
+      minY = sw.y;
+      maxY = ne.y;
+
+      console.log('[MapPresenter] Converted CRS extent:', minX, maxX, minY, maxY);
+    }
+
     const giro3dExtent = new Extent(
       crsCode,
-      extent.minX,
-      extent.maxX,
-      extent.minY,
-      extent.maxY,
+      minX,
+      maxX,
+      minY,
+      maxY,
     );
+
+    console.log('[MapPresenter] Creating map with extent:', giro3dExtent);
 
     this._map = new Giro3DMap({
       name: this._config.name || "giro3d_map",
@@ -1332,12 +1408,27 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       const origin = this._coordAdapter.getOrigin();
       const altitude = this._config.initialAltitude || 500;
 
+      console.log(`[MapPresenter] Setting camera position from origin:`, origin);
+      console.log(`[MapPresenter] Camera will be at CRS:`, origin.crs.x, altitude, origin.crs.y + altitude * 0.2);
+
       this._camera.position.set(
         origin.crs.x,
         altitude,
         origin.crs.y + altitude * 0.2,
       );
       this._controls.target.set(origin.crs.x, 0, origin.crs.y);
+      this._controls.saveState();
+    } else {
+      // No coordinate adapter - position camera at center of map extent
+      console.log(`[MapPresenter] No coordinate adapter, positioning camera at map extent center`);
+      const ext = this._map.extent;
+      const centerX = (ext.west + ext.east) / 2;
+      const centerY = (ext.south + ext.north) / 2;
+      const altitude = this._config.initialAltitude || 500;
+
+      console.log(`[MapPresenter] Map extent center:`, centerX, centerY);
+      this._camera.position.set(centerX, altitude, centerY + altitude * 0.2);
+      this._controls.target.set(centerX, 0, centerY);
       this._controls.saveState();
     }
 
