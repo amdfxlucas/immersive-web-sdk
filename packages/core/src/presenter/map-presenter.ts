@@ -24,11 +24,13 @@
 
 import { signal, Signal } from '@preact/signals-core';
 import {
+  Box3,
   BoxGeometry,
   Clock,
   Group,
   Mesh,
   MeshBasicMaterial,
+  AxesHelper,
   Object3D,
   PerspectiveCamera,
   Scene,
@@ -202,17 +204,62 @@ function createFeatureSourceClass() {
           rawObjects = [];
         }
 
-        // Wrap ENU geometry in a group positioned at CRS origin
-        // This transforms ENU (0,0,0) -> CRS origin location
-        // Giro3D Map coordinate system: X=Easting, Y=Northing, Z=Up (Y-up=false)
+        // Wrap geometry and transform to Giro3D Map coordinate system
+        // Giro3D Map: X=Easting, Y=Northing, Z=Up (Y-up=false)
+        //
+        // Two cases:
+        // 1. ENU geometry (centered near 0,0,0) - needs offset to CRS origin + rotation
+        // 2. CRS geometry (already at ~726000, 5746000) - needs only rotation, no offset
+        //
+        // We detect by checking if object bounds are near origin (ENU) or far (CRS)
+        const CRS_THRESHOLD = 10000; // Objects with coords > 10km are likely in CRS already
+
         const wrappedObjects = rawObjects.map(obj => {
+          // Check if object is in ENU (near origin) or CRS (far from origin)
+          const bbox = new Box3().setFromObject(obj);
+          const isValidBBox = bbox.min.x !== Infinity && bbox.max.x !== -Infinity;
+          const maxCoord = isValidBBox ? Math.max(
+            Math.abs(bbox.min.x), Math.abs(bbox.max.x),
+            Math.abs(bbox.min.y), Math.abs(bbox.max.y),
+            Math.abs(bbox.min.z), Math.abs(bbox.max.z)
+          ) : 0;
+
+          const isAlreadyCRS = maxCoord > CRS_THRESHOLD;
+          console.log(`[FeatureSource] Object ${obj.name} bbox:`, bbox.min, bbox.max,
+            `maxCoord: ${maxCoord}, isAlreadyCRS: ${isAlreadyCRS}`);
+
           const wrapper = new Group();
           wrapper.name = `ENUWrapper_${obj.name || this.featureclass_name}`;
+
+          // Rotate from Y-up to Z-up coordinate system
+          // rotation.x = -π/2 rotates: Y(up)->-Z, Z(north)->Y
+          wrapper.rotation.x = -Math.PI / 2;
+
           wrapper.add(obj);
-          // Position wrapper at CRS origin so ENU (0,0,0) maps to correct CRS location
-          // X=Easting, Y=Northing, Z=elevation(0 for ground)
-          wrapper.position.set(this.originCRS.x, this.originCRS.y, 0);
-          console.log(`[FeatureSource] Wrapped ${obj.name} at CRS position (X=E, Y=N, Z=up):`, this.originCRS.x, this.originCRS.y, 0);
+
+          // IMPORTANT: Object3DLayer adds objects as children of tile Groups.
+          // Tiles are already positioned in CRS space, so adding a CRS offset
+          // would DOUBLE the coordinates. We only need to handle the offset
+          // between the ENU origin and the object's local center.
+          //
+          // For ENU objects: The ENU origin (device position) maps to CRS origin.
+          //   Objects at ENU (0,0,0) should appear at the ENU origin in CRS space.
+          //   But since we're adding to a tile that covers a geographic area,
+          //   we need the offset from tile center to ENU origin.
+          //
+          // For simplicity: Objects in ENU are centered around the geographic origin.
+          //   If the tile center ≈ ENU origin, objects should appear correctly.
+          //   We add the ENU origin offset so objects appear at the right CRS location.
+          //
+          // Wait - the issue is tiles ARE the parents. Let's check if tiles have transforms...
+          // Actually, looking at Giro3D: tiles don't transform children, they're just containers.
+          // The Map.object3d is at world origin, tiles are at world origin too.
+          // So we DO need the CRS offset!
+          //
+          // The doubling issue must be elsewhere... Let's NOT add offset and debug.
+          console.log(`[FeatureSource] Object ${isAlreadyCRS ? 'in CRS' : 'in ENU'} coords, wrapper at origin (debug)`);
+          wrapper.position.set(0, 0, 0);
+
           return wrapper;
         });
 
@@ -252,7 +299,8 @@ function createFeatureSourceClass() {
  *
  * When working with glTF models that are centered at the ENU origin (0,0,0),
  * we need to offset them to their correct position in CRS space. This wrapper
- * creates a parent group that applies the offset transform.
+ * creates a parent group that applies the offset transform AND rotation from
+ * Y-up (ENU/Three.js) to Z-up (Giro3D Map).
  *
  * @internal
  */
@@ -271,6 +319,10 @@ class ENUGeometryWrapper {
   constructor(object3D: Object3D, originCRS: { x: number; y: number }) {
     this.wrapper = new Group();
     this.wrapper.name = `ENUWrapper_${object3D.name || 'unnamed'}`;
+
+    // Rotate from Y-up (ENU) to Z-up (Giro3D Map) coordinate system
+    this.wrapper.rotation.x = -Math.PI / 2;
+
     this.wrapper.add(object3D);
     this.innerObject = object3D;
 
@@ -539,6 +591,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       crs: crs,
       backgroundColor: this._config.backgroundColor || '#87CEEB',
     });
+
+    const axesHelper = new AxesHelper(1000); // ONLY for debugging
+    this._instance.add(axesHelper);
 
     // CRITICAL: Disable Giro3D's automatic near/far plane computation
     // It computes Infinity when the scene is empty, breaking frustum culling
