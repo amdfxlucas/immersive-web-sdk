@@ -47,7 +47,7 @@ import {
   type IGISPresenter,
   type ProjectCRS,
 } from './gis-presenter.js';
-import { initGISRootEntity } from './gis-root-component.js';
+import { GISRootComponent } from './gis-root-component.js';
 import {
   FlyToOptions,
   IPresenter,
@@ -1070,10 +1070,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   }
 
   /**
-   * Initialize the GIS root entity.
+   * Initialize the GIS root entity for MapPresenter.
    *
-   * This creates a proper Transform Entity with GISRootComponent
-   * to serve as the parent for all GIS content.
+   * IMPORTANT: Unlike XRPresenter, MapPresenter does NOT reparent the GIS root
+   * under LevelRoot. The Map's object3d must stay in Giro3D's scene hierarchy
+   * for tile traversal to work. Reparenting would break Object3DLayer's
+   * ability to find and update tiles.
    *
    * @param world - World instance for entity creation
    * @internal Called by World when setting up presenter mode
@@ -1085,7 +1087,29 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     }
 
     this._world = world;
-    this._gisRootEntity = initGISRootEntity(world, this._contentRoot);
+
+    // Create GIS root entity WITHOUT reparenting (unlike initGISRootEntity)
+    // The Map's object3d must stay in Giro3D's scene for tiles to work
+    const gisRootEntity = world.createEntity();
+    gisRootEntity.object3D = this._contentRoot;
+    this._contentRoot.name = 'GIS_ROOT';
+
+    // Store entity index on the Object3D for ECS lookups
+    (this._contentRoot as any).entityIdx = gisRootEntity.index;
+
+    // Add GISRootComponent tag
+    gisRootEntity.addComponent(GISRootComponent);
+
+    // Store reference on world for queries
+    (world as any).gisRootIndex = gisRootEntity.index;
+
+    // DO NOT reparent to activeRoot - the Map must stay in Giro3D's scene!
+    // world.getActiveRoot().add(gisRootEntity.object3D); // <-- This breaks Giro3D!
+
+    console.log('[MapPresenter] GIS root entity created (NOT reparented to LevelRoot)');
+    console.log('[MapPresenter] Map object3d parent:', this._contentRoot.parent?.name);
+
+    this._gisRootEntity = gisRootEntity;
   }
 
   // ============================================================================
