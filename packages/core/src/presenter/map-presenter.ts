@@ -231,9 +231,10 @@ function createFeatureSourceClass() {
           const wrapper = new Group();
           wrapper.name = `ENUWrapper_${obj.name || this.featureclass_name}`;
 
-          // Rotate from Y-up to Z-up coordinate system
-          // rotation.x = -π/2 rotates: Y(up)->-Z, Z(north)->Y
-          wrapper.rotation.x = -Math.PI / 2;
+          // Rotate from Y-up (ENU/Three.js) to Z-up (Giro3D Map) coordinate system
+          // rotation.x = +π/2 rotates: Y(up)->+Z(up), Z(north)->-Y
+          // Note: This may flip north/south - if so, we'll need scale.y = -1
+          wrapper.rotation.x = Math.PI / 2;
 
           wrapper.add(obj);
 
@@ -321,7 +322,8 @@ class ENUGeometryWrapper {
     this.wrapper.name = `ENUWrapper_${object3D.name || 'unnamed'}`;
 
     // Rotate from Y-up (ENU) to Z-up (Giro3D Map) coordinate system
-    this.wrapper.rotation.x = -Math.PI / 2;
+    // +π/2 maps: Y(up)->Z(up), Z(north)->-Y (may need scale.y=-1 to fix north)
+    this.wrapper.rotation.x = Math.PI / 2;
 
     this.wrapper.add(object3D);
     this.innerObject = object3D;
@@ -592,7 +594,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       backgroundColor: this._config.backgroundColor || '#87CEEB',
     });
 
-    const axesHelper = new AxesHelper(1000); // ONLY for debugging
+    const axesHelper = new AxesHelper(100000); // ONLY for debugging
     this._instance.add(axesHelper);
 
     // CRITICAL: Disable Giro3D's automatic near/far plane computation
@@ -633,35 +635,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     // Giro3D Map uses: X=Easting, Y=Northing, Z=Up (Y-up=false)
 
-    /*
-    // Add a helper object to instance.threeObjects (NOT scene) to provide valid bounds
-    // Giro3D only uses threeObjects for near/far plane computation
-    const helperGeom = new BoxGeometry(100, 100, 100); // Larger box for better bounds
-    const helperMat = new MeshBasicMaterial({ visible: false });
-    const helperMesh = new Mesh(helperGeom, helperMat);
-    helperMesh.name = '_boundsHelper';
-    helperMesh.position.copy(camera.position);
-    helperMesh.position.z = 0; // Put it at ground level (Z=Up in Giro3D Map)
-    // Compute bounding sphere so Giro3D can use it
-    helperMesh.geometry.computeBoundingSphere();
-    // Add to threeObjects, not scene - this is what Giro3D traverses for bounds
-    this._instance.threeObjects.add(helperMesh);
-    console.log('[MapPresenter] Added bounds helper at (X=E, Y=N, Z=up):', helperMesh.position);
-    */
-
     // Create map entity if extent provided
     await this._createMap(config.extent, crs);
-      // root group that contains tiles at root of hierarchy (LOD 0) as children
-    this._contentRoot = this._map.object3d; // FIXME or should i use the Instance's
+    // root group that contains tiles at root of hierarchy (LOD 0) as children
+    this._contentRoot = this._map.object3d;
     if(!this._contentRoot){throw "implementation error";}
     
-    /*
-    // Create GIS content root
-    this._contentRoot = new Group();
-    this._contentRoot.name = 'ContentRoot';
-    this._instance.add(this._contentRoot); // FIXME add to the Map instead ?!
-    */
-    // Setup controls
     this._setupControls();
 
     // Setup input handling
@@ -698,7 +677,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       if (!src_config) {
         throw `implementation error: invalid datasource with index: ${s.index}`;
       }
-      src_config.srsname = this._config.crs?.code; // crs of features in response // NO!! They're always ENU (centered at origin)
+      // src_config.srsname = this._config.crs?.code; // crs of features in response // NO!! They're always ENU (centered at origin)
 
       const features = (src_config.feature_types as string).split?.(',');
       if (features.length == 0) {
