@@ -102,6 +102,16 @@ async function loadGiro3D(): Promise<boolean> {
 
   try {
     const giro3d = await import('@giro3d/giro3d');
+    // giro3d.(core).picking.PickOptions.gpuPicking.gpuPicking = false; //(default: false)
+    /*If disabled, picking will using CPU raycasting when possible (rather than GPU picking).
+    Main differences between CPU raycasting and GPU picking:
+    CPU raycasting is generally much faster to execute and does not require blocking the thread to wait for the GPU queue to complete.
+    Disadvantages:
+
+    CPU raycasting might give less accurate results in some specific cases,
+    CPU raycasting might not return complete information, only the picked point coordinates.
+    CPU raycasting does not ignore transparent pixels, whereas GPU picking does.
+    It might be a disadvantage or advantage depending on the use case. */
     Instance = giro3d.Instance;
     Extent = giro3d.geographic.Extent;
     Giro3DMap = giro3d.Map;
@@ -591,11 +601,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       //  renderer: config.renderer,
       //  scene3D: config.scene
       crs: crs,
-      backgroundColor: this._config.backgroundColor || '#87CEEB',
+      backgroundColor: this._config.backgroundColor, // || '#87CEEB'
     });
 
-    const axesHelper = new AxesHelper(100000); // ONLY for debugging
-    this._instance.add(axesHelper);
+    // const axesHelper = new AxesHelper(100000); // ONLY for debugging
+    // this._instance.add(axesHelper);
 
     // CRITICAL: Disable Giro3D's automatic near/far plane computation
     // It computes Infinity when the scene is empty, breaking frustum culling
@@ -642,8 +652,6 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     if(!this._contentRoot){throw "implementation error";}
     
     this._setupControls();
-
-    // Setup input handling
     this._setupInput();
 
     this._state.value = PresenterState.Ready;
@@ -1211,21 +1219,23 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   private _setupInput(): void {
     const domElement = this._instance.domElement;
 
+    // =========================================================================
+    // PRIMARY POINTER EVENTS
+    // =========================================================================
+
     // Click → select event
     domElement.addEventListener('click', (event: MouseEvent) => {
       this._handlePointerEvent('select', event);
     });
 
-    // Throttled hover events
-    let hoverThrottle = false;
-    domElement.addEventListener('pointermove', (event: PointerEvent) => {
-      if (!hoverThrottle) {
-        hoverThrottle = true;
-        setTimeout(() => {
-          hoverThrottle = false;
-        }, 50);
-        this._handlePointerEvent('hover', event);
-      }
+    // Double click
+    domElement.addEventListener('dblclick', (event: MouseEvent) => {
+      this._handlePointerEvent('dblclick', event);
+    });
+
+    // Context menu (right click / long press)
+    domElement.addEventListener('contextmenu', (event: MouseEvent) => {
+      this._handlePointerEvent('contextmenu', event);
     });
 
     // Pointer down/up events
@@ -1236,6 +1246,89 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     domElement.addEventListener('pointerup', (event: PointerEvent) => {
       this._handlePointerEvent('pointerup', event);
     });
+
+    // Pointer cancel (e.g., touch cancelled, pointer lost)
+    domElement.addEventListener('pointercancel', (event: PointerEvent) => {
+      this._handlePointerEvent('pointercancel', event);
+    });
+
+    // =========================================================================
+    // MOVE EVENTS (throttled hover + raw pointermove)
+    // =========================================================================
+
+    let hoverThrottle = false;
+    domElement.addEventListener('pointermove', (event: PointerEvent) => {
+      // Always emit raw pointermove for subscribers that need it
+      this._handlePointerEvent('pointermove', event);
+
+      // Throttled hover for efficiency (50ms = ~20Hz)
+      if (!hoverThrottle) {
+        hoverThrottle = true;
+        setTimeout(() => {
+          hoverThrottle = false;
+        }, 50);
+        this._handlePointerEvent('hover', event);
+      }
+    });
+
+    // =========================================================================
+    // ENTER/LEAVE EVENTS (canvas boundary, not object-level)
+    // =========================================================================
+
+    domElement.addEventListener('pointerenter', (event: PointerEvent) => {
+      this._handlePointerEvent('pointerenter', event);
+    });
+
+    domElement.addEventListener('pointerleave', (event: PointerEvent) => {
+      this._handlePointerEvent('pointerleave', event);
+    });
+
+    // =========================================================================
+    // WHEEL EVENT
+    // =========================================================================
+
+    domElement.addEventListener('wheel', (event: WheelEvent) => {
+      this._handleWheelEvent(event);
+    });
+  }
+
+  /**
+   * Handle wheel events
+   * @internal
+   */
+  private _handleWheelEvent(event: WheelEvent): void {
+    const callbacks = this._pointerCallbacks.get('wheel');
+    if (!callbacks || callbacks.size === 0) return;
+
+    // Use Giro3D's picking to find object under cursor
+    const picks = this._instance.pickObjectsAt(event, {
+      radius: 2,
+      sortByDistance: true,
+    });
+
+    const pointerId = 0; // Wheel doesn't have pointerId
+    const pick = picks[0];
+
+    const eventData: PointerEventData = {
+      point: pick?.point ?? null,
+      object: pick?.object ?? null,
+      originalEvent: event,
+      pointerId: pointerId,
+      distance: pick?.distance,
+      // Wheel-specific data
+      deltaX: event.deltaX,
+      deltaY: event.deltaY,
+      deltaZ: event.deltaZ,
+      deltaMode: event.deltaMode,
+    };
+
+    // Handle BatchedMesh
+    if (pick?.object?.isBatchedMesh && pick?.batchId !== undefined) {
+      eventData.instanceId = pick.batchId;
+      eventData.batchName = pick.object.name;
+    }
+
+    this._emitPointerEvent('wheel', eventData);
   }
 
   /**
@@ -1244,12 +1337,27 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    */
   private _handlePointerEvent(
     eventType: PointerEventType,
-    event: MouseEvent,
+    event: MouseEvent | PointerEvent,
   ): void {
+    console.log(`Giro3D PointerEvent: ${eventType}`);
     const callbacks = this._pointerCallbacks.get(eventType);
     if (!callbacks || callbacks.size === 0) return;
 
-    // Use Giro3D's picking
+    // Get pointerId from PointerEvent, default to 0 for MouseEvent
+    const pointerId = (event as PointerEvent).pointerId ?? 0;
+
+    // Events that don't need picking (canvas-level, not object-level)
+    if (eventType === 'pointerenter' || eventType === 'pointerleave' || eventType === 'pointercancel') {
+      this._emitPointerEvent(eventType, {
+        point: null,
+        object: null,
+        originalEvent: event,
+        pointerId: pointerId,
+      });
+      return;
+    }
+
+    // Use Giro3D's picking for object-level events
     const picks = this._instance.pickObjectsAt(event, {
       radius: 2,
       sortByDistance: true,
@@ -1261,6 +1369,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         point: pick.point,
         object: pick.object,
         originalEvent: event,
+        pointerId: pointerId,
+        distance: pick.distance,
       };
 
       // Handle BatchedMesh
@@ -1270,6 +1380,18 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       }
 
       this._emitPointerEvent(eventType, eventData);
+    } else {
+      // Emit event even with no pick for certain event types
+      // These need to fire even when not over an object (e.g., for leave detection)
+      const emitWithoutPick = ['hover', 'pointermove', 'pointerup', 'contextmenu'];
+      if (emitWithoutPick.includes(eventType)) {
+        this._emitPointerEvent(eventType, {
+          point: null,
+          object: null,
+          originalEvent: event,
+          pointerId: pointerId,
+        });
+      }
     }
   }
 
@@ -1463,7 +1585,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._map = new Giro3DMap({
       name: this._config.name || "giro3d_map",
       extent: giro3dExtent,
-      backgroundColor: this._config.backgroundColor || '#f0f0f0',
+      backgroundColor: this._config.backgroundColor, //  || '#f0f0f0'
       backgroundOpacity: this._config.backgroundOpacity || 1.0,
     });
 
