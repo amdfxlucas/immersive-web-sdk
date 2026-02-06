@@ -111,7 +111,7 @@ export interface MapPresenterOptions extends PresenterConfig {
   camera?: PerspectiveCamera | OrthographicCamera; // TODO move to PresenterContext  Abstraction
   renderer?: WebGLRenderer | WebGLRendererParameters;
   scene3D?: Scene;
-  backgroundColor?: string;
+  backgroundColor?: string|null;
   backgroundOpacity?: number;
   /** Enable terrain rendering */
   terrain?: boolean; // | Partial<TerrainOptions>
@@ -152,16 +152,28 @@ export interface MapPresenterOptions extends PresenterConfig {
  * @category Runtime
  */
 export interface PointerEventData {
-  /** Intersection point in scene coordinates */
-  point: Vector3;
-  /** The intersected object */
-  object: Object3D;
+  /** Intersection point in scene coordinates (null if no pick) */
+  point: Vector3 | null;
+  /** The intersected object (null if no pick) */
+  object: Object3D | null;
   /** For BatchedMesh, the instance ID */
   instanceId?: number;
   /** For BatchedMesh, the batch name */
   batchName?: string;
   /** Original DOM or XR event */
   originalEvent?: Event | XRInputSourceEvent;
+  /** Pointer ID for multi-touch support */
+  pointerId?: number;
+  /** Distance from camera to intersection point */
+  distance?: number;
+  /** Wheel delta X (for 'wheel' events) */
+  deltaX?: number;
+  /** Wheel delta Y (for 'wheel' events) */
+  deltaY?: number;
+  /** Wheel delta Z (for 'wheel' events) */
+  deltaZ?: number;
+  /** Wheel delta mode: 0=pixels, 1=lines, 2=pages (for 'wheel' events) */
+  deltaMode?: number;
 }
 
 /**
@@ -203,7 +215,18 @@ export enum PresenterState {
  *
  * @category Runtime
  */
-export type PointerEventType = 'select' | 'hover' | 'pointerdown' | 'pointerup';
+export type PointerEventType =
+  | 'select'           // click / tap
+  | 'dblclick'         // double click / double tap
+  | 'contextmenu'      // right click / long press
+  | 'hover'            // throttled pointermove for hover detection
+  | 'pointermove'      // raw pointer move (not throttled)
+  | 'pointerdown'      // pointer pressed
+  | 'pointerup'        // pointer released
+  | 'pointerenter'     // pointer enters canvas
+  | 'pointerleave'     // pointer leaves canvas
+  | 'pointercancel'    // pointer interaction cancelled
+  | 'wheel';           // scroll wheel
 
 /**
  * Pointer event callback function type
