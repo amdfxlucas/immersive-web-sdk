@@ -251,35 +251,15 @@ function createFeatureSourceClass() {
         // Giro3D Map: X=Easting, Y=Northing, Z=Up (Y-up=false)
         //
         // Two cases:
-        // 1. ENU geometry (centered near 0,0,0) - needs offset to CRS origin + rotation
+        // 1. ENU geometry (centered near 0,0,0) - needs offset to CRS origin + rotation (ALWAYS THE CASE)
         // 2. CRS geometry (already at ~726000, 5746000) - needs only rotation, no offset
-        //
-        // We detect by checking if object bounds are near origin (ENU) or far (CRS)
-        const CRS_THRESHOLD = 10000; // Objects with coords > 10km are likely in CRS already
 
         const wrappedObjects = rawObjects.map(obj => {
-          // Check if object is in ENU (near origin) or CRS (far from origin)
-          const bbox = new Box3().setFromObject(obj);
-          const isValidBBox = bbox.min.x !== Infinity && bbox.max.x !== -Infinity;
-          const maxCoord = isValidBBox ? Math.max(
-            Math.abs(bbox.min.x), Math.abs(bbox.max.x),
-            Math.abs(bbox.min.y), Math.abs(bbox.max.y),
-            Math.abs(bbox.min.z), Math.abs(bbox.max.z)
-          ) : 0;
-
-          const isAlreadyCRS = maxCoord > CRS_THRESHOLD;
-          console.log(`[FeatureSource] Object ${obj.name} bbox:`, bbox.min, bbox.max,
-            `maxCoord: ${maxCoord}, isAlreadyCRS: ${isAlreadyCRS}`);
-
-          const wrapper = new Group();
-          wrapper.name = `ENUWrapper_${obj.name || this.featureclass_name}`;
 
           // Rotate from Y-up (ENU/Three.js) to Z-up (Giro3D Map) coordinate system
           // rotation.x = +π/2 rotates: Y(up)->+Z(up), Z(north)->-Y
           // Note: This may flip north/south - if so, we'll need scale.y = -1
-          wrapper.rotation.x = Math.PI / 2;
-
-          wrapper.add(obj);
+          obj.rotation.x = Math.PI / 2;
 
           // IMPORTANT: Object3DLayer adds objects as children of tile Groups.
           // Tiles are already positioned in CRS space, so adding a CRS offset
@@ -301,10 +281,10 @@ function createFeatureSourceClass() {
           // So we DO need the CRS offset!
           //
           // The doubling issue must be elsewhere... Let's NOT add offset and debug.
-          console.log(`[FeatureSource] Object ${isAlreadyCRS ? 'in CRS' : 'in ENU'} coords, wrapper at origin (debug)`);
-          wrapper.position.set(0, 0, 0);
+          //console.log(`[FeatureSource] Object ${isAlreadyCRS ? 'in CRS' : 'in ENU'} coords, wrapper at origin (debug)`);
+          obj.position.set(0, 0, 0);
 
-          return wrapper;
+          return obj;
         });
 
         console.log(`[FeatureSource] returning ${wrappedObjects.length} wrapped objects for tile ${id}`);
@@ -1123,7 +1103,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   notifyChange(): void {
     this._needsRender = true;
     if (this._instance) {
-      this._instance.notifyChange();
+      this._instance.notifyChange(this._camera);
     }
   }
 
@@ -1699,6 +1679,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       outlineColor: this._config.outlineColor,
       side: this._config.side,
       depthTest: this._config.depthTest,
+      // Terrain deformation: Giro3D defaults to enabled=true, but the default
+      // subdivision strategy blocks subdivision until ALL elevation layers
+      // finish loading for each tile. For a 2D/2.5D map view this causes tiles
+      // to stay at LOD 0 indefinitely if elevation data is slow or unavailable.
+      // Pass through the user's terrain config, defaulting to disabled.
+      terrain: this._config.terrain ?? false,
       // by default lighting is disabled in giro3d
       castShadow: this._config.castShadow || false,
       receiveShadow: this._config.receiveShadow || false
@@ -1764,9 +1750,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     }
 
     // Notify on control changes
-    this._controls.addEventListener('change', () => {
-      this.notifyChange();
-    });
+    // this._controls.addEventListener('change', () => {
+    //    this.notifyChange();    });
+    this._instance.view.setControls(this._controls);
+
   }
 
   // ============================================================================
@@ -1821,6 +1808,191 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     if (this._map) {
       this._map.removeLayer(layer);
     }
+  }
+
+  /**
+   * Diagnostic method: dump tile tree state and intercept subdivision logic.
+   *
+   * Call this AFTER the map is initialized and has had at least one frame.
+   * It logs all relevant state and monkey-patches Giro3D's Map methods
+   * to trace why tiles are (or aren't) subdividing.
+   *
+   * @example
+   * ```ts
+   * mapPresenter.debugSubdivision();
+   * // Then zoom in and check the console
+   * ```
+   */
+  debugSubdivision(): void {
+    if (!this._map || !this._instance) {
+      console.error('[DEBUG] Map or Instance not initialized');
+      return;
+    }
+
+    const map = this._map;
+    const view = this._instance.view;
+    const camera = view.camera;
+
+    // ── 1. Static state ──────────────────────────────────────
+    console.group('[DEBUG] ═══ Map Subdivision Diagnostics ═══');
+
+    console.log('Map.frozen:', map.frozen);
+    console.log('Map.maxSubdivisionLevel:', map.maxSubdivisionLevel);
+    console.log('Map.subdivisionThreshold:', map.subdivisionThreshold);
+    console.log('Map.terrain.enabled:', map.terrain?.enabled);
+    console.log('Map.visible:', map.visible);
+    console.log('Map.ready:', (map as any)._ready);
+    console.log('Map.layerCount:', map.layerCount);
+    console.log('Map.extent:', map.extent?.toString?.() || map.extent);
+
+    console.log('View.width:', view.width, 'View.height:', view.height);
+    console.log('Camera.type:', camera.type);
+    console.log('Camera.position:', camera.position.toArray());
+    console.log('Camera.near:', camera.near, 'Camera.far:', camera.far);
+    console.log('Camera.fov:', (camera as any).fov);
+    console.log('Camera.matrixWorldNeedsUpdate:', camera.matrixWorldNeedsUpdate);
+    console.log('Camera.up:', camera.up.toArray());
+
+    const mainLoop = (this._instance as any).mainLoop || (this._instance as any)._mainLoop;
+    if (mainLoop) {
+      console.log('MainLoop.automaticCameraPlaneComputation:', mainLoop.automaticCameraPlaneComputation);
+    }
+
+    // ── 2. Tile tree ─────────────────────────────────────────
+    const tiles: any[] = [];
+    const collectTiles = (obj: any, depth = 0) => {
+      // TileMesh has .extent and .lod or .coordinate
+      if (obj.isTileMesh || obj.coordinate !== undefined || (obj.extent && obj.lod !== undefined)) {
+        tiles.push({
+          name: obj.name,
+          lod: obj.coordinate?.z ?? obj.lod ?? '?',
+          visible: obj.visible,
+          materialVisible: obj.material?.visible,
+          parent: obj.parent?.name,
+          childCount: obj.children?.length,
+          depth,
+        });
+      }
+      if (obj.children) {
+        for (const child of obj.children) {
+          collectTiles(child, depth + 1);
+        }
+      }
+    };
+    collectTiles(map.object3d);
+    console.log('Tile tree (' + tiles.length + ' tiles):');
+    console.table(tiles);
+
+    // ── 3. Root tile bounding boxes ──────────────────────────
+    const rootTiles = (map as any)._rootTiles;
+    if (rootTiles) {
+      console.log('Root tiles:', rootTiles.length);
+      for (const tile of rootTiles) {
+        const bbox = new Box3();
+        if (tile.getWorldSpaceBoundingBox) {
+          tile.getWorldSpaceBoundingBox(bbox);
+          const size = new Vector3();
+          bbox.getSize(size);
+          const center = new Vector3();
+          bbox.getCenter(center);
+          console.log(`  Tile "${tile.name}" LOD=${tile.coordinate?.z}:`,
+            '\n    worldBox center:', center.toArray(),
+            '\n    worldBox size:', size.toArray(),
+            '\n    worldBox min:', bbox.min.toArray(),
+            '\n    worldBox max:', bbox.max.toArray(),
+            '\n    position:', tile.position.toArray(),
+            '\n    visible:', tile.visible,
+            '\n    materialVisible:', tile.material?.visible,
+            '\n    textureSize:', tile.textureSize?.toArray?.(),
+          );
+
+          // Compute distance from camera to box
+          const geometricError = Math.max(size.x, size.y);
+          const camInLocal = camera.position.clone();
+          const dist = bbox.distanceToPoint(camInLocal);
+          console.log(`    geometricError: ${geometricError}, cameraDist: ${dist}`,
+            `\n    dist <= geoError? ${dist <= geometricError} (→ null SSE → should subdivide)`);
+        }
+      }
+    } else {
+      console.warn('Could not access _rootTiles');
+    }
+
+    console.groupEnd();
+
+    // ── 4. Monkey-patch: intercept update cycle ──────────────
+    // Listen to Giro3D instance events to see if updates are running
+    let updateCount = 0;
+    this._instance.addEventListener('update-start', () => {
+      updateCount++;
+      if (updateCount <= 5) {
+        console.log(`[DEBUG] Giro3D update-start (frame #${updateCount})`);
+      }
+    });
+    this._instance.addEventListener('before-entity-update', (e: any) => {
+      if (e.entity === map && updateCount <= 5) {
+        console.log(`[DEBUG] Map entity about to update (frame #${updateCount})`);
+      }
+    });
+    this._instance.addEventListener('after-entity-update', (e: any) => {
+      if (e.entity === map && updateCount <= 5) {
+        // Re-count tiles after update
+        let tileCount = 0;
+        let visibleCount = 0;
+        const countTiles = (obj: any) => {
+          if (obj.isTileMesh || obj.coordinate !== undefined) {
+            tileCount++;
+            if (obj.visible) visibleCount++;
+          }
+          if (obj.children) obj.children.forEach(countTiles);
+        };
+        countTiles(map.object3d);
+        console.log(`[DEBUG] After Map update: ${tileCount} tiles (${visibleCount} visible)`);
+      }
+    });
+
+    // ── 5. Monkey-patch Map.shouldSubdivide (if accessible) ──
+    const proto = Object.getPrototypeOf(map);
+    const origShouldSubdivide = proto.shouldSubdivide;
+    if (origShouldSubdivide) {
+      let patchCallCount = 0;
+      proto.shouldSubdivide = function(context: any, node: any) {
+        const result = origShouldSubdivide.call(this, context, node);
+        patchCallCount++;
+        if (patchCallCount <= 20) {
+          const wb = new Box3();
+          node.getWorldSpaceBoundingBox(wb);
+          const sz = new Vector3();
+          wb.getSize(sz);
+          console.log(`[DEBUG] shouldSubdivide LOD=${node.coordinate?.z} → ${result}`,
+            `worldBoxSize=[${sz.x.toFixed(0)},${sz.y.toFixed(0)},${sz.z.toFixed(1)}]`,
+            `cam=[${context.view.camera.position.x.toFixed(0)},${context.view.camera.position.y.toFixed(0)},${context.view.camera.position.z.toFixed(0)}]`,
+            `viewSize=${context.view.width}x${context.view.height}`);
+        }
+        return result;
+      };
+      console.log('[DEBUG] Patched Map.shouldSubdivide — zoom in and check console');
+    } else {
+      console.warn('[DEBUG] Could not patch shouldSubdivide (not on prototype)');
+    }
+
+    // Also patch testVisibility
+    const origTestVis = proto.testVisibility;
+    if (origTestVis) {
+      let visCallCount = 0;
+      proto.testVisibility = function(node: any, context: any) {
+        const result = origTestVis.call(this, node, context);
+        visCallCount++;
+        if (visCallCount <= 20) {
+          console.log(`[DEBUG] testVisibility LOD=${node.coordinate?.z} → ${result}`);
+        }
+        return result;
+      };
+    }
+
+    // Trigger one update to see the output
+    console.log('[DEBUG] Triggering notifyChange(camera) now...');
+    this._instance.notifyChange(this._camera);
   }
 
   /**
