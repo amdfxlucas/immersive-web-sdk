@@ -124,26 +124,30 @@ export interface MapPresenterOptions extends PresenterConfig {
   initialAltitude?: number;
   // ---------Giro3d MapOptions -----------------------
   name?: string;
+  discardNoData?: boolean;
+  showOutline?: boolean;
+  outlineColor?: string;
+  subdivisionThreshold?: number;
+  side?: number; // THREEjs Material sidedness
+  depthTest?: boolean;
   /*
+    maxSubdivisionLevel?: number;
+    subdivisionStrategy?: MapSubdivisionStrategy;
     castShadow?: boolean;
+    receiveShadow?: boolean;
     colorimetry?: ColorimetryOptions;
     contourLines?: boolean | Partial<ContourLineOptions>;
-    depthTest?: boolean;
-    discardNoData?: boolean;
     elevationRange?: ElevationRange;
    // extent: Extent; -> in PresenterConfig
     forceTextureAtlases?: boolean;
     graticule?: boolean | Partial<GraticuleOptions>;
     lighting?: boolean | MapLightingOptions;
-    maxSubdivisionLevel?: number;
+    // The root object of this entity. If none is provided, a new Group is created.
     object3d?: Object3D<Object3DEventMap>;
-    outlineColor?: ColorRepresentation;
-    receiveShadow?: boolean;
-    showOutline?: boolean;
-    side?: Side;
-    subdivisionStrategy?: MapSubdivisionStrategy;
-    subdivisionThreshold?: number;
    */
+  //----- ColorLayer Options ----- (MOVE TO DISPLAY_MODEL)
+  showTileBorders?: boolean;
+  // resolutionFactor?: number
 }
 
 /**

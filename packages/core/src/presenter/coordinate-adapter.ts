@@ -69,7 +69,7 @@ let proj4Module: Proj4Function | null = null;
  *
  * @internal
  */
-async function getProj4(): Promise<Proj4Function> {
+export async function getProj4(): Promise<Proj4Function> {
   if (!proj4Module) {
     try {
       const module = await import('proj4');
