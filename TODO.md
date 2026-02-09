@@ -10,3 +10,7 @@ Giro3D Map mouseup
 
 
 i have a question. if you've read the source of UnifiedInputSystem you've noticed the installation of event-listeners on the scene's object3D's and batchedMeshes in onEntityQualify(). Shouldn't this be enough and enable raycasting events out-of-the box for the MapPresenter's scene as well ?! Given that the provided 'fetcher' for the FeatureSource's loads the exact same entitties, in the exact same way into the Giro3d scene just as it does in the XRPresenter's WebXR scene ... 
+
+
+
+could the graphics bug be related to IWSDK's patching of batchedMesh with three-mesh-bvh ?!

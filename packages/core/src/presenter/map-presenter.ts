@@ -1694,14 +1694,15 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       backgroundColor: this._config.backgroundColor, //  || '#f0f0f0'
       backgroundOpacity: this._config.backgroundOpacity,
       subdivisionThreshold: this._config.subdivisionThreshold, // default: 1.5
-      // maxSubdivisionLevel: // by default there is none
+      maxSubdivisionLevel: this._config.maxSubdivisionLevel, // by default its 30
       showOutline: this._config.showOutline,
       outlineColor: this._config.outlineColor,
       side: this._config.side,
-      depthTest: this._config.depthTest
+      depthTest: this._config.depthTest,
+      // by default lighting is disabled in giro3d
+      castShadow: this._config.castShadow || false,
+      receiveShadow: this._config.receiveShadow || false
     });
-    this._map.castShadow = false;
-    this._map.receiveShadow = false;
 
     /*Add THREE object or Entity to the instance.
     If the object or entity has no parent, it will be added to the default tree 
