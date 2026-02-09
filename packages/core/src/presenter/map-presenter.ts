@@ -40,7 +40,7 @@ import {
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import type { Entity } from '../ecs/entity.js';
 import type { World } from '../ecs/world.js';
-import { CoordinateAdapter } from './coordinate-adapter.js';
+import { CoordinateAdapter, getProj4 } from './coordinate-adapter.js';
 import {
   crsFromBBox,
   type CRSExtent,
@@ -73,6 +73,7 @@ let Instance: any;
 /** Giro3D Extent class */
 let Extent: any;
 let ElevationLayer: any;
+let WmsSource: any;
 let Object3DLayer: any;
 let Object3DSource: any;
 let CoordinateSystem: any; 
@@ -120,6 +121,7 @@ async function loadGiro3D(): Promise<boolean> {
     Object3DLayer = giro3d.layer.Object3DLayer;
     ElevationLayer = giro3d.layer.ElevationLayer;
     Object3DSource = giro3d.Object3DSource;
+    WmsSource = giro3d.WmsSource;
     TiledImageSource = giro3d.TiledImageSource;
 
     // Define FeatureSource class after Object3DSource is loaded
@@ -138,6 +140,7 @@ export interface FeatureSourceOptions {
   crs_name?: string; // i.e. 'EPSG:4326' crs of query's bbox
   config: any; // datasource configuration object from project file
   extent: typeof Extent;
+  center: any;
   fetcher: any;
   featureclass_name: string;
 }
@@ -159,15 +162,21 @@ function createFeatureSourceClass() {
     _fetcher: any;
     featureclass_name: string;
     crs: any;
+    proj4: any;
     crs_name!: string;
-    extent: any;
+    extent: any; // Map-extent
+    center: any; // center of Map-extent
     /** CRS coordinates of the ENU origin (for transforming ENU geometry to CRS) */
     originCRS: { x: number; y: number };
 
-    constructor(opts: FeatureSourceOptions & { originCRS: { x: number; y: number } }) {
+    // TODO pass parent here ?!
+    constructor(opts: FeatureSourceOptions & { originCRS: { x: number; y: number } })
+    {
       super();
+      getProj4().then((p)=>{this.proj4 = p;}).catch(console.error);
       this._config = opts.config;
       this._fetcher = opts.fetcher;
+      this._center = opts.center;
       this.featureclass_name = opts.featureclass_name;
       this.crs_name = opts.crs_name as string;
       this.crs = opts.crs;
@@ -184,25 +193,43 @@ function createFeatureSourceClass() {
      * @param { GetObjectsOptions } param0
      * @returns { objects: Object3D[], id: string } - Array of Object3D instances in CRS coordinates
      */
-    async getObjects({ id, extent, signal }: { id: string; extent: any; signal?: AbortSignal }) {
-      console.log(`[FeatureSource] getObjects called for ${this.featureclass_name}, tile: ${id}`);
-      console.log(`[FeatureSource] extent:`, extent.west, extent.south, extent.east, extent.north);
-      console.log(`[FeatureSource] ENU origin in CRS:`, this.originCRS);
+    async getObjects({ id, extent, signal }: { id: string; extent: any; signal?: AbortSignal })
+    {
+      console.log([`[FeatureSource] getObjects called for ${this.featureclass_name}, tile: ${id}`,
+                  `                 extent: ${extent.west}, ${extent.south}, ${extent.east}, ${extent.north}`,
+                  `                 ENU origin in CRS: ${this.originCRS}`].join('\n'));
 
       const bbox = `${extent.west},${extent.south},${extent.east},${extent.north},${this.crs_name}`; // extent.crs.name -> "ETRS_1989_UTM_Zone_32N"
+
+      //const centerX = (extent.minX + extent.maxX) / 2;
+      //const centerY = (extent.minY + extent.maxY) / 2;
+     // const originwgs84 = this.proj4(this.crs_name, 'EPSG:4326', [ centerX, centerY]);
+
+
+      //const origin84 = extent.as(CoordinateSystem.epsg4326); // center of current tile in wgs84
+
+      const origin84 = this.extent.as(CoordinateSystem.epsg4326); // center of Map-extent (fixedindependent of tile extent)
+
+
+      const centerX = (origin84.west + origin84.east) / 2;// lon
+      const centerY = (origin84.south + origin84.north) / 2;// lat
+
       const opts = {
         bbox: bbox,
         dataSource: this._config,
-        // tile_index: tile_desc.id, z-x-y
-        // origin:
+      
+        origin: {lat:  centerY, lon: centerX },
+        //origin: {lat:  originwgs84[0], lon: originwgs84[1] }
+        // FIXME must be in WGS84 for now, but move conversion to backend once 'crs' field of 'origin' is supported
+        // must be 'position' of parent- TileMesh. Same as center of 'extent' parameter
+        // is send to backend with request and becomes scene (0,0,0)
         // parent: .. tile that triggered the load
       };
 
       try {
-        console.log(`[FeatureSource] called fetcher with bbox: ${bbox}`);
+        
         const features = await this._fetcher(this.featureclass_name, opts);
-        console.log(`[FeatureSource] fetcher returned:`, features);
-
+        
         // Normalize return value to array
         let rawObjects: any[];
         if (Array.isArray(features)) {
@@ -210,9 +237,15 @@ function createFeatureSourceClass() {
         } else if (features && features.isObject3D) {
           rawObjects = [features];
         } else {
-          console.warn(`[FeatureSource] fetcher returned unexpected value:`, features);
+          console.warn(`[FeatureSource] fetcher for ${this.featureclass_name} with bbox: ${bbox} returned unexpected value:`, features);
           rawObjects = [];
         }
+        const msg = [`[FeatureSource] called fetcher for ${this.featureclass_name} with bbox: ${bbox}`,
+                      `                fetcher returned: `].join('\n');
+        if(rawObjects.length>0 && rawObjects[0].children.length==0) {
+          console.warn(msg); // EMPTY GLB scene returned
+        }else if (rawObjects.length>0 && rawObjects[0].children.length>0)
+        {console.log( msg, features);}
 
         // Wrap geometry and transform to Giro3D Map coordinate system
         // Giro3D Map: X=Easting, Y=Northing, Z=Up (Y-up=false)
@@ -370,7 +403,6 @@ class ENUGeometryWrapper {
  * - CRS-based coordinate system
  * - ENU geometry wrapper for XR-compatible assets
  * - Map controls for pan/zoom/orbit
- * - Basemap layer support (WMS)
  *
  * @example
  * ```ts
@@ -427,6 +459,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
   /** Giro3D Map entity */
   private _map: any = null;
+  // center of the Map's extent in Map CRS
+  private center!: any;
+  
 
   /** Three.js scene (from Giro3D) */
   private _scene!: Scene;
@@ -692,11 +727,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         console.warn("No feature-classes for DataSource ");
       }
       await Promise.all(features.map(async (fc, i, _) => {
-
+        /*
         const fdef = (src_config.feature_definition as unknown[])?.[i];
-        if (!fdef) {
-          throw "ImplementationError";
-        }
+        if (!fdef && src_config.type=="object" ) {
+          throw "ImplementationError"; // 'color' and 'elevation' layer have empty 'feature_definition'
+        }*/
         // Ensure extent is a Giro3D Extent object in CRS coordinates
         let sourceExtent = this._map.extent; // Default to map extent (already a Giro3D Extent)
         if (src_config?.extent) {
@@ -738,30 +773,101 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         console.log(`[MapPresenter] Map extent CRS:`, this._map.extent.crs);
         console.log(`[MapPresenter] ENU origin CRS:`, originCRS);
 
-        const source = new FeatureSourceClass({
-          fetcher: fetcher,
-          crs_name: this._config.crs?.code, // the CRS of the query's bbox //(src_config.srsname as string),
-          config: src_config,
-          featureclass_name: fc,
-          crs: this._map.extent.crs, // Use map extent's CRS (properly initialized) // NOTE: same as crs_name
-          extent: sourceExtent,
-          originCRS: originCRS, // Pass ENU origin for coordinate transform
-        });
+        let layer = null;
+        let source = null;
 
-        // Create layer - extent is important for Giro3D to know when to query the source
-        const layer = new Object3DLayer({
-          source: source,
-          name: fc,
-          // minLevel: ...
-          // maxLevel: ...
-          extent: sourceExtent, // Giro3D Extent object
-          /*
-          // Use map's elevation to place objects on terrain
-          elevationProvider: (coords: Coordinates) => {
-              const result = map.getElevation({ coordinates: coords });
-              return result.samples?.[0]?.elevation;
-          },*/
-        });
+        switch (src_config.type) {
+          // TODO add 'feature'| 'vector'| 'collection' source that is not proxied through backend
+          case 'object':
+
+            source = new FeatureSourceClass({
+              fetcher: fetcher,
+              crs_name: this._config.crs?.code, // the CRS of the query's bbox //(src_config.srsname as string),
+              config: src_config,
+              featureclass_name: fc,
+              crs: this._map.extent.crs, // Use map extent's CRS (properly initialized) // NOTE: same as crs_name
+              extent: sourceExtent,
+              originCRS: originCRS, // Pass ENU origin for coordinate transform
+            });
+
+            // Debug: Check if source contains the map extent
+            const mapExt = this._map.extent;
+            const sourceContains = source.contains ? source.contains(mapExt) : 'no contains method';
+            console.log(`[MapPresenter] Source contains map extent:`, sourceContains);
+            console.log(`[MapPresenter] Source extent:`, source.getExtent());
+            console.log(`[MapPresenter] Source CRS:`, source.getCrs());
+
+            // Create layer - extent is important for Giro3D to know when to query the source
+            layer = new Object3DLayer({
+              source: source,
+              name: fc,
+              // minLevel: ...
+              // maxLevel: ...
+              extent: sourceExtent, // Giro3D Extent object
+              /*
+              // Use map's elevation to place objects on terrain
+              elevationProvider: (coords: Coordinates) => {
+                  const result = map.getElevation({ coordinates: coords });
+                  return result.samples?.[0]?.elevation;
+              },*/
+            });
+            break;
+          case 'color':
+
+            source = new WmsSource({
+                url: src_config.url,
+                projection: src_config.srsname,
+                layer: fc,
+                extent: sourceExtent,
+                imageFormat: src_config.format || 'image/png',
+               //  transparent: true // leads to black-screen
+                // params: additional request params i.e. 'version'
+            });
+
+            layer = new ColorLayer({source: source, 
+                          extent: sourceExtent,
+                          name: fc,
+                          // opacity: 0.8, // otherwise ducts/segments are invisible
+                          // resolutionFactor: 1.00(default)
+                          // preloadImages: // preload of low resolution fallback images
+                          showTileBorders: this._config.showTileBorders // useful for debug
+            });
+            break;
+          case 'elevation':
+            /*
+            const source = new TiledImageSource({
+                         source: new TileWMS({
+                             url: 'http://example.com/wms',
+                             params: {
+                                 LAYERS: 'theLayer',
+                                 FORMAT: 'image/tiff',
+                             },
+                             projection: 'EPSG:3946',
+                             crossOrigin: 'anonymous',
+                             version: '1.3.0',
+                         }),
+                         format: new GeoTIFFFormat(),
+                         noDataValue: -9999,
+                    });
+             */
+            source = new WmsSource({
+                       url: src_config.url,
+                       extent: sourceExtent,
+                       projection: src_config.srsname,
+                       layer: fc,
+                       imageFormat: src_config.format,
+                  });
+            
+            layer = new ElevationLayer({source: source, 
+                                        extent: sourceExtent,
+                                        name: fc,
+                                        // preloadImages: 
+                    });
+            
+            break;
+          default:
+            throw `unhandled datasource type: ${src_config.type} in MapPresenter`;
+          };
 
         console.log(`[MapPresenter] Adding layer ${fc} to map...`);
         await this._map.addLayer(layer);
@@ -769,12 +875,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         console.log(`[MapPresenter] Layer visible:`, layer.visible, 'Layer frozen:', layer.frozen);
         console.log(`[MapPresenter] Layer ready:`, (layer as any).ready);
 
-        // Debug: Check if source contains the map extent
-        const mapExt = this._map.extent;
-        const sourceContains = source.contains ? source.contains(mapExt) : 'no contains method';
-        console.log(`[MapPresenter] Source contains map extent:`, sourceContains);
-        console.log(`[MapPresenter] Source extent:`, source.getExtent());
-        console.log(`[MapPresenter] Source CRS:`, source.getCrs());
+
       }));
     }));
 
@@ -1580,14 +1681,27 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       maxY,
     );
 
+    // compute center of Map's extent. (TODO would be good if it aligned with 'this.origin' to avoid confusion)
+    this.center = {lon: (giro3dExtent.west + giro3dExtent.east) / 2,
+                   lat: (giro3dExtent.south + giro3dExtent.north) / 2 };
+
     console.log('[MapPresenter] Creating map with extent:', giro3dExtent);
 
     this._map = new Giro3DMap({
       name: this._config.name || "giro3d_map",
       extent: giro3dExtent,
+      discardNoData: this._config.discardNoData ?? false,
       backgroundColor: this._config.backgroundColor, //  || '#f0f0f0'
-      backgroundOpacity: this._config.backgroundOpacity || 1.0,
+      backgroundOpacity: this._config.backgroundOpacity,
+      subdivisionThreshold: this._config.subdivisionThreshold, // default: 1.5
+      // maxSubdivisionLevel: // by default there is none
+      showOutline: this._config.showOutline,
+      outlineColor: this._config.outlineColor,
+      side: this._config.side,
+      depthTest: this._config.depthTest
     });
+    this._map.castShadow = false;
+    this._map.receiveShadow = false;
 
     /*Add THREE object or Entity to the instance.
     If the object or entity has no parent, it will be added to the default tree 
@@ -1597,46 +1711,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    (i.e has the .scene object as ancestor), otherwise it will never be displayed. */
     const _maplayer = await this._instance.add(this._map);
 
-    // Add basemap if configured
-    if (this._config.basemapSource) {
-      await this._addBasemapLayer(this._config.basemapSource);
-    }
-
     // Force initial tile generation by notifying change
     console.log('[MapPresenter] Map created, triggering initial update');
     this._instance.notifyChange();
-  }
-
-  /**
-   * Add a basemap layer
-   * @internal
-   */
-  private async _addBasemapLayer(sourceConfig: {
-    url: string;
-    params?: Record<string, string>;
-  }): Promise<void> {
-    try {
-      const { default: TileWMS } = await import('ol/source/TileWMS.js');
-
-      const source = new TiledImageSource({
-        source: new TileWMS({
-          url: sourceConfig.url,
-          projection: this._coordAdapter?.getCRS() || 'EPSG:3857',
-          params: sourceConfig.params || {},
-          crossOrigin: 'anonymous',
-        }),
-      });
-
-      const layer = new ColorLayer({
-        name: 'basemap',
-        source: source,
-        extent: this._map.extent,
-      });
-
-      await this._map.addLayer(layer);
-    } catch (err) {
-      console.warn('Failed to add basemap layer:', err);
-    }
   }
 
   /**
