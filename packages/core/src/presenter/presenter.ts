@@ -107,6 +107,7 @@ export interface XRPresenterOptions extends PresenterConfig {
  */
 export interface MapPresenterOptions extends PresenterConfig {
   fetcher?: any, // ReturnType< (featureclass_name: string, options: Object )=> Object3D>
+  // TODO maybe allow to provide object with multiple fetchers, one per source-type i.e. 'object', 'color' etc.
   // -------  Giro3d InstanceOptions  ---------------
   camera?: PerspectiveCamera | OrthographicCamera; // TODO move to PresenterContext  Abstraction
   renderer?: WebGLRenderer | WebGLRendererParameters;
@@ -115,11 +116,6 @@ export interface MapPresenterOptions extends PresenterConfig {
   backgroundOpacity?: number;
   /** Enable terrain rendering */
   terrain?: boolean; // | Partial<TerrainOptions>
-  /** Basemap source configuration */
-  basemapSource?: {
-    url: string;
-    params?: Record<string, string>;
-  };
   /** Initial camera altitude in meters */
   initialAltitude?: number;
   // ---------Giro3d MapOptions -----------------------
@@ -128,13 +124,13 @@ export interface MapPresenterOptions extends PresenterConfig {
   showOutline?: boolean;
   outlineColor?: string;
   subdivisionThreshold?: number;
+  maxSubdivisionLevel?: number; // default is 30
   side?: number; // THREEjs Material sidedness
   depthTest?: boolean;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
   /*
-    maxSubdivisionLevel?: number;
     subdivisionStrategy?: MapSubdivisionStrategy;
-    castShadow?: boolean;
-    receiveShadow?: boolean;
     colorimetry?: ColorimetryOptions;
     contourLines?: boolean | Partial<ContourLineOptions>;
     elevationRange?: ElevationRange;
