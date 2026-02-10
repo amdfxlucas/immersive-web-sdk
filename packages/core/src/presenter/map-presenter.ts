@@ -206,9 +206,9 @@ function createFeatureSourceClass() {
      // const originwgs84 = this.proj4(this.crs_name, 'EPSG:4326', [ centerX, centerY]);
 
 
-      //const origin84 = extent.as(CoordinateSystem.epsg4326); // center of current tile in wgs84
+      const origin84 = extent.as(CoordinateSystem.epsg4326); // center of current tile in wgs84
 
-      const origin84 = this.extent.as(CoordinateSystem.epsg4326); // center of Map-extent (fixedindependent of tile extent)
+      // const origin84 = this.extent.as(CoordinateSystem.epsg4326); // center of Map-extent (fixedindependent of tile extent)
 
 
       const centerX = (origin84.west + origin84.east) / 2;// lon
@@ -253,7 +253,6 @@ function createFeatureSourceClass() {
         // Two cases:
         // 1. ENU geometry (centered near 0,0,0) - needs offset to CRS origin + rotation (ALWAYS THE CASE)
         // 2. CRS geometry (already at ~726000, 5746000) - needs only rotation, no offset
-
         const wrappedObjects = rawObjects.map(obj => {
 
           // Rotate from Y-up (ENU/Three.js) to Z-up (Giro3D Map) coordinate system
@@ -313,6 +312,47 @@ function createFeatureSourceClass() {
   };
 }
 
+
+// ============================================================================
+// CUSTOM SUBDIVISION STRATEGY
+// ============================================================================
+
+/**
+ * Custom subdivision strategy that allows Object3DLayers and ElevationLayers
+ * to coexist without blocking tile subdivision.
+ *
+ * The default Giro3D strategy (`defaultMapSubdivisionStrategy`) blocks
+ * subdivision until ALL layers pass a check:
+ *   `!layer.visible || isColorLayer(layer) || (isElevationLayer(layer) && layer.isLoaded(tile.id))`
+ *
+ * Object3DLayers fail all three conditions (they're visible, not color layers,
+ * and not elevation layers), so `every()` returns false and subdivision is
+ * permanently blocked.
+ *
+ * This strategy fixes the issue by explicitly allowing Object3DLayers to pass
+ * through. Object3DLayers don't affect tile bounding boxes, so there's no
+ * reason to wait for them before subdividing.
+ *
+ * @internal
+ */
+function iwsdkSubdivisionStrategy(tile: any, context: any): boolean {
+  if (!context.entity.terrain.enabled) {
+    return true;
+  }
+  return context.layers.every((layer: any) => {
+    // Invisible layers don't block subdivision
+    if (!layer.visible) return true;
+    // Color layers never block subdivision
+    if (layer.isColorLayer) return true;
+    // Object3D layers never block subdivision (they don't affect bounding boxes)
+    if (layer.isObject3DLayer) return true;
+    // Elevation layers block until their data is loaded for this tile
+    // (needed for correct bounding box / terrain deformation)
+    if (layer.isElevationLayer) return layer.isLoaded(tile.id);
+    // Unknown layer types: don't block
+    return true;
+  });
+}
 
 // ============================================================================
 // ENU GEOMETRY WRAPPER
@@ -1679,12 +1719,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       outlineColor: this._config.outlineColor,
       side: this._config.side,
       depthTest: this._config.depthTest,
-      // Terrain deformation: Giro3D defaults to enabled=true, but the default
-      // subdivision strategy blocks subdivision until ALL elevation layers
-      // finish loading for each tile. For a 2D/2.5D map view this causes tiles
-      // to stay at LOD 0 indefinitely if elevation data is slow or unavailable.
-      // Pass through the user's terrain config, defaulting to disabled.
-      terrain: this._config.terrain ?? false,
+      // Use our custom subdivision strategy that allows Object3DLayers
+      // to coexist with ElevationLayers without blocking tile subdivision.
+      // The default Giro3D strategy blocks on Object3DLayers (see iwsdkSubdivisionStrategy).
+      subdivisionStrategy: iwsdkSubdivisionStrategy,
+      terrain: this._config.terrain,
       // by default lighting is disabled in giro3d
       castShadow: this._config.castShadow || false,
       receiveShadow: this._config.receiveShadow || false
