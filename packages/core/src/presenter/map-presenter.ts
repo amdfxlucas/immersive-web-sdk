@@ -84,6 +84,9 @@ let ColorLayer: any;
 /** Giro3D TiledImageSource class */
 let TiledImageSource: any;
 
+/** RBush spatial index constructor */
+let RBush: any;
+
 /** Whether Giro3D has been loaded */
 let giro3dLoaded = false;
 
@@ -124,6 +127,15 @@ async function loadGiro3D(): Promise<boolean> {
     WmsSource = giro3d.WmsSource;
     TiledImageSource = giro3d.TiledImageSource;
 
+    // Load rbush spatial index
+    try {
+      // @ts-expect-error - rbush has no bundled type declarations
+      const rbushModule = await import('rbush');
+      RBush = rbushModule.default || rbushModule;
+    } catch (err) {
+      console.warn('rbush not available, spatial indexing disabled:', err);
+    }
+
     // Define FeatureSource class after Object3DSource is loaded
     FeatureSourceClass = createFeatureSourceClass();
 
@@ -146,6 +158,19 @@ export interface FeatureSourceOptions {
 }
 
 /**
+ * Item stored in the rbush spatial index.
+ * @internal
+ */
+interface SpatialIndexItem {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  /** Index into the _cachedFeatures array */
+  featureIdx: number;
+}
+
+/**
  * Factory function to create FeatureSource class after Giro3D is loaded.
  * This is necessary because Object3DSource is dynamically imported.
  * @internal
@@ -154,8 +179,21 @@ function createFeatureSourceClass() {
   /**
    * FeatureSource - extends Giro3D's Object3DSource for ECS feature loading
    *
-   * IMPORTANT: The fetcher returns geometries in ENU coordinates (centered at geo-origin 0,0,0).
-   * These need to be wrapped with an offset to position them correctly in CRS space (UTM meters).
+   * Implements a cache-first strategy: features are fetched from the backend
+   * exactly ONCE using the full map extent. Subsequent tile requests at any
+   * LOD level are served by spatially filtering the cached feature set using
+   * an rbush R-tree index.
+   *
+   * Object3DLayers have no min/maxLevel, so every tile at every LOD calls
+   * getObjects(). Without caching this causes N redundant backend requests.
+   * With caching, only 1 request is made and all subsequent calls are local
+   * spatial queries (~microseconds).
+   *
+   * IMPORTANT: The fetcher returns geometries in ENU coordinates (centered at
+   * geo-origin 0,0,0). Features are cached in their original ENU form and
+   * their CRS bounding boxes are computed for spatial indexing.
+   * Clones are returned to each tile because Object3DLayer disposes objects
+   * when tiles are unloaded.
    */
   return class FeatureSource extends Object3DSource {
     _config: any;
@@ -169,7 +207,16 @@ function createFeatureSourceClass() {
     /** CRS coordinates of the ENU origin (for transforming ENU geometry to CRS) */
     originCRS: { x: number; y: number };
 
-    // TODO pass parent here ?!
+    // ── Cache state ──────────────────────────────────────────
+    /** Cache lifecycle: empty → loading → ready */
+    private _cacheState: 'empty' | 'loading' | 'ready' = 'empty';
+    /** Promise for the in-flight cache population (for deduplication) */
+    private _cachePromise: Promise<void> | null = null;
+    /** Cached feature objects (originals, never handed to Object3DLayer) */
+    private _cachedFeatures: Object3D[] = [];
+    /** rbush spatial index mapping CRS bounding boxes → feature indices */
+    private _spatialIndex: any = null;
+
     constructor(opts: FeatureSourceOptions & { originCRS: { x: number; y: number } })
     {
       super();
@@ -187,49 +234,76 @@ function createFeatureSourceClass() {
     /**
      * Called by Giro3D's Object3DLayer when it needs objects for a tile.
      *
-     * The fetcher returns ENU-centered geometry (origin at 0,0,0 at the geo-origin).
-     * We wrap it in a Group positioned at the CRS origin to transform it to CRS coordinates.
-     *
-     * @param { GetObjectsOptions } param0
-     * @returns { objects: Object3D[], id: string } - Array of Object3D instances in CRS coordinates
+     * Cache-first flow:
+     * 1. If cache is empty, populate it (one backend fetch for the full map extent)
+     * 2. If cache is loading, await the in-flight request (deduplication)
+     * 3. Query the spatial index for features intersecting this tile's extent
+     * 4. Clone matching features and return them
      */
     async getObjects({ id, extent, signal }: { id: string; extent: any; signal?: AbortSignal })
     {
-      console.log([`[FeatureSource] getObjects called for ${this.featureclass_name}, tile: ${id}`,
-                  `                 extent: ${extent.west}, ${extent.south}, ${extent.east}, ${extent.north}`,
-                  `                 ENU origin in CRS: ${this.originCRS}`].join('\n'));
+      console.log(`[FeatureSource] getObjects for ${this.featureclass_name}, tile: ${id}, ` +
+                  `extent: [${extent.west.toFixed(0)}, ${extent.south.toFixed(0)}, ${extent.east.toFixed(0)}, ${extent.north.toFixed(0)}], ` +
+                  `cache: ${this._cacheState}`);
 
-      const bbox = `${extent.west},${extent.south},${extent.east},${extent.north},${this.crs_name}`; // extent.crs.name -> "ETRS_1989_UTM_Zone_32N"
+      // ── 1. Ensure cache is populated ──────────────────────
+      if (this._cacheState === 'empty') {
+        await this._populateCache(signal);
+      } else if (this._cacheState === 'loading') {
+        await this._cachePromise;
+      }
 
-      //const centerX = (extent.minX + extent.maxX) / 2;
-      //const centerY = (extent.minY + extent.maxY) / 2;
-     // const originwgs84 = this.proj4(this.crs_name, 'EPSG:4326', [ centerX, centerY]);
+      // If cache population failed or was aborted, return empty
+      if (this._cacheState !== 'ready') {
+        return { objects: [], id };
+      }
 
+      // ── 2. Spatial query ──────────────────────────────────
+      const matches = this._queryFeaturesInExtent(extent);
 
-      const origin84 = extent.as(CoordinateSystem.epsg4326); // center of current tile in wgs84
+      // ── 3. Clone matching features ────────────────────────
+      const clones = matches.map(feature => {
+        const clone = feature.clone();
+        // Apply Y-up → Z-up rotation (same transform as original fetch)
+        clone.rotation.x = Math.PI / 2;
+        clone.position.set(0, 0, 0);
+        return clone;
+      });
 
-      // const origin84 = this.extent.as(CoordinateSystem.epsg4326); // center of Map-extent (fixedindependent of tile extent)
+      console.log(`[FeatureSource] tile ${id}: ${matches.length}/${this._cachedFeatures.length} features matched, returning ${clones.length} clones`);
+      return { objects: clones, id };
+    }
 
+    /**
+     * Fetch ALL features for the full map extent and build the spatial index.
+     * Called exactly once; concurrent callers await the same promise.
+     * @internal
+     */
+    private async _populateCache(signal?: AbortSignal): Promise<void> {
+      this._cacheState = 'loading';
 
-      const centerX = (origin84.west + origin84.east) / 2;// lon
-      const centerY = (origin84.south + origin84.north) / 2;// lat
+      const populate = async () => {
+        // Build bbox from the full map/source extent (not the tile extent)
+        const fullExtent = this.extent;
+        const bbox = `${fullExtent.west},${fullExtent.south},${fullExtent.east},${fullExtent.north},${this.crs_name}`;
 
-      const opts = {
-        bbox: bbox,
-        dataSource: this._config,
-      
-        origin: {lat:  centerY, lon: centerX },
-        //origin: {lat:  originwgs84[0], lon: originwgs84[1] }
-        // FIXME must be in WGS84 for now, but move conversion to backend once 'crs' field of 'origin' is supported
-        // must be 'position' of parent- TileMesh. Same as center of 'extent' parameter
-        // is send to backend with request and becomes scene (0,0,0)
-        // parent: .. tile that triggered the load
-      };
+        // Compute a fixed WGS84 origin from the map extent center
+        const origin84 = fullExtent.as(CoordinateSystem.epsg4326);
+        const originLon = (origin84.west + origin84.east) / 2;
+        const originLat = (origin84.south + origin84.north) / 2;
 
-      try {
-        
+        console.log(`[FeatureSource] Populating cache for ${this.featureclass_name}`,
+                    `\n  full extent: [${fullExtent.west.toFixed(0)}, ${fullExtent.south.toFixed(0)}, ${fullExtent.east.toFixed(0)}, ${fullExtent.north.toFixed(0)}]`,
+                    `\n  origin (WGS84): lat=${originLat.toFixed(6)}, lon=${originLon.toFixed(6)}`);
+
+        const opts = {
+          bbox: bbox,
+          dataSource: this._config,
+          origin: { lat: originLat, lon: originLon },
+        };
+
         const features = await this._fetcher(this.featureclass_name, opts);
-        
+
         // Normalize return value to array
         let rawObjects: any[];
         if (Array.isArray(features)) {
@@ -237,61 +311,150 @@ function createFeatureSourceClass() {
         } else if (features && features.isObject3D) {
           rawObjects = [features];
         } else {
-          console.warn(`[FeatureSource] fetcher for ${this.featureclass_name} with bbox: ${bbox} returned unexpected value:`, features);
+          console.warn(`[FeatureSource] fetcher for ${this.featureclass_name} returned unexpected value:`, features);
           rawObjects = [];
         }
-        const msg = [`[FeatureSource] called fetcher for ${this.featureclass_name} with bbox: ${bbox}`,
-                      `                fetcher returned: `].join('\n');
-        if(rawObjects.length>0 && rawObjects[0].children.length==0) {
-          console.warn(msg); // EMPTY GLB scene returned
-        }else if (rawObjects.length>0 && rawObjects[0].children.length>0)
-        {console.log( msg, features);}
 
-        // Wrap geometry and transform to Giro3D Map coordinate system
-        // Giro3D Map: X=Easting, Y=Northing, Z=Up (Y-up=false)
-        //
-        // Two cases:
-        // 1. ENU geometry (centered near 0,0,0) - needs offset to CRS origin + rotation (ALWAYS THE CASE)
-        // 2. CRS geometry (already at ~726000, 5746000) - needs only rotation, no offset
-        const wrappedObjects = rawObjects.map(obj => {
+        if (rawObjects.length > 0 && rawObjects[0].children?.length === 0) {
+          console.warn(`[FeatureSource] fetcher for ${this.featureclass_name} returned empty scene`);
+        } else if (rawObjects.length > 0) {
+          console.log(`[FeatureSource] fetcher for ${this.featureclass_name} returned ${rawObjects.length} object(s)`);
+        }
 
-          // Rotate from Y-up (ENU/Three.js) to Z-up (Giro3D Map) coordinate system
-          // rotation.x = +π/2 rotates: Y(up)->+Z(up), Z(north)->-Y
-          // Note: This may flip north/south - if so, we'll need scale.y = -1
-          obj.rotation.x = Math.PI / 2;
+        // Extract individual features from returned scene(s).
+        // Each rawObject is typically a scene/group; its direct children are features.
+        // If a rawObject has no children, treat it as a feature itself.
+        const individualFeatures: Object3D[] = [];
+        for (const obj of rawObjects) {
+          if (obj.children && obj.children.length > 0) {
+            // Clone children out of the parent scene so they're independent
+            for (const child of [...obj.children]) {
+              individualFeatures.push(child);
+            }
+          } else {
+            individualFeatures.push(obj);
+          }
+        }
 
-          // IMPORTANT: Object3DLayer adds objects as children of tile Groups.
-          // Tiles are already positioned in CRS space, so adding a CRS offset
-          // would DOUBLE the coordinates. We only need to handle the offset
-          // between the ENU origin and the object's local center.
-          //
-          // For ENU objects: The ENU origin (device position) maps to CRS origin.
-          //   Objects at ENU (0,0,0) should appear at the ENU origin in CRS space.
-          //   But since we're adding to a tile that covers a geographic area,
-          //   we need the offset from tile center to ENU origin.
-          //
-          // For simplicity: Objects in ENU are centered around the geographic origin.
-          //   If the tile center ≈ ENU origin, objects should appear correctly.
-          //   We add the ENU origin offset so objects appear at the right CRS location.
-          //
-          // Wait - the issue is tiles ARE the parents. Let's check if tiles have transforms...
-          // Actually, looking at Giro3D: tiles don't transform children, they're just containers.
-          // The Map.object3d is at world origin, tiles are at world origin too.
-          // So we DO need the CRS offset!
-          //
-          // The doubling issue must be elsewhere... Let's NOT add offset and debug.
-          //console.log(`[FeatureSource] Object ${isAlreadyCRS ? 'in CRS' : 'in ENU'} coords, wrapper at origin (debug)`);
-          obj.position.set(0, 0, 0);
+        this._cachedFeatures = individualFeatures;
 
-          return obj;
+        // Build spatial index with CRS bounding boxes
+        this._buildSpatialIndex(individualFeatures);
+
+        console.log(`[FeatureSource] Cache ready: ${individualFeatures.length} features indexed for ${this.featureclass_name}`);
+        this._cacheState = 'ready';
+      };
+
+      this._cachePromise = populate().catch(err => {
+        if (signal?.aborted) {
+          console.log(`[FeatureSource] Cache population aborted for ${this.featureclass_name}`);
+        } else {
+          console.error(`[FeatureSource] Cache population failed for ${this.featureclass_name}:`, err);
+        }
+        // Reset so next request retries
+        this._cacheState = 'empty';
+        this._cachePromise = null;
+      });
+
+      await this._cachePromise;
+    }
+
+    /**
+     * Build an rbush spatial index from cached features.
+     *
+     * Computes each feature's bounding box in ENU space, then converts
+     * to CRS coordinates for indexing against tile extents.
+     *
+     * ENU (Y-up Three.js) → CRS (Z-up Giro3D Map) coordinate mapping:
+     *   CRS Easting  = ENU_x + originCRS.x
+     *   CRS Northing = -ENU_z + originCRS.y  (rotation π/2 maps Z → -Y)
+     *
+     * @internal
+     */
+    private _buildSpatialIndex(features: Object3D[]): void {
+      const items: SpatialIndexItem[] = [];
+      const enuBox = new Box3();
+
+      for (let i = 0; i < features.length; i++) {
+        const feature = features[i];
+
+        // Compute bbox in ENU space (Y-up, pre-rotation)
+        enuBox.makeEmpty();
+        enuBox.setFromObject(feature);
+
+        if (enuBox.isEmpty()) {
+          // Degenerate feature (no geometry) — still index it with a zero-area box
+          // at the CRS origin so it appears in all queries
+          items.push({
+            minX: this.originCRS.x,
+            minY: this.originCRS.y,
+            maxX: this.originCRS.x,
+            maxY: this.originCRS.y,
+            featureIdx: i,
+          });
+          continue;
+        }
+
+        // Convert ENU bbox to CRS bbox
+        // X stays X (Easting), Z negated becomes Y (Northing)
+        // Note: min/max swap for Z due to negation
+        const crsMinX = enuBox.min.x + this.originCRS.x;
+        const crsMaxX = enuBox.max.x + this.originCRS.x;
+        const crsMinY = -enuBox.max.z + this.originCRS.y;
+        const crsMaxY = -enuBox.min.z + this.originCRS.y;
+
+        items.push({
+          minX: crsMinX,
+          minY: crsMinY,
+          maxX: crsMaxX,
+          maxY: crsMaxY,
+          featureIdx: i,
         });
-
-        console.log(`[FeatureSource] returning ${wrappedObjects.length} wrapped objects for tile ${id}`);
-        return { objects: wrappedObjects, id };
-      } catch (err) {
-        console.error(`[FeatureSource] Error fetching ${this.featureclass_name}:`, err);
-        return { objects: [], id };
       }
+
+      // Bulk-load into rbush for optimal performance
+      if (RBush) {
+        this._spatialIndex = new RBush();
+        this._spatialIndex.load(items);
+        console.log(`[FeatureSource] Spatial index built: ${items.length} entries`);
+      } else {
+        // Fallback: store items for linear scan
+        this._spatialIndex = items;
+        console.log(`[FeatureSource] Spatial index (linear fallback): ${items.length} entries`);
+      }
+    }
+
+    /**
+     * Query cached features that intersect the given extent.
+     * Uses rbush if available, otherwise falls back to linear scan.
+     * @internal
+     */
+    private _queryFeaturesInExtent(extent: any): Object3D[] {
+      const searchBox = {
+        minX: extent.west,
+        minY: extent.south,
+        maxX: extent.east,
+        maxY: extent.north,
+      };
+
+      let matchingItems: SpatialIndexItem[];
+
+      if (RBush && this._spatialIndex?.search) {
+        // rbush query — O(log n)
+        matchingItems = this._spatialIndex.search(searchBox);
+      } else if (Array.isArray(this._spatialIndex)) {
+        // Linear scan fallback — O(n)
+        matchingItems = this._spatialIndex.filter((item: SpatialIndexItem) =>
+          item.maxX >= searchBox.minX &&
+          item.minX <= searchBox.maxX &&
+          item.maxY >= searchBox.minY &&
+          item.minY <= searchBox.maxY
+        );
+      } else {
+        return [];
+      }
+
+      return matchingItems.map(item => this._cachedFeatures[item.featureIdx]);
     }
 
     /**
