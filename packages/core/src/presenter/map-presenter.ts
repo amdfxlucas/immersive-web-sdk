@@ -152,7 +152,7 @@ export interface FeatureSourceOptions {
   crs_name?: string; // i.e. 'EPSG:4326' crs of query's bbox
   config: any; // datasource configuration object from project file
   extent: typeof Extent;
-  center: any;
+  center: {lat:number, lon: number};
   fetcher: any;
   featureclass_name: string;
 }
@@ -203,7 +203,7 @@ function createFeatureSourceClass() {
     proj4: any;
     crs_name!: string;
     extent: any; // Map-extent
-    center: any; // center of Map-extent
+    _center: {lat: number, lon: number}; // center of Map-extent (equal to source-extent) in source-crs (equal to Map-CRS)
     /** CRS coordinates of the ENU origin (for transforming ENU geometry to CRS) */
     originCRS: { x: number; y: number };
 
@@ -240,11 +240,10 @@ function createFeatureSourceClass() {
      * 3. Query the spatial index for features intersecting this tile's extent
      * 4. Clone matching features and return them
      */
-    async getObjects({ id, extent, signal }: { id: string; extent: any; signal?: AbortSignal })
-    {
+    async getObjects({ id, extent, signal, parent }: { id: string; extent: any; signal?: AbortSignal; parent?: any }) {
       console.log(`[FeatureSource] getObjects for ${this.featureclass_name}, tile: ${id}, ` +
-                  `extent: [${extent.west.toFixed(0)}, ${extent.south.toFixed(0)}, ${extent.east.toFixed(0)}, ${extent.north.toFixed(0)}], ` +
-                  `cache: ${this._cacheState}`);
+        `extent: [${extent.west.toFixed(0)}, ${extent.south.toFixed(0)}, ${extent.east.toFixed(0)}, ${extent.north.toFixed(0)}], ` +
+        `cache: ${this._cacheState}`);
 
       // ── 1. Ensure cache is populated ──────────────────────
       if (this._cacheState === 'empty') {
@@ -258,20 +257,66 @@ function createFeatureSourceClass() {
         return { objects: [], id };
       }
 
-      // ── 2. Spatial query ──────────────────────────────────
-      const matches = this._queryFeaturesInExtent(extent);
+      if (parent) { // only load/return feature-objects for root- tiles
+        return { objects: [], id };
+      } else {
+        // root TileMesh has no parent
 
-      // ── 3. Clone matching features ────────────────────────
-      const clones = matches.map(feature => {
-        const clone = feature.clone();
-        // Apply Y-up → Z-up rotation (same transform as original fetch)
-        clone.rotation.x = Math.PI / 2;
-        clone.position.set(0, 0, 0);
-        return clone;
-      });
+        // ── 2. Spatial query ──────────────────────────────────
+        const matches = this._queryFeaturesInExtent(extent);
+        /*
+        const tileCenterLon = (extent.west + extent.east) / 2;
+        const tileCenterLat = (extent.south + extent.north) / 2;
+        // ── 3. Clone matching features ────────────────────────
+        // Two precautions for safe cloning:
+        // a) Three.js clone() calls JSON.stringify(userData) internally.
+        //    IWSDK ECS attaches circular references (EntityManager ↔ Entity)
+        //    to userData → temporarily strip before cloning, then restore.
+        // b) Some meshes in the hierarchy may have null materials (e.g., from
+        //    ECS post-processing). Three.js renderer crashes on null material.
+        //    → assign a default invisible material as fallback.
+        const _defaultMat = new MeshBasicMaterial({ visible: false });
+        const clones = matches.map(feature => {
+          const saved = new Map<Object3D, any>();
+          feature.traverse(child => {
+            if (child.userData && Object.keys(child.userData).length > 0) {
+              saved.set(child, child.userData);
+              child.userData = {};
+            }
+          });
+          const clone = feature.clone();
+          // Restore original userData on cached originals
+          for (const [child, data] of saved) {
+            child.userData = data;
+          }
+          // Guard against null materials in the clone
+          clone.traverse(child => {
+            const mesh = child as Mesh;
+            if ((mesh.isMesh || (mesh as any).isLine || (mesh as any).isPoints) && !mesh.material) {
+              mesh.material = _defaultMat;
+            }
+          });
+          // Apply Y-up → Z-up rotation (same transform as original fetch)
+          clone.rotation.x = Math.PI / 2;
+          clone.position.set(0, 0, 0);
+          // compensate the offset between old and new parent tile
+          clone.position.set(this._center.lat - tileCenterLat, this._center.lon - tileCenterLon, 0);
 
-      console.log(`[FeatureSource] tile ${id}: ${matches.length}/${this._cachedFeatures.length} features matched, returning ${clones.length} clones`);
-      return { objects: clones, id };
+          // TODO sync changes with ECS:
+          //clone.userData.entity.object3D = clone;
+          // this._world.entityManager.getEntityById( clone.userData.entityIdx).object3D = clone;
+          return clone;
+        });
+        console.log(`[FeatureSource] tile ${id}: ${matches.length}/${this._cachedFeatures.length} `
+          +`features matched, returning ${clones.length} clones`);
+        return { objects: clones, id };
+        */
+        /*matches.forEach((o)=>{
+          // Apply Y-up → Z-up rotation
+          o.rotation.x = Math.PI / 2;
+        });*/
+        return {objects: matches, id};
+      }
     }
 
     /**
@@ -329,12 +374,19 @@ function createFeatureSourceClass() {
           if (obj.children && obj.children.length > 0) {
             // Clone children out of the parent scene so they're independent
             for (const child of [...obj.children]) {
-              individualFeatures.push(child);
+              if(child.isGroup  || child.isBatchedMesh) // a feature-object can have multiple geometries (i.e. mesh + outline line-loop )
+              {
+                individualFeatures.push(child);
+              }
             }
           } else {
             individualFeatures.push(obj);
           }
         }
+        for (const feature of individualFeatures) {
+          feature.rotation.x = Math.PI / 2;
+          feature.position.set(0, 0, 0);
+        } 
 
         this._cachedFeatures = individualFeatures;
 
@@ -866,8 +918,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     // Create map entity if extent provided
     await this._createMap(config.extent, crs);
     // root group that contains tiles at root of hierarchy (LOD 0) as children
-    this._contentRoot = this._map.object3d;
-    if(!this._contentRoot){throw "implementation error";}
+    //this._contentRoot = this._map.object3d;
+    // Root TileMesh of Giro3D Map
+    this._contentRoot = this._map.object3d?.children[0];
+    if(!this._contentRoot && this._map.object3d?.children?.length!=1)
+    {throw "implementation error";}
     
     this._setupControls();
     this._setupInput();
@@ -894,11 +949,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     if (entityCount === 0) {
       console.warn('[MapPresenter] No DataSource entities found. Call setupSources() after creating DataSource entities.');
+      // TODO sources_query.subscribe( 'qualify', registerLayer);
       return;
     }
 
-    // Create a source-layer pair for each feature of each datasource
-    await Promise.all(Array.from(sources_query.entities).map(async (s) => {
+    const registerLayer = async (s: Entity) => {
       let src_config = getComponent(dsc, s);
       if (!src_config) {
         throw `implementation error: invalid datasource with index: ${s.index}`;
@@ -956,6 +1011,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         console.log(`[MapPresenter] Map extent CRS:`, this._map.extent.crs);
         console.log(`[MapPresenter] ENU origin CRS:`, originCRS);
 
+        const centerLon = (sourceExtent.west + sourceExtent.east) / 2;
+        const centerLat = (sourceExtent.south + sourceExtent.north) / 2;
+
         let layer = null;
         let source = null;
 
@@ -967,6 +1025,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
               fetcher: fetcher,
               crs_name: this._config.crs?.code, // the CRS of the query's bbox //(src_config.srsname as string),
               config: src_config,
+              center: {lat: centerLat, lon: centerLon},
               featureclass_name: fc,
               crs: this._map.extent.crs, // Use map extent's CRS (properly initialized) // NOTE: same as crs_name
               extent: sourceExtent,
@@ -1060,15 +1119,18 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
 
       }));
-    }));
+    };
 
-    // Notify Giro3D that it needs to update after adding layers
+    // Create a source-layer pair for each feature of each datasource
+    await Promise.all(Array.from(sources_query.entities).map(async (s) => registerLayer(s)));
+
+    
     console.log(`[MapPresenter] All layers added. Notifying Giro3D to update...`);
     console.log(`[MapPresenter] Camera position:`, this._camera.position);
     console.log(`[MapPresenter] Map extent:`, this._map.extent);
 
     // Debug: Check map tiles
-    console.log(`[MapPresenter] Map object3d children:`, this._map.object3d?.children?.length);
+    /*console.log(`[MapPresenter] Map object3d children:`, this._map.object3d?.children?.length);
     if (this._map.object3d?.children?.[0]) {
       const firstChild = this._map.object3d.children[0];
       console.log(`[MapPresenter] First map child:`, firstChild.name, 'visible:', firstChild.visible);
@@ -1076,8 +1138,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         const tile = firstChild.children[0];
         console.log(`[MapPresenter] First tile:`, tile.name, 'visible:', tile.visible);
       }
-    }
-
+    }*/
+// Notify Giro3D that it needs to update after adding layers
     this._instance.notifyChange();
   }
 
