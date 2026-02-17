@@ -259,7 +259,7 @@ function createWorldInstance<T extends World = World>(
 ): T {
   const Constructor = WorldClass ?? World;
   const world = new Constructor(
-    (entityCapacity ?? 1024) as number,
+    (entityCapacity ?? 1024) as number, // THIS should be a Map (per Component) or a static field of Elics Components
     (checksOn ?? false) as boolean,
   ) as T;
   world
