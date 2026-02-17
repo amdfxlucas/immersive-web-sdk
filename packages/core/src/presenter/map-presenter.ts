@@ -64,6 +64,7 @@ import {
 import { getComponent } from '../ecs/helpers.js';
 import { MapDataSourceComponent, MapLayerComponent, MapLayerType, MapPresenterComponent, SourceType, getDataSourceType } from './map3d_components.js';
 import { Giro3DSystem } from './giro3d_system.js';
+import { Visibility } from '../visibility/visibility.js';
 
 // ============================================================================
 // GIRO3D TYPES (dynamically loaded)
@@ -620,6 +621,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           {
             throw `No Object3DSource implemetation provided for layer: ${lname}`;
           }
+          if(! (t.prototype instanceof Object3DSource ) ){
+            throw `Invalid user provided data source for layer: ${lname} - No Object3DSource`;
+          }
                 // Get CRS coordinates of the ENU origin for transforming geometry
           const originCRS = this._coordAdapter?.getOrigin()?.crs || { x: 0, y: 0 };
           const centerLon = (sourceExtent.west + sourceExtent.east) / 2;
@@ -685,6 +689,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           throw `Unimplemented MapLayerType: ${ltype}`;
       }
       this._map.addLayer(maplayer);
+      // make Giro3D Layer Instance available in ECS world i.e. to toggle visibility
+      layer.setValue(MapLayerComponent, 'layer', maplayer);
+      layer.setValue(MapLayerComponent, 'extent', sourceExtent);
+      layer.addComponent(Visibility);
   }
 
   /**
