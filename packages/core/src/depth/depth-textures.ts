@@ -6,101 +6,108 @@
  */
 
 import {
-  DataTexture,
+  DataArrayTexture,
   ExternalTexture,
   FloatType,
   RedFormat,
   RGFormat,
-  Texture,
   UnsignedByteType,
   WebGLRenderer,
 } from '../runtime/three.js';
 /**
  * Manages depth textures from WebXR depth sensing.
- * Supports both CPU-optimized (DataTexture) and GPU-optimized (ExternalTexture) depth data.
+ * Supports both CPU-optimized (DataArrayTexture) and GPU-optimized (ExternalTexture) depth data.
  */
 export class DepthTextures {
-  private float32Arrays: Float32Array[] = [];
-  private uint8Arrays: Uint8Array[] = [];
-  private dataTextures: DataTexture[] = [];
-  private nativeTextures: ExternalTexture[] = [];
+  private nativeTexture?: ExternalTexture;
+  private dataArrayTexture?: DataArrayTexture;
+  private combinedArray?: Float32Array | Uint8Array;
 
   constructor(private useFloat32: boolean) {}
 
-  private createDataDepthTextures(
-    depthData: XRCPUDepthInformation,
-    viewId: number,
-  ): void {
-    if (this.dataTextures[viewId]) {
-      this.dataTextures[viewId].dispose();
+  /**
+   * Create or recreate the DataArrayTexture for stereo CPU depth.
+   * Packs per-view depth data into a single texture array (depth=2)
+   * so the shader can select the correct layer via VIEW_ID.
+   */
+  private createDataArrayTexture(width: number, height: number): void {
+    if (this.dataArrayTexture) {
+      this.dataArrayTexture.dispose();
     }
+    const depth = 2; // stereo: left + right eye
     if (this.useFloat32) {
-      const typedArray = new Float32Array(depthData.width * depthData.height);
-      const format = RedFormat;
-      const type = FloatType;
-      this.float32Arrays[viewId] = typedArray;
-      this.dataTextures[viewId] = new DataTexture(
-        typedArray,
-        depthData.width,
-        depthData.height,
-        format,
-        type,
+      const pixelsPerLayer = width * height;
+      this.combinedArray = new Float32Array(pixelsPerLayer * depth);
+      this.dataArrayTexture = new DataArrayTexture(
+        this.combinedArray,
+        width,
+        height,
+        depth,
       );
+      this.dataArrayTexture.format = RedFormat;
+      this.dataArrayTexture.type = FloatType;
     } else {
-      const typedArray = new Uint8Array(depthData.width * depthData.height * 2);
-      const format = RGFormat;
-      const type = UnsignedByteType;
-      this.uint8Arrays[viewId] = typedArray;
-      this.dataTextures[viewId] = new DataTexture(
-        typedArray,
-        depthData.width,
-        depthData.height,
-        format,
-        type,
+      const bytesPerLayer = width * height * 2;
+      this.combinedArray = new Uint8Array(bytesPerLayer * depth);
+      this.dataArrayTexture = new DataArrayTexture(
+        this.combinedArray,
+        width,
+        height,
+        depth,
       );
+      this.dataArrayTexture.format = RGFormat;
+      this.dataArrayTexture.type = UnsignedByteType;
     }
   }
 
   /**
    * Update the depth texture with new CPU depth data.
+   * Copies per-view data into the correct layer of the DataArrayTexture.
    * @param depthData - The CPU depth information from WebXR.
    * @param viewId - The view index (0 for left eye, 1 for right eye).
    */
   updateData(depthData: XRCPUDepthInformation, viewId: number): void {
+    // Recreate the DataArrayTexture if dimensions changed or it doesn't exist
     if (
-      this.dataTextures.length < viewId + 1 ||
-      this.dataTextures[viewId].image.width !== depthData.width ||
-      this.dataTextures[viewId].image.height !== depthData.height
+      !this.dataArrayTexture ||
+      this.dataArrayTexture.image.width !== depthData.width ||
+      this.dataArrayTexture.image.height !== depthData.height
     ) {
-      this.createDataDepthTextures(depthData, viewId);
+      this.createDataArrayTexture(depthData.width, depthData.height);
     }
+
     if (this.useFloat32) {
-      this.float32Arrays[viewId].set(new Float32Array(depthData.data));
+      const viewData = new Float32Array(depthData.data);
+      const layerSize = depthData.width * depthData.height;
+      (this.combinedArray as Float32Array).set(viewData, viewId * layerSize);
     } else {
-      this.uint8Arrays[viewId].set(new Uint8Array(depthData.data));
+      const viewData = new Uint8Array(depthData.data);
+      const layerSize = depthData.width * depthData.height * 2;
+      (this.combinedArray as Uint8Array).set(viewData, viewId * layerSize);
     }
-    this.dataTextures[viewId].needsUpdate = true;
+
+    this.dataArrayTexture!.addLayerUpdate(viewId);
+    this.dataArrayTexture!.needsUpdate = true;
   }
 
   /**
    * Update the depth texture with native GPU texture from WebXR.
+   * The native texture is a texture array containing both eyes' depth data.
    * @param depthData - The GPU depth information from WebXR.
    * @param renderer - The WebGL renderer.
-   * @param viewId - The view index (0 for left eye, 1 for right eye).
    */
   updateNativeTexture(
     depthData: XRWebGLDepthInformation,
     renderer: WebGLRenderer,
-    viewId: number,
   ): void {
-    if (this.dataTextures.length < viewId + 1) {
-      this.nativeTextures[viewId] = new ExternalTexture(depthData.texture);
+    if (!this.nativeTexture) {
+      this.nativeTexture = new ExternalTexture(depthData.texture);
     } else {
-      this.nativeTextures[viewId].sourceTexture = depthData.texture;
+      this.nativeTexture.sourceTexture = depthData.texture;
     }
     // Update the texture properties for three.js
     const textureProperties = renderer.properties.get(
-      this.nativeTextures[viewId],
+      this.nativeTexture,
     ) as {
       __webglTexture: WebGLTexture;
       __version: number;
@@ -110,26 +117,28 @@ export class DepthTextures {
   }
 
   /**
-   * Get the depth texture for a specific view.
-   * @param viewId - The view index (0 for left eye, 1 for right eye).
-   * @returns The depth texture, or undefined if not available.
+   * Get the native GPU depth texture array.
+   * Contains both eyes' depth data; the shader uses VIEW_ID to select the layer.
    */
-  get(viewId: number): Texture | undefined {
-    if (this.dataTextures.length > 0) {
-      return this.dataTextures[viewId];
-    }
+  getNativeTexture(): ExternalTexture | undefined {
+    return this.nativeTexture;
+  }
 
-    return this.nativeTextures[viewId];
+  /**
+   * Get the CPU depth data as a DataArrayTexture.
+   * Contains per-view depth packed into layers; the shader uses VIEW_ID to select the layer.
+   */
+  getDataArrayTexture(): DataArrayTexture | undefined {
+    return this.dataArrayTexture;
   }
 
   /**
    * Dispose of all depth textures.
    */
   dispose(): void {
-    this.dataTextures.forEach((texture) => texture.dispose());
-    this.dataTextures = [];
-    this.nativeTextures = [];
-    this.float32Arrays = [];
-    this.uint8Arrays = [];
+    this.dataArrayTexture?.dispose();
+    this.dataArrayTexture = undefined;
+    this.combinedArray = undefined;
+    this.nativeTexture = undefined;
   }
 }

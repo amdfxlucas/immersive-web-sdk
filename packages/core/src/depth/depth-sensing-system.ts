@@ -6,7 +6,7 @@
  */
 
 import { createSystem, Entity, Types } from '../ecs/index.js';
-import { ExternalTexture, Mesh, Texture, Vector2 } from '../runtime/three.js';
+import { Mesh, Vector2 } from '../runtime/three.js';
 import { DepthOccludable } from './depth-occludable.js';
 import { DepthTextures } from './depth-textures.js';
 import type { Shader, ShaderUniforms } from './types.js';
@@ -58,7 +58,6 @@ export class DepthSensingSystem extends createSystem(
   },
 ) {
   private depthFeatureEnabled: boolean | undefined;
-  private isGPUOptimized = false;
 
   // Depth data storage
   cpuDepthData: XRCPUDepthInformation[] = [];
@@ -136,10 +135,7 @@ export class DepthSensingSystem extends createSystem(
           }
           // Only inject occlusion if not already present
           if (!shader.uniforms.occlusionEnabled) {
-            DepthSensingSystem.addOcclusionToShader(
-              shader,
-              this.isGPUOptimized,
-            );
+            DepthSensingSystem.addOcclusionToShader(shader);
           }
           material.userData.shader = shader;
           entityUniforms.add(shader.uniforms);
@@ -163,19 +159,16 @@ export class DepthSensingSystem extends createSystem(
   /**
    * Modifies a material's shader in-place to incorporate inline depth-based
    * occlusion. Compares the virtual fragment's view-space depth against the
-   * real-world depth from the XR depth texture.
+   * real-world depth from the XR depth texture array.
+   * Both GPU-optimized (ExternalTexture) and CPU-optimized (DataArrayTexture)
+   * paths use sampler2DArray with VIEW_ID for correct stereo depth sampling.
    * @param shader - The shader object provided by onBeforeCompile.
-   * @param isGPUOptimized - Whether the depth data uses GPU-optimized texture arrays.
    */
-  private static addOcclusionToShader(
-    shader: Shader,
-    isGPUOptimized: boolean,
-  ): void {
+  private static addOcclusionToShader(shader: Shader): void {
     shader.uniforms.occlusionEnabled = { value: false };
-    shader.uniforms.uXRDepthTexture = { value: null };
     shader.uniforms.uXRDepthTextureArray = { value: null };
     shader.uniforms.uRawValueToMeters = { value: 0.001 };
-    shader.uniforms.uIsTextureArray = { value: false };
+    shader.uniforms.uIsGPUDepth = { value: false };
     shader.uniforms.uDepthNear = { value: 0 };
     shader.uniforms.uViewportSize = { value: new Vector2() };
     shader.uniforms.uOcclusionBlurRadius = { value: 20.0 };
@@ -184,9 +177,6 @@ export class DepthSensingSystem extends createSystem(
       ...(shader.defines ?? {}),
       USE_UV: true,
     };
-    if (isGPUOptimized) {
-      shader.defines.USE_DEPTH_TEXTURE_ARRAY = '';
-    }
 
     // Vertex shader: compute view-space depth for occlusion comparison
     shader.vertexShader = shader.vertexShader
@@ -203,34 +193,33 @@ export class DepthSensingSystem extends createSystem(
         ].join('\n'),
       );
 
-    // Fragment shader: sample XR depth and compare against virtual depth
+    // Fragment shader: sample XR depth array and compare against virtual depth
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'uniform vec3 diffuse;',
         [
           'uniform vec3 diffuse;',
           'uniform bool occlusionEnabled;',
-          'uniform sampler2D uXRDepthTexture;',
           'uniform float uRawValueToMeters;',
-          'uniform bool uIsTextureArray;',
+          'uniform bool uIsGPUDepth;',
           'uniform float uDepthNear;',
           'uniform vec2 uViewportSize;',
           'uniform float uOcclusionBlurRadius;',
           'varying float vOcclusionViewDepth;',
           '',
-          '#ifdef USE_DEPTH_TEXTURE_ARRAY',
           'uniform sampler2DArray uXRDepthTextureArray;',
+          '',
+          '// Fallback for non-multiview sessions',
+          '#ifndef VIEW_ID',
+          '#define VIEW_ID 0',
           '#endif',
           '',
           'float OcclusionDepthGetMeters(in vec2 uv) {',
-          '  #ifdef USE_DEPTH_TEXTURE_ARRAY',
-          '  if (uIsTextureArray) {',
-          '    float textureValue = texture(uXRDepthTextureArray, vec3(uv.x, uv.y, float(VIEW_ID))).r;',
+          '  float textureValue = texture(uXRDepthTextureArray, vec3(uv.x, uv.y, float(VIEW_ID))).r;',
+          '  if (uIsGPUDepth) {',
           '    return uRawValueToMeters * uDepthNear / (1.0 - textureValue);',
           '  }',
-          '  #endif',
-          '  vec2 packedDepth = texture2D(uXRDepthTexture, uv).rg;',
-          '  return packedDepth.r * uRawValueToMeters;',
+          '  return textureValue * uRawValueToMeters;',
           '}',
           '',
           'float OcclusionGetSample(in vec2 depthUV, in vec2 offset) {',
@@ -245,7 +234,7 @@ export class DepthSensingSystem extends createSystem(
           'vec4 diffuseColor = vec4( diffuse, opacity );',
           'if (occlusionEnabled) {',
           '  vec2 screenUV = gl_FragCoord.xy / uViewportSize;',
-          '  vec2 depthUV = uIsTextureArray ? screenUV : vec2(screenUV.x, 1.0 - screenUV.y);',
+          '  vec2 depthUV = uIsGPUDepth ? screenUV : vec2(screenUV.x, 1.0 - screenUV.y);',
           '  vec2 texelSize = uOcclusionBlurRadius / uViewportSize;',
           '  // 13-tap two-ring sampling pattern for smooth occlusion edges',
           '  // Center sample',
@@ -273,7 +262,6 @@ export class DepthSensingSystem extends createSystem(
 
   private cleanup(): void {
     this.depthFeatureEnabled = undefined;
-    this.isGPUOptimized = false;
     this.cpuDepthData = [];
     this.gpuDepthData = [];
   }
@@ -285,7 +273,6 @@ export class DepthSensingSystem extends createSystem(
 
     const enabledFeatures = xrSession.enabledFeatures;
     this.depthFeatureEnabled = enabledFeatures?.includes('depth-sensing');
-    this.isGPUOptimized = xrSession.depthUsage === 'gpu-optimized';
 
     if (!this.depthFeatureEnabled) {
       console.log(
@@ -320,16 +307,19 @@ export class DepthSensingSystem extends createSystem(
     if (xrRefSpace) {
       const pose = frame.getViewerPose(xrRefSpace);
       if (pose) {
-        for (let viewId = 0; viewId < pose.views.length; ++viewId) {
-          const view = pose.views[viewId];
-
-          if (session.depthUsage === 'gpu-optimized') {
-            const depthData = binding.getDepthInformation(view);
-            if (!depthData) {
-              return;
-            }
-            this.updateGPUDepthData(depthData, viewId);
-          } else {
+        if (session.depthUsage === 'gpu-optimized') {
+          // GPU path: the native texture is a texture array containing all
+          // views. We only need to update the ExternalTexture once using the
+          // first view's depth data.
+          const view = pose.views[0];
+          const depthData = binding.getDepthInformation(view);
+          if (depthData) {
+            this.updateGPUDepthData(depthData);
+          }
+        } else {
+          // CPU path: each view has its own DataTexture.
+          for (let viewId = 0; viewId < pose.views.length; ++viewId) {
+            const view = pose.views[viewId];
             const depthData = frame.getDepthInformation(view);
             if (!depthData) {
               return;
@@ -358,55 +348,42 @@ export class DepthSensingSystem extends createSystem(
   /**
    * Update with GPU-optimized depth data.
    */
-  private updateGPUDepthData(
-    depthData: XRWebGLDepthInformation,
-    viewId = 0,
-  ): void {
-    this.gpuDepthData[viewId] = depthData;
+  private updateGPUDepthData(depthData: XRWebGLDepthInformation): void {
+    this.gpuDepthData[0] = depthData;
 
     if (this.config.enableDepthTexture.value && this.depthTextures) {
-      this.depthTextures.updateNativeTexture(depthData, this.renderer, viewId);
+      this.depthTextures.updateNativeTexture(depthData, this.renderer);
     }
   }
 
   /**
-   * Get the depth texture for a specific view.
-   * @param viewId - The view index (0 for left eye, 1 for right eye).
-   */
-  getTexture(viewId: number): Texture | undefined {
-    if (!this.config.enableDepthTexture.value) return undefined;
-    return this.depthTextures?.get(viewId);
-  }
-
-  /**
    * Updates depth texture uniforms on all occludable materials each frame.
+   * Both GPU and CPU paths set the texture array uniform; the shader uses
+   * VIEW_ID to select the correct stereo layer.
    */
   private updateOcclusionUniforms(): void {
-    const leftDepth = this.getTexture(0);
-    const rightDepth = this.getTexture(1);
-    const isTextureArray =
-      leftDepth instanceof ExternalTexture ||
-      rightDepth instanceof ExternalTexture;
+    const nativeTexture = this.depthTextures?.getNativeTexture();
+    const dataArrayTexture = this.depthTextures?.getDataArrayTexture();
+    const isGPUDepth = nativeTexture !== undefined;
     const depthNear =
       (this.gpuDepthData[0] as unknown as { depthNear: number } | undefined)
         ?.depthNear ?? 0;
+
+    // Select the texture array: ExternalTexture for GPU, DataArrayTexture for CPU
+    const depthTextureArray = isGPUDepth ? nativeTexture : dataArrayTexture;
+    if (!depthTextureArray) return;
 
     const viewportSize = new Vector2();
     this.renderer.getDrawingBufferSize(viewportSize);
 
     for (const uniforms of this.occludableShaders) {
-      if (leftDepth) {
-        uniforms.uXRDepthTexture.value = leftDepth;
-      }
-      if (rightDepth) {
-        uniforms.uXRDepthTextureArray.value = rightDepth;
-      }
+      uniforms.uXRDepthTextureArray.value = depthTextureArray;
       uniforms.uRawValueToMeters.value = this.rawValueToMeters;
-      uniforms.uIsTextureArray.value = isTextureArray;
+      uniforms.uIsGPUDepth.value = isGPUDepth;
       uniforms.uDepthNear.value = depthNear;
       (uniforms.uViewportSize.value as Vector2).copy(viewportSize);
       uniforms.uOcclusionBlurRadius.value = this.config.blurRadius.value;
-      uniforms.occlusionEnabled.value = true;
+      uniforms.occlusionEnabled.value = this.config.enableOcclusion.value;
     }
   }
 }
