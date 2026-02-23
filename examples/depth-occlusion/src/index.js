@@ -13,6 +13,7 @@ import {
   Color,
   createSystem,
   DepthOccludable,
+  OcclusionShadersMode,
   DepthSensingSystem,
   DistanceGrabbable,
   Interactable,
@@ -37,7 +38,7 @@ export class OcclusionDemoSystem extends createSystem({
   init() {
     // Create several occludable objects at different positions
     this.createOccludableSphere(new Vector3(0, 0.8, -0.8), 0xff4444);
-    this.createOccludableCube(new Vector3(-0.4, 0.8, -0.6), 0x44ff44);
+    this.createHardModeOccludableCube(new Vector3(-0.4, 0.8, -0.6), 0x44ff44);
     this.createNonOccludableCylinder(new Vector3(0.4, 0.8, -0.6), 0x4444ff);
     this.createOccludablePlant(new Vector3(-0.6, 0, -1.0));
     this.createOccludableRobot(new Vector3(0.6, 0, -1.0));
@@ -72,7 +73,7 @@ export class OcclusionDemoSystem extends createSystem({
   /**
    * Creates an occludable cube with depth occlusion support.
    */
-  createOccludableCube(position, color, size = 0.25) {
+  createHardModeOccludableCube(position, color, size = 0.25) {
     const geometry = new BoxGeometry(size, size, size);
     const material = new MeshStandardMaterial({
       color: new Color(color),
@@ -90,7 +91,7 @@ export class OcclusionDemoSystem extends createSystem({
       movementMode: MovementMode.MoveFromTarget,
     });
     entity.addComponent(XRAnchor);
-    entity.addComponent(DepthOccludable);
+    entity.addComponent(DepthOccludable, { mode: OcclusionShadersMode.HardOcclusion });
 
     return entity;
   }

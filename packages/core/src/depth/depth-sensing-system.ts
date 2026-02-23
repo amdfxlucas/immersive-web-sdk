@@ -7,7 +7,7 @@
 
 import { createSystem, Entity, Types } from '../ecs/index.js';
 import { Mesh, Vector2 } from '../runtime/three.js';
-import { DepthOccludable } from './depth-occludable.js';
+import { DepthOccludable, OcclusionShadersMode } from './depth-occludable.js';
 import { DepthTextures } from './depth-textures.js';
 import type { Shader, ShaderUniforms } from './types.js';
 
@@ -65,7 +65,6 @@ export class DepthSensingSystem extends createSystem(
   private depthTextures?: DepthTextures;
 
   // Occlusion
-  private occludableShaders = new Set<ShaderUniforms>();
   private entityShaderMap = new Map<Entity, Set<ShaderUniforms>>();
 
   /**
@@ -139,7 +138,6 @@ export class DepthSensingSystem extends createSystem(
           }
           material.userData.shader = shader;
           entityUniforms.add(shader.uniforms);
-          this.occludableShaders.add(shader.uniforms);
         };
         material.needsUpdate = true;
       }
@@ -147,13 +145,7 @@ export class DepthSensingSystem extends createSystem(
   }
 
   private detachOcclusionFromEntity(entity: Entity): void {
-    const entityUniforms = this.entityShaderMap.get(entity);
-    if (entityUniforms) {
-      for (const uniforms of entityUniforms) {
-        this.occludableShaders.delete(uniforms);
-      }
-      this.entityShaderMap.delete(entity);
-    }
+    this.entityShaderMap.delete(entity);
   }
 
   /**
@@ -172,6 +164,7 @@ export class DepthSensingSystem extends createSystem(
     shader.uniforms.uDepthNear = { value: 0 };
     shader.uniforms.uViewportSize = { value: new Vector2() };
     shader.uniforms.uOcclusionBlurRadius = { value: 20.0 };
+    shader.uniforms.uOcclusionHardMode = { value: false };
 
     shader.defines = {
       ...(shader.defines ?? {}),
@@ -205,6 +198,7 @@ export class DepthSensingSystem extends createSystem(
           'uniform float uDepthNear;',
           'uniform vec2 uViewportSize;',
           'uniform float uOcclusionBlurRadius;',
+          'uniform bool uOcclusionHardMode;',
           'varying float vOcclusionViewDepth;',
           '',
           'uniform sampler2DArray uXRDepthTextureArray;',
@@ -235,25 +229,30 @@ export class DepthSensingSystem extends createSystem(
           'if (occlusionEnabled) {',
           '  vec2 screenUV = gl_FragCoord.xy / uViewportSize;',
           '  vec2 depthUV = uIsGPUDepth ? screenUV : vec2(screenUV.x, 1.0 - screenUV.y);',
-          '  vec2 texelSize = uOcclusionBlurRadius / uViewportSize;',
-          '  // 13-tap two-ring sampling pattern for smooth occlusion edges',
-          '  // Center sample',
-          '  float occlusion_value = OcclusionGetSample(depthUV, vec2(0.0));',
-          '  // Inner ring: 6 samples at 40% radius, 60 degree intervals',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.4,  0.0));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.2,  0.346));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.2,  0.346));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.4,  0.0));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.2, -0.346));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.2, -0.346));',
-          '  // Outer ring: 6 samples at full radius, offset 30 degrees',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.866,  0.5));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.0,    1.0));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.866,  0.5));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.866, -0.5));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.0,   -1.0));',
-          '  occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.866, -0.5));',
-          '  occlusion_value /= 13.0;',
+          '  float occlusion_value;',
+          '  if (uOcclusionHardMode) {',
+          '    occlusion_value = OcclusionGetSample(depthUV, vec2(0.0));',
+          '  } else {',
+          '   vec2 texelSize = uOcclusionBlurRadius / uViewportSize;',
+          '   // 13-tap two-ring sampling pattern for smooth occlusion edges',
+          '   // Center sample',
+          '   occlusion_value = OcclusionGetSample(depthUV, vec2(0.0));',
+          '   // Inner ring: 6 samples at 40% radius, 60 degree intervals',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.4,  0.0));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.2,  0.346));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.2,  0.346));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.4,  0.0));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.2, -0.346));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.2, -0.346));',
+          '   // Outer ring: 6 samples at full radius, offset 30 degrees',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.866,  0.5));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.0,    1.0));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.866,  0.5));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2(-0.866, -0.5));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.0,   -1.0));',
+          '   occlusion_value += OcclusionGetSample(depthUV, texelSize * vec2( 0.866, -0.5));',
+          '   occlusion_value /= 13.0;',
+          '  }',
           '  diffuseColor.a *= occlusion_value;',
           '}',
         ].join('\n'),
@@ -376,14 +375,21 @@ export class DepthSensingSystem extends createSystem(
     const viewportSize = new Vector2();
     this.renderer.getDrawingBufferSize(viewportSize);
 
-    for (const uniforms of this.occludableShaders) {
-      uniforms.uXRDepthTextureArray.value = depthTextureArray;
-      uniforms.uRawValueToMeters.value = this.rawValueToMeters;
-      uniforms.uIsGPUDepth.value = isGPUDepth;
-      uniforms.uDepthNear.value = depthNear;
-      (uniforms.uViewportSize.value as Vector2).copy(viewportSize);
-      uniforms.uOcclusionBlurRadius.value = this.config.blurRadius.value;
-      uniforms.occlusionEnabled.value = this.config.enableOcclusion.value;
+    for (const [entity, entityUniforms] of this.entityShaderMap) {
+      const isHardMode =
+        DepthOccludable.data.mode[entity.index] ===
+        OcclusionShadersMode.HardOcclusion;
+
+      for (const uniforms of entityUniforms) {
+        uniforms.uXRDepthTextureArray.value = depthTextureArray;
+        uniforms.uRawValueToMeters.value = this.rawValueToMeters;
+        uniforms.uIsGPUDepth.value = isGPUDepth;
+        uniforms.uDepthNear.value = depthNear;
+        (uniforms.uViewportSize.value as Vector2).copy(viewportSize);
+        uniforms.uOcclusionBlurRadius.value = this.config.blurRadius.value;
+        uniforms.uOcclusionHardMode.value = isHardMode;
+        uniforms.occlusionEnabled.value = this.config.enableOcclusion.value;
+      }
     }
   }
 }

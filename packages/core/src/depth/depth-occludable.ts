@@ -5,7 +5,15 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { createComponent } from '../ecs/index.js';
+import { Types, createComponent } from '../ecs/index.js';
+
+/** Occlusion shader mode for {@link DepthOccludable}. @category Depth Sensing */
+export const OcclusionShadersMode = {
+  /** Soft occlusion with 13-tap blur sampling for smooth edges. */
+  SoftOcclusion: 'SoftOcclusion',
+  /** Hard occlusion with a single depth sample per fragment. */
+  HardOcclusion: 'HardOcclusion',
+};
 
 /**
  * Component for entities that should be occluded by real-world depth.
@@ -14,15 +22,24 @@ import { createComponent } from '../ecs/index.js';
  *
  * @example
  * ```ts
- * // Create an entity with occlusion enabled
+ * // Create an entity with soft occlusion (default)
  * const entity = world.createTransformEntity(mesh);
  * entity.addComponent(DepthOccludable);
+ *
+ * // Create an entity with hard occlusion (no blur)
+ * entity.addComponent(DepthOccludable, { mode: OcclusionShadersMode.HardOcclusion });
  * ```
  *
  * @category Depth Sensing
  */
 export const DepthOccludable = createComponent(
   'DepthOccludable',
-  {},
+  {
+    mode: {
+      type: Types.Enum,
+      enum: OcclusionShadersMode,
+      default: OcclusionShadersMode.SoftOcclusion,
+    },
+  },
   'Entity that can be occluded by real-world depth',
 );
