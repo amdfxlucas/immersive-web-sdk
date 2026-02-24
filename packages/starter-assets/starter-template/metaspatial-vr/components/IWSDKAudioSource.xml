@@ -16,7 +16,12 @@
     <EnumValue value="furthest"/>
   </Enum>
   <Component name="AudioSource" description="AudioSource playback component for positional and non-positional sounds">
-    <StringAttribute name="src" defaultValue=""/>
+    <PathByFilePickerAttribute
+      name="src"
+      defaultValue=""
+      fileTypes=".mp3,.wav,.ogg,.m4a,.aac"
+      description="Select an audio file to be used in your project. Files will be automatically copied to your project. The value is the relative path of the file within the final IWSDK/Spatial SDK package."
+    />
     <FloatAttribute name="volume" defaultValue="1f"/>
     <BooleanAttribute name="loop" defaultValue="false"/>
     <BooleanAttribute name="autoplay" defaultValue="false"/>

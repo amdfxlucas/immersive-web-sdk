@@ -57,8 +57,8 @@ export const DistanceModel = {
 export const AudioSource = createComponent(
   'AudioSource',
   {
-    // Core properties
-    src: { type: Types.String, default: '' }, // URL or cache key for an audio buffer
+    // Core properties  PathByFilePickerAttribute
+    src: { type: Types.FilePath, default: '' }, // URL or cache key for an audio buffer
     volume: { type: Types.Float32, default: 1.0 }, // Linear gain [0..1]
     loop: { type: Types.Boolean, default: false }, // When true, newly created instances loop
     autoplay: { type: Types.Boolean, default: false }, // Trigger a single play on first update after load

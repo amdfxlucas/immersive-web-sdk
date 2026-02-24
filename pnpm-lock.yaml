@@ -130,8 +130,8 @@ importers:
         specifier: ^1.11.0
         version: 1.12.1
       elics:
-        specifier: ^3.3.0
-        version: 3.3.0
+        specifier: ^3.4.1
+        version: 3.4.1
       three:
         specifier: npm:super-three@0.181.0
         version: super-three@0.181.0
@@ -2174,8 +2174,8 @@ packages:
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
-  elics@3.3.0:
-    resolution: {integrity: sha512-/5LqWjatFzysJquOz2v2BejhN+tUshm6czHoDdO5Y5LP6PjwEPC5oyTAs/Tv8tHl9LZQvWdQ+IzhiD8qntGEFQ==}
+  elics@3.4.1:
+    resolution: {integrity: sha512-pG1uwBW0jtU9RrBS8xrLCGEIaW0w+IBOz6IoRwLLAmJPZfuRRKVDpy8f27OQx/W6aCmTywWOQ/Rfsa9vriFmfw==}
     engines: {node: '>=16.0.0'}
 
   emoji-regex-xs@1.0.0:
@@ -6004,7 +6004,7 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  elics@3.3.0:
+  elics@3.4.1:
     dependencies:
       '@preact/signals-core': 1.12.1
 

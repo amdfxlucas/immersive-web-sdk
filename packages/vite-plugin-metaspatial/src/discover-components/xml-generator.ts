@@ -269,6 +269,7 @@ function mapTypeToXMLAttribute(elicsType?: string): string {
     Int64: 'LongAttribute',
     Boolean: 'BooleanAttribute',
     String: 'StringAttribute',
+    FilePath: 'PathByFilePickerAttribute',
     Vec2: 'Vector2Attribute',
     Vec3: 'Vector3Attribute',
     Vec4: 'Vector4Attribute',
