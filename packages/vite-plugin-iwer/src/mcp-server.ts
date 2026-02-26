@@ -1,0 +1,1193 @@
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+import { writeFile, mkdir } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import WebSocket from 'ws';
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+let port = 5173; // Default Vite port
+let verbose = false;
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--port' && args[i + 1]) {
+    const parsedPort = parseInt(args[i + 1], 10);
+    if (!isNaN(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
+      port = parsedPort;
+    } else {
+      console.error(`[IWER-MCP] Invalid port: ${args[i + 1]}, using default ${port}`);
+    }
+    i++;
+  } else if (args[i] === '--verbose') {
+    verbose = true;
+  }
+}
+
+/**
+ * MCP Tool definitions for IWER control.
+ * These map 1:1 to RemoteControlInterface methods in IWER.
+ */
+export const TOOLS = [
+  // =============================================================================
+  // Session Management
+  // =============================================================================
+  {
+    name: 'get_session_status',
+    description: 'Get XR session and device status',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'accept_session',
+    description:
+      'Accept an offered XR session (equivalent to clicking "Enter XR" button)',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'end_session',
+    description: 'End the current active XR session',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+
+  // =============================================================================
+  // Transform Control
+  // =============================================================================
+  {
+    name: 'get_transform',
+    description: 'Get position and orientation of a tracked device',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'headset',
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The device to query',
+        },
+      },
+      required: ['device'],
+    },
+  },
+  {
+    name: 'set_transform',
+    description:
+      'Set position and/or orientation of a tracked device. Position is in meters, orientation can be quaternion or euler angles (degrees).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'headset',
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The device to move',
+        },
+        position: {
+          type: 'object',
+          description: 'World position in meters',
+          properties: {
+            x: { type: 'number', description: 'X position (left/right)' },
+            y: {
+              type: 'number',
+              description: 'Y position (up/down, 1.6 is standing height)',
+            },
+            z: {
+              type: 'number',
+              description: 'Z position (forward/back, negative is forward)',
+            },
+          },
+        },
+        orientation: {
+          type: 'object',
+          description:
+            'Rotation as quaternion {x,y,z,w} or euler angles {pitch,yaw,roll} in degrees',
+          properties: {
+            // Quaternion format
+            x: { type: 'number', description: 'Quaternion X component' },
+            y: { type: 'number', description: 'Quaternion Y component' },
+            z: { type: 'number', description: 'Quaternion Z component' },
+            w: { type: 'number', description: 'Quaternion W component' },
+            // Euler format (degrees)
+            pitch: {
+              type: 'number',
+              description: 'Pitch in degrees (X rotation)',
+            },
+            yaw: { type: 'number', description: 'Yaw in degrees (Y rotation)' },
+            roll: {
+              type: 'number',
+              description: 'Roll in degrees (Z rotation)',
+            },
+          },
+        },
+      },
+      required: ['device'],
+    },
+  },
+  {
+    name: 'look_at',
+    description: 'Orient a device to look at a specific world position',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'headset',
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The device to orient',
+        },
+        target: {
+          type: 'object',
+          description: 'World position to look at',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' },
+          },
+          required: ['x', 'y', 'z'],
+        },
+        moveToDistance: {
+          type: 'number',
+          description: 'Optional: move device to this distance from target',
+        },
+      },
+      required: ['device', 'target'],
+    },
+  },
+  {
+    name: 'animate_to',
+    description:
+      'Smoothly animate a device to a new position/orientation over time',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'headset',
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The device to animate',
+        },
+        position: {
+          type: 'object',
+          description: 'Target world position in meters',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' },
+          },
+        },
+        orientation: {
+          type: 'object',
+          description:
+            'Target rotation as quaternion {x,y,z,w} or euler angles {pitch,yaw,roll} in degrees',
+          properties: {
+            // Quaternion format
+            x: { type: 'number', description: 'Quaternion X component' },
+            y: { type: 'number', description: 'Quaternion Y component' },
+            z: { type: 'number', description: 'Quaternion Z component' },
+            w: { type: 'number', description: 'Quaternion W component' },
+            // Euler format (degrees)
+            pitch: {
+              type: 'number',
+              description: 'Pitch in degrees (X rotation)',
+            },
+            yaw: { type: 'number', description: 'Yaw in degrees (Y rotation)' },
+            roll: {
+              type: 'number',
+              description: 'Roll in degrees (Z rotation)',
+            },
+          },
+        },
+        duration: {
+          type: 'number',
+          description: 'Animation duration in seconds (default: 0.5)',
+        },
+      },
+      required: ['device'],
+    },
+  },
+
+  // =============================================================================
+  // Input Mode
+  // =============================================================================
+  {
+    name: 'set_input_mode',
+    description: 'Switch between controller and hand tracking input modes',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['controller', 'hand'],
+          description: 'Input mode to switch to',
+        },
+      },
+      required: ['mode'],
+    },
+  },
+  {
+    name: 'set_connected',
+    description: 'Connect or disconnect an input device',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The input device',
+        },
+        connected: {
+          type: 'boolean',
+          description: 'Whether the device should be connected',
+        },
+      },
+      required: ['device', 'connected'],
+    },
+  },
+
+  // =============================================================================
+  // Select/Trigger Input
+  // =============================================================================
+  {
+    name: 'get_select_value',
+    description:
+      'Get the current select (trigger/pinch) value for an input device',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The input device',
+        },
+      },
+      required: ['device'],
+    },
+  },
+  {
+    name: 'set_select_value',
+    description:
+      'Set the select (trigger/pinch) value for an input device. Use for grab-move-release patterns.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The input device',
+        },
+        value: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Select value (0=released, 1=fully pressed/pinched)',
+        },
+      },
+      required: ['device', 'value'],
+    },
+  },
+  {
+    name: 'select',
+    description:
+      'Perform a complete select action (press and release). Dispatches selectstart, select, selectend events.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: [
+            'controller-left',
+            'controller-right',
+            'hand-left',
+            'hand-right',
+          ],
+          description: 'The input device',
+        },
+        duration: {
+          type: 'number',
+          description: 'How long to hold in seconds (default: 0.15)',
+        },
+      },
+      required: ['device'],
+    },
+  },
+
+  // =============================================================================
+  // Gamepad State (Controllers only)
+  // =============================================================================
+  {
+    name: 'get_gamepad_state',
+    description:
+      'Get full gamepad state including all buttons and axes. Button indices in the result: 0=trigger, 1=squeeze, 2=thumbstick, 3=A/X, 4=B/Y, 5=thumbrest.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: ['controller-left', 'controller-right'],
+          description: 'The controller',
+        },
+      },
+      required: ['device'],
+    },
+  },
+  {
+    name: 'set_gamepad_state',
+    description: 'Set gamepad button and axis values by index',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        device: {
+          type: 'string',
+          enum: ['controller-left', 'controller-right'],
+          description: 'The controller',
+        },
+        buttons: {
+          type: 'array',
+          description: 'Button states to set',
+          items: {
+            type: 'object',
+            properties: {
+              index: {
+                type: 'number',
+                description:
+                  'Button index (0=trigger, 1=squeeze, 2=thumbstick, 3=A/X, 4=B/Y, 5=thumbrest)',
+              },
+              value: { type: 'number', description: 'Button value 0-1' },
+              touched: {
+                type: 'boolean',
+                description: 'Whether button is touched',
+              },
+            },
+            required: ['index', 'value'],
+          },
+        },
+        axes: {
+          type: 'array',
+          description: 'Axis values to set',
+          items: {
+            type: 'object',
+            properties: {
+              index: {
+                type: 'number',
+                description: 'Axis index (0=thumbstick X, 1=thumbstick Y)',
+              },
+              value: { type: 'number', description: 'Axis value -1 to 1' },
+            },
+            required: ['index', 'value'],
+          },
+        },
+      },
+      required: ['device'],
+    },
+  },
+
+  // =============================================================================
+  // Canvas Capture
+  // =============================================================================
+  {
+    name: 'capture_canvas',
+    description:
+      'Capture a screenshot of the WebXR canvas. Returns the path to the saved image file.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        maxWidth: {
+          type: 'number',
+          description: 'Maximum width of the captured image (default: 800)',
+        },
+        format: {
+          type: 'string',
+          enum: ['png', 'jpeg', 'webp'],
+          description: 'Image format (default: png)',
+        },
+        quality: {
+          type: 'number',
+          description: 'Image quality for jpeg/webp (0-1, default: 0.92)',
+        },
+      },
+    },
+  },
+
+  // =============================================================================
+  // Device State
+  // =============================================================================
+  {
+    name: 'get_device_state',
+    description:
+      'Get comprehensive state of the XR device including headset, controllers, and hands',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'set_device_state',
+    description:
+      'Set device state. When called with no state, resets everything to defaults.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        state: {
+          type: 'object',
+          description:
+            'Partial device state to apply. Omit to reset to defaults.',
+          properties: {
+            headset: {
+              type: 'object',
+              description: 'Headset transform',
+              properties: {
+                position: {
+                  type: 'object',
+                  properties: {
+                    x: { type: 'number' },
+                    y: { type: 'number' },
+                    z: { type: 'number' },
+                  },
+                },
+                orientation: {
+                  type: 'object',
+                  properties: {
+                    x: { type: 'number' },
+                    y: { type: 'number' },
+                    z: { type: 'number' },
+                    w: { type: 'number' },
+                  },
+                },
+              },
+            },
+            inputMode: {
+              type: 'string',
+              enum: ['controller', 'hand'],
+              description: 'Input mode',
+            },
+            stereoEnabled: {
+              type: 'boolean',
+              description: 'Whether stereo rendering is enabled',
+            },
+            fov: {
+              type: 'number',
+              description: 'Field of view in degrees',
+            },
+            controllers: {
+              type: 'object',
+              description: 'Controller states',
+              properties: {
+                left: {
+                  type: 'object',
+                  properties: {
+                    position: { type: 'object' },
+                    orientation: { type: 'object' },
+                    connected: { type: 'boolean' },
+                  },
+                },
+                right: {
+                  type: 'object',
+                  properties: {
+                    position: { type: 'object' },
+                    orientation: { type: 'object' },
+                    connected: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+            hands: {
+              type: 'object',
+              description: 'Hand states',
+              properties: {
+                left: {
+                  type: 'object',
+                  properties: {
+                    position: { type: 'object' },
+                    orientation: { type: 'object' },
+                    connected: { type: 'boolean' },
+                  },
+                },
+                right: {
+                  type: 'object',
+                  properties: {
+                    position: { type: 'object' },
+                    orientation: { type: 'object' },
+                    connected: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  // =============================================================================
+  // Console Logs (Plugin-specific, not in IWER)
+  // =============================================================================
+  {
+    name: 'get_console_logs',
+    description:
+      'Get console logs from the browser with optional filtering. By default excludes debug level logs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        count: {
+          type: 'number',
+          description: 'Maximum number of logs to return (most recent N)',
+        },
+        level: {
+          oneOf: [
+            {
+              type: 'string',
+              enum: ['log', 'info', 'warn', 'error', 'debug'],
+            },
+            {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['log', 'info', 'warn', 'error', 'debug'],
+              },
+            },
+          ],
+          description:
+            'Filter by log level(s). Default: ["log", "info", "warn", "error"] (excludes debug)',
+        },
+        pattern: {
+          type: 'string',
+          description: 'Regex pattern to filter log messages',
+        },
+        since: {
+          type: 'number',
+          description: 'Return logs since this timestamp (ms since epoch)',
+        },
+      },
+    },
+  },
+  {
+    name: 'reload_page',
+    description:
+      'Reload the browser page to reset application state. Use when the app enters an unrecoverable state or to apply code changes.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+
+  // =============================================================================
+  // Framework-Specific Tools (IWSDK or any framework with FRAMEWORK_MCP_RUNTIME)
+  // =============================================================================
+  {
+    name: 'get_scene_hierarchy',
+    description:
+      'Get the Three.js scene hierarchy as a JSON tree. Returns object names, UUIDs, and entity indices where available. Requires IWSDK or a framework that provides FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        parentId: {
+          type: 'string',
+          description:
+            'UUID of parent Object3D to start from. Defaults to scene root if omitted.',
+        },
+        maxDepth: {
+          type: 'number',
+          description:
+            'Maximum depth to traverse (default: 5). Use to limit context size.',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_object_transform',
+    description:
+      'Get local and global transforms of an Object3D. Includes positionRelativeToXROrigin which can be used directly with IWER look_at tool. Requires IWSDK or a framework that provides FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        uuid: {
+          type: 'string',
+          description:
+            'UUID of the Object3D (get this from get_scene_hierarchy)',
+        },
+      },
+      required: ['uuid'],
+    },
+  },
+
+  // =============================================================================
+  // ECS Debugging (IWSDK — requires FRAMEWORK_MCP_RUNTIME)
+  // =============================================================================
+  {
+    name: 'ecs_pause',
+    description:
+      'Pause ECS system updates. The render loop continues (XR session stays alive, screenshots still work) but no systems tick. Use ecs_step to advance individual frames while paused. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'ecs_resume',
+    description:
+      'Resume ECS system updates after pausing. The first frame after resume uses a capped delta to avoid physics explosions. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'ecs_step',
+    description:
+      'Advance N ECS frames with a fixed timestep while paused. Must call ecs_pause first. Useful for frame-by-frame debugging. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        count: {
+          type: 'number',
+          description: 'Number of frames to advance (1-120, default: 1)',
+        },
+        delta: {
+          type: 'number',
+          description:
+            'Fixed timestep in seconds for each frame (default: 1/72 ≈ 0.0139, matching Quest refresh rate)',
+        },
+      },
+    },
+  },
+  {
+    name: 'ecs_query_entity',
+    description:
+      'Get all component data for an entity. Use entityIndex from get_scene_hierarchy or ecs_find_entities. Returns serialized component values including vectors, entity refs, and Object3D references. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entityIndex: {
+          type: 'number',
+          description:
+            'Entity index (get this from get_scene_hierarchy or ecs_find_entities)',
+        },
+        components: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Optional list of component IDs to include. If omitted, returns all components on the entity.',
+        },
+      },
+      required: ['entityIndex'],
+    },
+  },
+  {
+    name: 'ecs_find_entities',
+    description:
+      'Find entities by component composition and/or name. Returns entity indices and component lists. Use the returned entityIndex values with ecs_query_entity for detailed inspection. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        withComponents: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Component IDs that entities must have (AND logic)',
+        },
+        withoutComponents: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Component IDs that entities must NOT have',
+        },
+        namePattern: {
+          type: 'string',
+          description:
+            'Regex pattern to match against entity Object3D name (case-insensitive)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results (1-50, default: 50)',
+        },
+      },
+    },
+  },
+  {
+    name: 'ecs_list_systems',
+    description:
+      'List all registered ECS systems with name, priority, pause state, config keys, and query entity counts. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'ecs_list_components',
+    description:
+      'List all registered ECS components with their field schemas (type, default). Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'ecs_toggle_system',
+    description:
+      'Pause or resume a specific ECS system by name. Use ecs_list_systems to discover system names. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: "System class name (e.g. 'OrbSystem', 'RobotSystem')",
+        },
+        paused: {
+          type: 'boolean',
+          description:
+            'Set to true to pause, false to resume. If omitted, toggles current state.',
+        },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'ecs_set_component',
+    description:
+      'Set a component field value on an entity. Scalars use setValue (with validation), vectors accept arrays. Use ecs_query_entity to inspect current values first. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entityIndex: {
+          type: 'number',
+          description:
+            'Entity index (from ecs_find_entities or get_scene_hierarchy)',
+        },
+        componentId: {
+          type: 'string',
+          description: "Component ID (e.g. 'Orb', 'RobotMood', 'Transform')",
+        },
+        field: {
+          type: 'string',
+          description:
+            "Field name within the component (e.g. 'orbitSpeed', 'mood')",
+        },
+        value: {
+          description:
+            'New value. Scalars: number/string/boolean. Vectors: array of numbers (e.g. [1,2,3] for Vec3).',
+        },
+      },
+      required: ['entityIndex', 'componentId', 'field', 'value'],
+    },
+  },
+  {
+    name: 'ecs_snapshot',
+    description:
+      'Capture a snapshot of all ECS entity/component state. Stores up to 2 snapshots. Use with ecs_diff to compare. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        label: {
+          type: 'string',
+          description:
+            'Label for this snapshot (default: auto-generated). Use to reference in ecs_diff.',
+        },
+      },
+    },
+  },
+  {
+    name: 'ecs_diff',
+    description:
+      'Compare two ECS snapshots. Shows added/removed/changed entities and field-level diffs. Requires FRAMEWORK_MCP_RUNTIME.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: {
+          type: 'string',
+          description: "Label of the 'before' snapshot",
+        },
+        to: {
+          type: 'string',
+          description: "Label of the 'after' snapshot",
+        },
+      },
+      required: ['from', 'to'],
+    },
+  },
+];
+
+/**
+ * Tab-change tracker: processes raw browser responses and produces
+ * MCP-formatted content blocks with tab-change warnings and _tab metadata.
+ * Extracted for testability.
+ */
+export interface TabTracker {
+  /** Process a raw browser response into MCP content blocks. */
+  processResponse(rawResponse: {
+    result?: unknown;
+    _tabId?: string;
+    _tabGeneration?: number;
+  }): { content: Array<{ type: string; text: string }> };
+  /** Get the last known tab ID. */
+  getLastTabId(): string | null;
+}
+
+export function createTabTracker(): TabTracker {
+  let lastTabId: string | null = null;
+
+  function processResponse(rawResponse: {
+    result?: unknown;
+    _tabId?: string;
+    _tabGeneration?: number;
+  }): { content: Array<{ type: string; text: string }> } {
+    const result = rawResponse?.result ?? rawResponse;
+    const tabId = rawResponse?._tabId;
+    const tabGeneration = rawResponse?._tabGeneration;
+    const previousTabId = lastTabId;
+    const tabChanged =
+      previousTabId !== null && tabId != null && tabId !== previousTabId;
+    if (tabId) lastTabId = tabId;
+
+    const content: Array<{ type: string; text: string }> = [];
+    if (tabChanged) {
+      content.push({
+        type: 'text',
+        text: `WARNING: Active browser tab changed (previous: ${previousTabId}, current: ${tabId}). All previously cached state (device positions, scene hierarchy, ECS snapshots) is now invalid. Re-query any state you need before proceeding.`,
+      });
+    }
+    content.push({
+      type: 'text',
+      text: JSON.stringify(
+        {
+          ...(typeof result === 'object' && result !== null
+            ? result
+            : { value: result }),
+          ...(tabId
+            ? { _tab: { id: tabId, generation: tabGeneration } }
+            : {}),
+        },
+        null,
+        2,
+      ),
+    });
+
+    return { content };
+  }
+
+  function getLastTabId(): string | null {
+    return lastTabId;
+  }
+
+  return { processResponse, getLastTabId };
+}
+
+// WebSocket connection to Vite dev server
+let ws: WebSocket | null = null;
+let pendingRequests: Map<
+  string,
+  {
+    resolve: (value: unknown) => void;
+    reject: (error: Error) => void;
+    timeoutHandle: ReturnType<typeof setTimeout>;
+  }
+> = new Map();
+let requestId = 0;
+let isConnected = false;
+
+function tryConnect(protocol: 'wss' | 'ws'): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const wsUrl = `${protocol}://localhost:${port}/__iwer_mcp`;
+
+    if (verbose) {
+      console.error(`[IWER-MCP] Trying ${wsUrl}...`);
+    }
+
+    const socket = new WebSocket(wsUrl, {
+      rejectUnauthorized: false,
+    });
+
+    const timeout = setTimeout(() => {
+      socket.close();
+      reject(new Error(`Connection timeout for ${protocol}`));
+    }, 3000);
+
+    socket.on('open', () => {
+      clearTimeout(timeout);
+      ws = socket;
+      isConnected = true;
+      if (verbose) {
+        console.error(`[IWER-MCP] Connected via ${protocol.toUpperCase()}`);
+      }
+
+      socket.on('message', (data: Buffer) => {
+        try {
+          const response = JSON.parse(data.toString());
+          const pending = pendingRequests.get(response.id);
+          if (pending) {
+            clearTimeout(pending.timeoutHandle);
+            pendingRequests.delete(response.id);
+            if (response.error) {
+              pending.reject(new Error(response.error.message));
+            } else {
+              pending.resolve(response);
+            }
+          }
+        } catch (error) {
+          if (verbose) {
+            console.error('[IWER-MCP] Failed to parse response:', error);
+          }
+        }
+      });
+
+      socket.on('close', () => {
+        isConnected = false;
+        if (verbose) {
+          console.error('[IWER-MCP] Disconnected');
+        }
+        pendingRequests.forEach((pending) => {
+          clearTimeout(pending.timeoutHandle);
+          pending.reject(new Error('WebSocket connection closed'));
+        });
+        pendingRequests.clear();
+      });
+
+      resolve();
+    });
+
+    socket.on('error', (error) => {
+      clearTimeout(timeout);
+      if (verbose) {
+        console.error(
+          `[IWER-MCP] ${protocol.toUpperCase()} error:`,
+          error.message,
+        );
+      }
+      reject(error);
+    });
+  });
+}
+
+async function connectWebSocket(): Promise<void> {
+  try {
+    await tryConnect('wss');
+    return;
+  } catch {
+    if (verbose) {
+      console.error('[IWER-MCP] WSS failed, trying WS...');
+    }
+  }
+
+  try {
+    await tryConnect('ws');
+    return;
+  } catch {
+    throw new Error(
+      `Failed to connect to Vite dev server on port ${port}. Is it running with MCP enabled?`,
+    );
+  }
+}
+
+async function sendCommand(method: string, params: unknown): Promise<unknown> {
+  if (!ws || !isConnected) {
+    throw new Error('Not connected to Vite dev server');
+  }
+
+  const id = `${++requestId}`;
+
+  return new Promise((resolve, reject) => {
+    const timeoutHandle = setTimeout(() => {
+      if (pendingRequests.has(id)) {
+        pendingRequests.delete(id);
+        reject(new Error(`Request timeout for ${method}`));
+      }
+    }, 30000);
+
+    pendingRequests.set(id, { resolve, reject, timeoutHandle });
+
+    const request = {
+      id,
+      method,
+      params: params || {},
+    };
+
+    if (verbose) {
+      console.error(`[IWER-MCP] Sending: ${method}`, params);
+    }
+
+    ws!.send(JSON.stringify(request));
+  });
+}
+
+async function main() {
+  const tabTracker = createTabTracker();
+
+  const server = new Server(
+    {
+      name: 'iwer-mcp',
+      version: '1.0.0',
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    },
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return { tools: TOOLS };
+  });
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+
+    // Ensure WebSocket is connected
+    if (!isConnected) {
+      try {
+        await connectWebSocket();
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Failed to connect to IWER: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    // Forward the method directly - no remapping needed
+    // Tool names match RemoteControlInterface method names exactly
+    try {
+      const rawResponse = (await sendCommand(name, args)) as {
+        result?: unknown;
+        _tabId?: string;
+        _tabGeneration?: number;
+      };
+
+      // Special handling for capture_canvas - save to file
+      const result = rawResponse?.result ?? rawResponse;
+      if (
+        name === 'capture_canvas' &&
+        result &&
+        typeof result === 'object' &&
+        'imageData' in result
+      ) {
+        const captureResult = result as {
+          imageData: string;
+          width: number;
+          height: number;
+          format: string;
+          timestamp: number;
+        };
+        const screenshotDir = join(tmpdir(), 'iwer-screenshots');
+        await mkdir(screenshotDir, { recursive: true });
+
+        const filename = `screenshot-${captureResult.timestamp}.${captureResult.format}`;
+        const filepath = join(screenshotDir, filename);
+
+        const imageBuffer = Buffer.from(captureResult.imageData, 'base64');
+        await writeFile(filepath, imageBuffer);
+
+        // Use tabTracker for tab-change detection + _tab metadata
+        const tabResult = tabTracker.processResponse({
+          result: {
+            path: filepath,
+            width: captureResult.width,
+            height: captureResult.height,
+            format: captureResult.format,
+            timestamp: captureResult.timestamp,
+            message: `Screenshot saved to ${filepath}. Use the Read tool to view the image.`,
+          },
+          _tabId: rawResponse?._tabId,
+          _tabGeneration: rawResponse?._tabGeneration,
+        });
+
+        return tabResult;
+      }
+
+      // Standard tool response — use tabTracker for tab-change detection + _tab metadata
+      return tabTracker.processResponse(rawResponse);
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  // Try to connect on startup
+  try {
+    await connectWebSocket();
+  } catch {
+    if (verbose) {
+      console.error(
+        '[IWER-MCP] Initial connection failed, will retry on tool use',
+      );
+    }
+  }
+
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  if (verbose) {
+    console.error('[IWER-MCP] MCP server started');
+  }
+}
+
+main().catch((error) => {
+  console.error('[IWER-MCP] Fatal error:', error);
+  process.exit(1);
+});

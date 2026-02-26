@@ -5,6 +5,9 @@
   "description": "Vite plugin for WebXR emulation runtime injection using IWER",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "iwer-mcp": "./dist/mcp-server.js"
+  },
   "files": [
     "dist",
     "README.md"
@@ -14,6 +17,7 @@
     "build:plugin": "rollup -c rollup.config.js",
     "build:injection": "rollup -c rollup.injection.config.js",
     "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "rollup -c --watch",
     "clean": "rm -rf dist"
   },
@@ -25,20 +29,24 @@
     "iwer",
     "polyfill",
     "meta",
-    "quest"
+    "quest",
+    "mcp"
   ],
   "author": "Felix Zhang <fe1ix@meta.com>",
   "license": "MIT",
   "dependencies": {
     "@iwer/devui": "^2.2.0",
     "@iwer/sem": "^0.2.5",
-    "iwer": "^2.2.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "iwer": "^2.2.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "vitest": "^2.1.0"
   },
   "peerDependencies": {
     "vite": "^7.0.0"
-  },
-  "devDependencies": {
-    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=20.19.0"

@@ -22,6 +22,25 @@ export interface SEMOptions {
 }
 
 /**
+ * MCP (Model Context Protocol) configuration
+ * Enables AI agent control of the IWER runtime via WebSocket
+ */
+export interface MCPOptions {
+  /**
+   * Override the Vite dev server port used for the MCP WebSocket connection.
+   * If not specified, the actual Vite dev server port is auto-detected.
+   * You should NOT normally need to set this.
+   */
+  port?: number;
+
+  /**
+   * Enable verbose logging for MCP operations
+   * @default false
+   */
+  verbose?: boolean;
+}
+
+/**
  * Main plugin options interface
  */
 export interface IWERPluginOptions {
@@ -36,6 +55,13 @@ export interface IWERPluginOptions {
    * If undefined, SEM is not activated
    */
   sem?: SEMOptions;
+
+  /**
+   * MCP (Model Context Protocol) configuration
+   * Enables AI agent control of the IWER runtime via WebSocket
+   * If undefined, MCP is not activated
+   */
+  mcp?: MCPOptions | boolean;
 
   /**
    * Inject script during build phase (in addition to dev)
@@ -74,6 +100,10 @@ export interface ProcessedIWEROptions {
   device: 'metaQuest2' | 'metaQuest3' | 'metaQuestPro' | 'oculusQuest1';
   sem?: {
     defaultScene: string;
+  };
+  mcp?: {
+    port?: number;
+    verbose: boolean;
   };
   injectOnBuild: boolean;
   activation: 'localhost' | 'always' | RegExp;

@@ -8,8 +8,10 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
+import json from '@rollup/plugin-json';
 
-export default {
+// Plugin build config
+const pluginConfig = {
   input: 'src/index.ts',
   output: [
     {
@@ -22,9 +24,11 @@ export default {
     'vite',
     'path',
     'fs',
+    'fs/promises',
     'fs-extra',
     'child_process',
     'util',
+    'url',
     'rollup',
     '@rollup/plugin-commonjs',
     '@rollup/plugin-node-resolve',
@@ -33,6 +37,7 @@ export default {
     'iwer',
     '@iwer/devui',
     '@iwer/sem',
+    'ws',
   ],
   plugins: [
     nodeResolve({
@@ -44,3 +49,47 @@ export default {
     }),
   ],
 };
+
+// MCP server build config - bundles dependencies for standalone execution
+const mcpServerConfig = {
+  input: 'src/mcp-server.ts',
+  output: [
+    {
+      file: 'dist/mcp-server.js',
+      format: 'esm',
+      sourcemap: true,
+      banner: '#!/usr/bin/env node',
+    },
+  ],
+  external: [
+    // Only keep Node.js builtins external
+    'path',
+    'fs',
+    'fs/promises',
+    'child_process',
+    'util',
+    'url',
+    'http',
+    'https',
+    'net',
+    'tls',
+    'stream',
+    'events',
+    'buffer',
+    'crypto',
+    'os',
+    'zlib',
+  ],
+  plugins: [
+    nodeResolve({
+      preferBuiltins: true,
+    }),
+    commonjs(),
+    json(),
+    typescript({
+      tsconfig: './tsconfig.json',
+    }),
+  ],
+};
+
+export default [pluginConfig, mcpServerConfig];

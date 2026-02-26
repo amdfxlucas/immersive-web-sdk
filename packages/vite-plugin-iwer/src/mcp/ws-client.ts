@@ -67,11 +67,37 @@ export class MCPWebSocketClient {
   private intentionalDisconnect = false;
   private verbose: boolean;
 
+  // Tab identity: stable across reloads/HMR within the same browser tab,
+  // new ID when the tab is closed and reopened.
+  readonly tabId: string;
+  readonly tabGeneration: number;
+
   constructor(device: XRDevice, options: { verbose?: boolean } = {}) {
     this.device = device;
     this.verbose = options.verbose ?? false;
     this.consoleCapture = new ConsoleCapture();
     this.consoleCapture.start();
+
+    // sessionStorage is scoped per tab — survives reloads/HMR but not tab close
+    let id = typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('iwer-mcp-tab-id')
+      : null;
+    if (!id) {
+      id = `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('iwer-mcp-tab-id', id);
+      }
+    }
+    this.tabId = id;
+
+    // Generation increments on every page load / HMR within the same tab
+    const gen = typeof sessionStorage !== 'undefined'
+      ? parseInt(sessionStorage.getItem('iwer-mcp-gen') || '0', 10) + 1
+      : 1;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('iwer-mcp-gen', String(gen));
+    }
+    this.tabGeneration = gen;
   }
 
   /**
@@ -233,7 +259,8 @@ export class MCPWebSocketClient {
     }
 
     if (method === 'reload_page') {
-      window.location.reload();
+      // Defer reload so the WebSocket response can flush before the page tears down
+      setTimeout(() => window.location.reload(), 50);
       return { success: true, message: 'Page reload initiated' };
     }
 
@@ -248,7 +275,13 @@ export class MCPWebSocketClient {
 
   private send(response: MCPResponse): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(response));
+      // Inject tab identity so the MCP server knows which tab responded
+      const enriched = {
+        ...response,
+        _tabId: this.tabId,
+        _tabGeneration: this.tabGeneration,
+      };
+      this.ws.send(JSON.stringify(enriched));
     }
   }
 

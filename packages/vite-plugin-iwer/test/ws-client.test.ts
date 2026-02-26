@@ -364,7 +364,7 @@ describe('MCPWebSocketClient', () => {
         params: {},
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(mockReload).toHaveBeenCalled();
       expect(mockDevice.remote.dispatch).not.toHaveBeenCalled();
@@ -606,6 +606,201 @@ describe('MCPWebSocketClient', () => {
 
       // Verify the reconnect attempt happened by checking we have a new instance URL
       expect(secondInstance!.url).toContain('/__iwer_mcp');
+    });
+  });
+
+  describe('tab identity', () => {
+    let originalSessionStorage: typeof globalThis.sessionStorage | undefined;
+    let store: Record<string, string>;
+
+    beforeEach(() => {
+      store = {};
+      originalSessionStorage = (globalThis as any).sessionStorage;
+      (globalThis as any).sessionStorage = {
+        getItem: vi.fn((k: string) => store[k] ?? null),
+        setItem: vi.fn((k: string, v: string) => {
+          store[k] = v;
+        }),
+      };
+    });
+
+    afterEach(() => {
+      if (originalSessionStorage !== undefined) {
+        (globalThis as any).sessionStorage = originalSessionStorage;
+      } else {
+        delete (globalThis as any).sessionStorage;
+      }
+    });
+
+    test('tabId is read from sessionStorage when present', () => {
+      store['iwer-mcp-tab-id'] = 'existing-tab-123';
+      client = new MCPWebSocketClient(mockDevice as any);
+      expect(client.tabId).toBe('existing-tab-123');
+      // Should NOT overwrite the existing value
+      expect(sessionStorage.setItem).not.toHaveBeenCalledWith(
+        'iwer-mcp-tab-id',
+        expect.not.stringContaining('existing-tab-123'),
+      );
+    });
+
+    test('tabId is generated and stored when sessionStorage is empty', () => {
+      client = new MCPWebSocketClient(mockDevice as any);
+      expect(client.tabId).toMatch(/^tab-/);
+      expect(sessionStorage.setItem).toHaveBeenCalledWith(
+        'iwer-mcp-tab-id',
+        client.tabId,
+      );
+    });
+
+    test('tabId is generated when sessionStorage is unavailable', () => {
+      delete (globalThis as any).sessionStorage;
+      client = new MCPWebSocketClient(mockDevice as any);
+      // Should still get a valid tabId (fallback generation)
+      expect(client.tabId).toMatch(/^tab-/);
+    });
+
+    test('tabGeneration increments from stored value', () => {
+      store['iwer-mcp-gen'] = '3';
+      client = new MCPWebSocketClient(mockDevice as any);
+      expect(client.tabGeneration).toBe(4);
+      expect(sessionStorage.setItem).toHaveBeenCalledWith('iwer-mcp-gen', '4');
+    });
+
+    test('tabGeneration starts at 1 when no prior value', () => {
+      client = new MCPWebSocketClient(mockDevice as any);
+      expect(client.tabGeneration).toBe(1);
+      expect(sessionStorage.setItem).toHaveBeenCalledWith('iwer-mcp-gen', '1');
+    });
+
+    test('tabGeneration starts at 1 when sessionStorage unavailable', () => {
+      delete (globalThis as any).sessionStorage;
+      client = new MCPWebSocketClient(mockDevice as any);
+      expect(client.tabGeneration).toBe(1);
+    });
+  });
+
+  describe('response enrichment', () => {
+    test('_tabId and _tabGeneration are present in successful outgoing responses', async () => {
+      client = new MCPWebSocketClient(mockDevice as any);
+      client.connect();
+
+      await vi.waitFor(() => mockWebSocketInstance !== null);
+      await vi.waitFor(() => {
+        expect(mockWebSocketInstance!.readyState).toBe(MockWebSocket.OPEN);
+      });
+
+      mockWebSocketInstance!.simulateMessage({
+        id: 'enrich-1',
+        method: 'get_transform',
+        params: { device: 'headset' },
+      });
+
+      await vi.waitFor(() => {
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+      });
+
+      const response = JSON.parse(mockWebSocketInstance!.getSentMessages()[0]);
+      expect(response._tabId).toBe(client.tabId);
+      expect(response._tabGeneration).toBe(client.tabGeneration);
+    });
+
+    test('_tabId is present in error responses', async () => {
+      mockDevice.remote.dispatch.mockRejectedValueOnce(new Error('Boom'));
+
+      client = new MCPWebSocketClient(mockDevice as any);
+      client.connect();
+
+      await vi.waitFor(() => mockWebSocketInstance !== null);
+      await vi.waitFor(() => {
+        expect(mockWebSocketInstance!.readyState).toBe(MockWebSocket.OPEN);
+      });
+
+      mockWebSocketInstance!.simulateMessage({
+        id: 'enrich-err',
+        method: 'fail_method',
+        params: {},
+      });
+
+      await vi.waitFor(() => {
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+      });
+
+      const response = JSON.parse(mockWebSocketInstance!.getSentMessages()[0]);
+      expect(response._tabId).toBe(client.tabId);
+      expect(response._tabGeneration).toBe(client.tabGeneration);
+      expect(response.error).toBeDefined();
+    });
+
+    test('original id and result fields are not clobbered by enrichment', async () => {
+      const originalResult = { position: { x: 1, y: 2, z: 3 } };
+      mockDevice.remote.dispatch.mockResolvedValueOnce(originalResult);
+
+      client = new MCPWebSocketClient(mockDevice as any);
+      client.connect();
+
+      await vi.waitFor(() => mockWebSocketInstance !== null);
+      await vi.waitFor(() => {
+        expect(mockWebSocketInstance!.readyState).toBe(MockWebSocket.OPEN);
+      });
+
+      mockWebSocketInstance!.simulateMessage({
+        id: 'enrich-2',
+        method: 'get_transform',
+        params: { device: 'headset' },
+      });
+
+      await vi.waitFor(() => {
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+      });
+
+      const response = JSON.parse(mockWebSocketInstance!.getSentMessages()[0]);
+      expect(response.id).toBe('enrich-2');
+      expect(response.result).toEqual(originalResult);
+      // Enrichment fields co-exist
+      expect(response._tabId).toBeDefined();
+    });
+  });
+
+  describe('reload defer ordering', () => {
+    test('response is sent BEFORE reload fires, and reload fires after 50ms', async () => {
+      vi.useFakeTimers();
+
+      const mockReload = vi.fn();
+      (globalThis as any).window.location = {
+        protocol: 'http:',
+        hostname: 'localhost',
+        port: '5173',
+        reload: mockReload,
+      };
+
+      client = new MCPWebSocketClient(mockDevice as any);
+      client.connect();
+
+      await vi.waitFor(() => mockWebSocketInstance !== null);
+      await vi.advanceTimersByTimeAsync(0);
+
+      mockWebSocketInstance!.simulateMessage({
+        id: 'reload-test',
+        method: 'reload_page',
+        params: {},
+      });
+
+      // Let the async handler run (microtask)
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Response should have been sent already
+      const sent = mockWebSocketInstance!.getSentMessages();
+      expect(sent.length).toBe(1);
+      const response = JSON.parse(sent[0]);
+      expect(response.id).toBe('reload-test');
+      expect(response.result).toEqual({ success: true, message: 'Page reload initiated' });
+
+      // reload should NOT have fired yet (only 0ms elapsed)
+      expect(mockReload).not.toHaveBeenCalled();
+
+      // Advance to 50ms — reload should fire
+      await vi.advanceTimersByTimeAsync(50);
+      expect(mockReload).toHaveBeenCalledTimes(1);
     });
   });
 
