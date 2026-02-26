@@ -30,7 +30,7 @@ async function main() {
     const recipe = JSON.parse(await fsp.readFile(p, 'utf8'));
     try {
       const result = await buildProject([recipe], undefined, {
-        allowUrl: true,
+        allowUrl: false,
       });
       const count = Object.keys(result).length;
       console.log(`OK ${f} (${count} files)`);

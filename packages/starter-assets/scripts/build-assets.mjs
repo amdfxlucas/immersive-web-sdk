@@ -60,16 +60,6 @@ async function readAllFiles(root) {
   return out;
 }
 
-function joinUrl(...parts) {
-  const filtered = parts.filter(Boolean);
-  return filtered
-    .map((p, i) =>
-      i === 0 ? p.replace(/\/$/, '') : p.replace(/^\/+|\/+$/g, ''),
-    )
-    .join('/')
-    .replace(/([^:])\/+/g, '$1/');
-}
-
 async function copyDir(src, dst) {
   const files = await readAllFiles(src);
   for (const rel of files) {
@@ -131,8 +121,6 @@ function toJsObjectLiteral(value) {
 
 async function generateRecipeForStarter(
   starterDir,
-  cdnBase,
-  casUrlBase,
   casRoot,
   casVersion,
 ) {
@@ -160,9 +148,8 @@ async function generateRecipeForStarter(
       const bytes = await fsp.readFile(srcFile);
       const relPath = path.join('metaspatial', rel).replaceAll('\\', '/');
       const casRel = await writeCasObject(casRoot, bytes, path.basename(rel));
-      const url = joinUrl(casUrlBase, casRel);
-      remotes.push({ path: relPath, url, bytes: bytes.length });
-      edits[relPath] = { url };
+      remotes.push({ path: relPath, url: `assets/${casRel}`, bytes: bytes.length });
+      edits[relPath] = { url: `assets/${casRel}` };
     }
   }
   if (hasPublic) {
@@ -172,9 +159,8 @@ async function generateRecipeForStarter(
       const bytes = await fsp.readFile(srcFile);
       const relPath = path.join('public', rel).replaceAll('\\', '/');
       const casRel = await writeCasObject(casRoot, bytes, path.basename(rel));
-      const url = joinUrl(casUrlBase, casRel);
-      remotes.push({ path: relPath, url, bytes: bytes.length });
-      edits[relPath] = { url };
+      remotes.push({ path: relPath, url: `assets/${casRel}`, bytes: bytes.length });
+      edits[relPath] = { url: `assets/${casRel}` };
     }
   }
 
@@ -485,10 +471,43 @@ async function generateRecipeForStarter(
   return { id, title, recipe };
 }
 
+/**
+ * Generate a Claude Code configuration recipe from the create package's
+ * claude-injections directory and PROJECT_CLAUDE.md file.
+ * This recipe is loaded by the CLI separately from the starter variant recipes.
+ */
+async function generateClaudeConfigRecipe(version) {
+  const injectionsDir = path.join(PKG_ROOT, 'claude-injections');
+  const projectClaudePath = path.join(PKG_ROOT, 'PROJECT_CLAUDE.md');
+
+  const edits = {};
+
+  // Read all files from claude-injections/ recursively
+  if (fs.existsSync(injectionsDir)) {
+    const files = await readAllFiles(injectionsDir);
+    for (const rel of files) {
+      try {
+        const abs = path.join(injectionsDir, rel);
+        const content = await fsp.readFile(abs, 'utf8');
+        // Map claude-injections/X -> .claude/X
+        const outputPath = path.join('.claude', rel).replaceAll('\\', '/');
+        edits[outputPath] = { lines: content.split(/\r?\n/) };
+      } catch (err) {
+        console.warn(`Warning: Could not read claude-injections/${rel}: ${err.message}`);
+      }
+    }
+  }
+
+  // Read PROJECT_CLAUDE.md -> CLAUDE.md
+  if (fs.existsSync(projectClaudePath)) {
+    const content = await fsp.readFile(projectClaudePath, 'utf8');
+    edits['CLAUDE.md'] = { lines: content.split(/\r?\n/) };
+  }
+
+  return { name: 'base-claude-config', version, edits };
+}
+
 async function main() {
-  const base =
-    process.env.IWSDK_ASSET_BASE ||
-    `https://cdn.jsdelivr.net/npm/@iwsdk/starter-assets@${VERSION}/dist`;
   // Determine SDK version (kept in recipe for traceability only)
   let pkgVersion = '0.0.0';
   try {
@@ -516,12 +535,9 @@ async function main() {
     throw new Error('No starter variants found. Run starter:sync first.');
 
   const index = [];
-  const casUrlBase = joinUrl(base, 'assets') + '/';
   for (const starterDir of starters) {
     const { id, title, recipe } = await generateRecipeForStarter(
       starterDir,
-      base,
-      casUrlBase,
       casRoot,
       pkgVersion,
     );
@@ -533,6 +549,16 @@ async function main() {
     index.push({ id, name: title, recipe: fileName });
     console.log(`• Built assets and recipe for ${id}`);
   }
+
+  // Generate Claude Code configuration recipe (not added to index.json)
+  const claudeRecipe = await generateClaudeConfigRecipe(pkgVersion);
+  const claudeFileName = `${claudeRecipe.name}.recipe.json`;
+  await fsp.writeFile(
+    path.join(DIST_ROOT, 'recipes', claudeFileName),
+    JSON.stringify(claudeRecipe, null, 2),
+  );
+  console.log(`• Built Claude config recipe: ${claudeFileName}`);
+
   await fsp.writeFile(
     path.join(DIST_ROOT, 'recipes', 'index.json'),
     JSON.stringify(index, null, 2),
@@ -544,7 +570,6 @@ async function main() {
   console.log('\nDone. Built dist/:');
   console.log(' - Recipes at dist/recipes');
   console.log(' - Canonical assets at dist/assets/<hash>-<name>');
-  console.log(`CDN Base: ${base}`);
 }
 
 main().catch((err) => {
