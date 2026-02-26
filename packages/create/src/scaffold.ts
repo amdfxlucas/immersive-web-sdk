@@ -15,8 +15,12 @@ import ora from 'ora';
 import { Ora } from 'ora';
 import prettier from 'prettier';
 
-async function applyRecipe(recipe: Recipe, outDir: string) {
-  const result = await buildProject([recipe], undefined, { allowUrl: true });
+async function applyRecipe(
+  recipes: Recipe | Recipe[],
+  outDir: string,
+) {
+  const recipeArray = Array.isArray(recipes) ? recipes : [recipes];
+  const result = await buildProject(recipeArray, undefined, { allowUrl: true });
   const decoder = new TextDecoder('utf-8');
   for (const [rel, bytes] of Object.entries(result)) {
     const outPath = path.join(outDir, rel);
@@ -41,7 +45,10 @@ async function applyRecipe(recipe: Recipe, outDir: string) {
   }
 }
 
-export async function scaffoldProject(recipe: Recipe, outDir: string) {
+export async function scaffoldProject(
+  recipes: Recipe | Recipe[],
+  outDir: string,
+) {
   const scaffoldSpinner: Ora = ora({
     text: `Scaffolding in ${chalk.gray(outDir)} ...`,
     stream: process.stderr,
@@ -51,7 +58,7 @@ export async function scaffoldProject(recipe: Recipe, outDir: string) {
   }).start();
   try {
     await mkdir(outDir, { recursive: true });
-    await applyRecipe(recipe, outDir);
+    await applyRecipe(recipes, outDir);
     scaffoldSpinner.stopAndPersist({
       symbol: chalk.green('✔'),
       text: 'Project files created',

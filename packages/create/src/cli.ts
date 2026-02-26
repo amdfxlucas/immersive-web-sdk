@@ -10,20 +10,18 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import type { Recipe } from '@pmndrs/chef';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import ora from 'ora';
 import semver from 'semver';
 import {
   installDependencies,
+  installDependenciesFromBundle,
   printNextSteps,
   printPrerequisites,
 } from './installer.js';
 import { promptFlow } from './prompts.js';
-import {
-  DEFAULT_ASSETS_BASE,
-  fetchRecipesIndex,
-  fetchRecipeByFileName,
-} from './recipes.js';
 import {
   detectMSEVersion,
   detectPlatform,
@@ -31,12 +29,13 @@ import {
 } from './mse-installer.js';
 import { MSE_MIN_VERSION } from './mse-config.js';
 import { scaffoldProject } from './scaffold.js';
+import { resolveSource, SDK_PACKAGES_DIR } from './source.js';
 import { MSEInstallResult, PromptResult, TriState, VariantId } from './types.js';
 import { VERSION, NODE_ENGINE } from './version.js';
 
 type CliOptions = {
   yes?: boolean;
-  assetsBase?: string;
+  from?: string;
   mode?: 'vr' | 'ar';
   language?: 'ts' | 'js';
   metaspatial?: boolean;
@@ -93,7 +92,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
     .description('Official CLI for creating Immersive Web SDK projects')
     .version(version)
     .argument('[name]', 'Project name')
-    .option('--assets-base <url>', 'Override CDN base for recipes and assets')
+    .option('--from <url>', 'Use SDK bundle from HTTP(S) URL')
     .option('-y, --yes', 'Use defaults and skip prompts')
     .option('--mode <mode>', 'Experience mode: vr or ar', 'vr')
     .option('--language <lang>', 'Language: ts or js', 'ts')
@@ -145,16 +144,14 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       );
       process.exit(1);
     }
-    if (cliOpts.assetsBase) {
-      try {
-        const parsed = new URL(cliOpts.assetsBase);
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-          throw new Error('Protocol must be http or https');
-        }
-      } catch {
+    if (cliOpts.from) {
+      const isUrl =
+        cliOpts.from.startsWith('http://') ||
+        cliOpts.from.startsWith('https://');
+      if (!isUrl) {
         console.error(
           chalk.red(
-            `Invalid --assets-base URL: "${cliOpts.assetsBase}". Must be a valid http(s) URL.`,
+            `--from must be an HTTP or HTTPS URL. Got: "${cliOpts.from}".`,
           ),
         );
         process.exit(1);
@@ -283,111 +280,188 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       );
     }
 
-    const assetsBase = cliOpts.assetsBase || DEFAULT_ASSETS_BASE;
-    // Fetch Chef recipes index and the chosen recipe (no local fallback)
-    const index = await fetchRecipesIndex(assetsBase);
-    const found = index.find((r) => r.id === res.id);
-    if (!found) {
-      throw new Error(`Recipe id ${res.id} not found in index`);
-    }
-    const recipe = await fetchRecipeByFileName(found.recipe, assetsBase);
+    const source = resolveSource(cliOpts.from);
 
-    // Override Chef variables from prompts
-    // Ensure edits exists
-    recipe.edits = recipe.edits || {};
-    // Project name
-    recipe.edits['@appName'] = res.name;
-    // World features (stringified JS object-literal expected by recipes)
-    const ff = res.featureFlags || {
-      locomotionEnabled: res.mode === 'vr',
-      locomotionUseWorker: true,
-      grabbingEnabled: true,
-      physicsEnabled: false,
-      sceneUnderstandingEnabled: false,
-      environmentRaycastEnabled: false,
-    };
-    const locomotionLiteral = ff.locomotionEnabled
-      ? ff.locomotionUseWorker
-        ? '{ useWorker: true }'
-        : 'true'
-      : 'false';
-    const sceneUnderstandingLiteral =
-      res.mode === 'ar' && ff.sceneUnderstandingEnabled ? 'true' : 'false';
-    const environmentRaycastLiteral =
-      res.mode === 'ar' && ff.environmentRaycastEnabled ? 'true' : 'false';
-    recipe.edits['@appFeaturesStr'] =
-      `{ locomotion: ${locomotionLiteral}, grabbing: ${ff.grabbingEnabled ? 'true' : 'false'}, physics: ${ff.physicsEnabled ? 'true' : 'false'}, sceneUnderstanding: ${sceneUnderstandingLiteral}, environmentRaycast: ${environmentRaycastLiteral} }`;
-    // XR features (tri-state -> JS object literal)
-    const toFlag = (s: TriState) =>
-      s === 'required'
-        ? '{ required: true }'
-        : s === 'optional'
-          ? 'true'
-          : 'false';
-    const entries: string[] = [];
-    for (const [k, v] of Object.entries(res.xrFeatureStates || {})) {
-      entries.push(`${k}: ${toFlag(v as TriState)}`);
-    }
-    const xrLiteral = `{ ${entries.join(', ')} }`;
-    recipe.edits['@xrFeaturesStr'] = xrLiteral;
-    const outDir = join(process.cwd(), res.name);
-
-    // Check if target directory already exists and is non-empty
-    if (
-      fs.existsSync(outDir) &&
-      fs.readdirSync(outDir).length > 0
-    ) {
-      throw new Error(
-        `Directory "${res.name}" already exists and is not empty. ` +
-          'Please choose a different name or remove the existing directory.',
-      );
-    }
-
-    await scaffoldProject(recipe, outDir);
-
-    // 8) Git init
-    if (res.gitInit) {
+    // Prepare source (downloads tgz files for remote bundles)
+    if (source.isBundleMode) {
+      const prepSpinner = ora({
+        text: 'Preparing SDK bundle ...',
+        stream: process.stderr,
+        discardStdin: false,
+        hideCursor: false,
+        isEnabled: process.stderr.isTTY,
+      }).start();
       try {
-        const gitInit = spawn('git', ['init'], {
-          cwd: outDir,
-          stdio: 'ignore',
+        await source.prepare();
+        prepSpinner.stopAndPersist({
+          symbol: chalk.green('✔'),
+          text: 'SDK bundle ready',
         });
-        await new Promise<void>((resolve) =>
-          gitInit.on('exit', () => resolve()),
-        );
-      } catch {}
-    }
-
-    if (res.installNow) {
-      await installDependencies(outDir);
-    }
-    // Build prerequisites list (e.g., Meta Spatial Editor), including path-aware notes
-    const prereqs = [...(res.prerequisites || [])];
-    if (res.metaspatial) {
-      const metaProjectPath = join(outDir, 'metaspatial');
-      const metaMainPath = join(metaProjectPath, 'Main.metaspatial');
-
-      if (res.mseInstallResult?.installed && !res.mseInstallResult.manual) {
-        prereqs.push({
-          level: 'info',
-          message:
-            `Meta Spatial Editor is ready!\n` +
-            `Project Folder: ${metaProjectPath}\n` +
-            `Open in Meta Spatial Editor: ${metaMainPath}`,
+      } catch (e) {
+        prepSpinner.stopAndPersist({
+          symbol: chalk.red('✖'),
+          text: 'Bundle preparation failed',
         });
-      } else {
-        prereqs.push({
-          level: 'important',
-          message:
-            `After installing Meta Spatial Editor, open the project:\n` +
-            `Project Folder: ${metaProjectPath}\n` +
-            `Open in Meta Spatial Editor: ${metaMainPath}`,
-        });
+        throw e;
       }
     }
-    // Print prerequisites first, then next steps
-    printPrerequisites(prereqs);
-    printNextSteps(res.name, res.installNow, res.actionItems || []);
+
+    try {
+      // Fetch Chef recipes index and the chosen recipe
+      const index = await source.fetchIndex();
+      const found = index.find((r) => r.id === res.id);
+      if (!found) {
+        throw new Error(`Recipe id ${res.id} not found in index`);
+      }
+      const recipe = await source.fetchRecipe(found.recipe);
+
+      // Resolve relative asset URLs in the recipe
+      const resolvedRecipe = source.resolveRecipeUrls(recipe);
+
+      // Override Chef variables from prompts
+      // Ensure edits exists
+      resolvedRecipe.edits = resolvedRecipe.edits || {};
+      // Project name
+      resolvedRecipe.edits['@appName'] = res.name;
+      // World features (stringified JS object-literal expected by recipes)
+      const ff = res.featureFlags || {
+        locomotionEnabled: res.mode === 'vr',
+        locomotionUseWorker: true,
+        grabbingEnabled: true,
+        physicsEnabled: false,
+        sceneUnderstandingEnabled: false,
+        environmentRaycastEnabled: false,
+      };
+      const locomotionLiteral = ff.locomotionEnabled
+        ? ff.locomotionUseWorker
+          ? '{ useWorker: true }'
+          : 'true'
+        : 'false';
+      const sceneUnderstandingLiteral =
+        res.mode === 'ar' && ff.sceneUnderstandingEnabled ? 'true' : 'false';
+      const environmentRaycastLiteral =
+        res.mode === 'ar' && ff.environmentRaycastEnabled ? 'true' : 'false';
+      resolvedRecipe.edits['@appFeaturesStr'] =
+        `{ locomotion: ${locomotionLiteral}, grabbing: ${ff.grabbingEnabled ? 'true' : 'false'}, physics: ${ff.physicsEnabled ? 'true' : 'false'}, sceneUnderstanding: ${sceneUnderstandingLiteral}, environmentRaycast: ${environmentRaycastLiteral} }`;
+      // XR features (tri-state -> JS object literal)
+      const toFlag = (s: TriState) =>
+        s === 'required'
+          ? '{ required: true }'
+          : s === 'optional'
+            ? 'true'
+            : 'false';
+      const entries: string[] = [];
+      for (const [k, v] of Object.entries(res.xrFeatureStates || {})) {
+        entries.push(`${k}: ${toFlag(v as TriState)}`);
+      }
+      const xrLiteral = `{ ${entries.join(', ')} }`;
+      resolvedRecipe.edits['@xrFeaturesStr'] = xrLiteral;
+      const outDir = join(process.cwd(), res.name);
+
+      // Check if target directory already exists and is non-empty
+      if (
+        fs.existsSync(outDir) &&
+        fs.readdirSync(outDir).length > 0
+      ) {
+        throw new Error(
+          `Directory "${res.name}" already exists and is not empty. ` +
+            'Please choose a different name or remove the existing directory.',
+        );
+      }
+
+      // Try to load the Claude Code configuration recipe
+      let claudeRecipe: Recipe | null = null;
+      try {
+        const rawClaudeRecipe = await source.fetchRecipe(
+          'base-claude-config.recipe.json',
+        );
+        claudeRecipe = source.resolveRecipeUrls(rawClaudeRecipe);
+      } catch {
+        // Not yet published — skip silently
+      }
+
+      const recipes: Recipe[] = claudeRecipe
+        ? [resolvedRecipe, claudeRecipe]
+        : [resolvedRecipe];
+      await scaffoldProject(recipes, outDir);
+
+      // Git init
+      if (res.gitInit) {
+        try {
+          const gitInit = spawn('git', ['init'], {
+            cwd: outDir,
+            stdio: 'ignore',
+          });
+          await new Promise<void>((resolve) =>
+            gitInit.on('exit', () => resolve()),
+          );
+        } catch {}
+      }
+
+      // Download SDK packages into .sdk-packages/ (must happen before install)
+      if (source.isBundleMode) {
+        const dlSpinner = ora({
+          text: 'Downloading SDK packages ...',
+          stream: process.stderr,
+          discardStdin: false,
+          hideCursor: false,
+          isEnabled: process.stderr.isTTY,
+        }).start();
+        try {
+          await source.downloadPackages(join(outDir, SDK_PACKAGES_DIR));
+
+          dlSpinner.stopAndPersist({
+            symbol: chalk.green('✔'),
+            text: 'SDK packages downloaded',
+          });
+        } catch (e) {
+          dlSpinner.stopAndPersist({
+            symbol: chalk.red('✖'),
+            text: 'SDK package download failed',
+          });
+          throw e;
+        }
+      }
+
+      // Install dependencies
+      if (res.installNow) {
+        if (source.isBundleMode) {
+          await installDependenciesFromBundle(outDir, source);
+        } else {
+          await installDependencies(outDir);
+        }
+      }
+
+      // Build prerequisites list (e.g., Meta Spatial Editor), including path-aware notes
+      const prereqs = [...(res.prerequisites || [])];
+      if (res.metaspatial) {
+        const metaProjectPath = join(outDir, 'metaspatial');
+        const metaMainPath = join(metaProjectPath, 'Main.metaspatial');
+
+        if (res.mseInstallResult?.installed && !res.mseInstallResult.manual) {
+          prereqs.push({
+            level: 'info',
+            message:
+              `Meta Spatial Editor is ready!\n` +
+              `Project Folder: ${metaProjectPath}\n` +
+              `Open in Meta Spatial Editor: ${metaMainPath}`,
+          });
+        } else {
+          prereqs.push({
+            level: 'important',
+            message:
+              `After installing Meta Spatial Editor, open the project:\n` +
+              `Project Folder: ${metaProjectPath}\n` +
+              `Open in Meta Spatial Editor: ${metaMainPath}`,
+          });
+        }
+      }
+      // Print prerequisites first, then next steps
+      printPrerequisites(prereqs);
+      printNextSteps(res.name, res.installNow, res.actionItems || []);
+    } finally {
+      await source.cleanup();
+    }
   } catch (err: any) {
     console.error(chalk.red(err?.message || String(err)));
     process.exit(1);

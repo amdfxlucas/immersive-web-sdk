@@ -6,8 +6,11 @@
  */
 
 import { spawn } from 'cross-spawn';
+import fs from 'fs';
+import path from 'path';
 import { Chalk } from 'chalk';
 import ora, { Ora } from 'ora';
+import type { ResolvedSource } from './source.js';
 import type { ActionItem } from './types.js';
 const stdoutColor = new Chalk({ level: process.stdout.isTTY ? 3 : 0 });
 const stderrColor = new Chalk({ level: process.stderr.isTTY ? 3 : 0 });
@@ -36,6 +39,67 @@ export async function installDependencies(outDir: string) {
     installSpinner.stopAndPersist({
       symbol: stderrColor.green('✔'),
       text: 'Dependencies installed',
+    });
+  } catch (e) {
+    installSpinner.stopAndPersist({
+      symbol: stderrColor.red('✖'),
+      text: 'Install failed',
+    });
+    throw e;
+  }
+}
+
+/**
+ * Install dependencies in bundle mode.
+ * Rewrites @iwsdk/* entries in both dependencies and devDependencies
+ * to file: paths pointing at .sdk-packages/ before running npm install.
+ * The rewritten paths are kept permanently so `npm install` remains
+ * reproducible as long as the .sdk-packages/ directory is present.
+ */
+export async function installDependenciesFromBundle(
+  outDir: string,
+  source: ResolvedSource,
+) {
+  const pkgPath = path.join(outDir, 'package.json');
+
+  const installSpinner: Ora = ora({
+    text: 'Installing dependencies from bundle ...',
+    stream: process.stderr,
+    discardStdin: false,
+    hideCursor: false,
+    isEnabled: process.stderr.isTTY,
+  }).start();
+
+  try {
+    // Rewrite @iwsdk/* deps to file: paths in both dependencies and devDependencies
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    for (const depsKey of ['dependencies', 'devDependencies'] as const) {
+      const deps = pkg[depsKey];
+      if (!deps) continue;
+      for (const name of Object.keys(deps)) {
+        if (name.startsWith('@iwsdk/')) {
+          const spec = source.getPackageInstallSpec(name);
+          if (spec) {
+            deps[name] = spec;
+          }
+        }
+      }
+    }
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+
+    // Run npm install
+    const child = spawn('npm', ['install'], {
+      cwd: outDir,
+      stdio: 'inherit',
+    });
+    await new Promise<void>((resolve, reject) => {
+      child.on('exit', (code) =>
+        code === 0 ? resolve() : reject(new Error(`Install failed (${code})`)),
+      );
+    });
+    installSpinner.stopAndPersist({
+      symbol: stderrColor.green('✔'),
+      text: 'Dependencies installed from bundle',
     });
   } catch (e) {
     installSpinner.stopAndPersist({
