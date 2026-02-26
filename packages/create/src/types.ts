@@ -8,6 +8,7 @@
 export type VariantId =
   `${'vr' | 'ar'}-${'manual' | 'metaspatial'}-${'ts' | 'js'}`;
 export type TriState = 'no' | 'optional' | 'required';
+export type AiTool = 'claude' | 'cursor' | 'copilot' | 'codex';
 
 /**
  * Platform type for MSE installation detection
@@ -54,6 +55,7 @@ export type PromptResult = {
     environmentRaycastEnabled: boolean; // AR-relevant, no room scanning required
   };
   gitInit: boolean;
+  aiTools: AiTool[];
   xrFeatureStates: Record<string, TriState>;
   actionItems?: ActionItem[];
   prerequisites?: ActionItem[];

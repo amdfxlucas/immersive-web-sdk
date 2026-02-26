@@ -21,7 +21,7 @@ Preview models from the Kenney Prototype Kit by looking them up in the catalog, 
 First, search the catalog to find the model and understand what it looks like:
 
 ```
-Catalog location: /Users/fe1ix/Projects/my-folder/iwsdk-bundle/iwsdk-app/kenney_prototype-kit/catalog/
+Catalog location: public/kenney_prototype-kit/catalog/
 ```
 
 1. Read `catalog/README.md` to find which category the model is in

@@ -7,7 +7,7 @@
 
 import prompts from 'prompts';
 import { installMSE } from './mse-installer.js';
-import { MSEInstallResult, PromptResult, TriState, VariantId } from './types.js';
+import { MSEInstallResult, PromptResult, TriState, VariantId, AiTool } from './types.js';
 
 export async function promptFlow(nameArg?: string): Promise<PromptResult> {
   let cancelled = false;
@@ -39,6 +39,31 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
   if (cancelled) {
     throw new Error('Input cancelled');
   }
+
+  const { aiTools } = await prompts(
+    {
+      type: 'multiselect',
+      name: 'aiTools',
+      message: 'Which AI coding tools do you use?',
+      choices: [
+        { title: 'Claude Code (Anthropic)', value: 'claude', selected: true },
+        { title: 'Cursor', value: 'cursor' },
+        { title: 'GitHub Copilot', value: 'copilot' },
+        { title: 'OpenAI Codex', value: 'codex' },
+        { title: 'None', value: 'none' },
+      ],
+      hint: '- Space to select, Enter to confirm',
+    },
+    { onCancel },
+  );
+  if (cancelled) {
+    throw new Error('Input cancelled');
+  }
+
+  // If "none" is selected, clear all other selections
+  const resolvedAiTools: AiTool[] = (aiTools as string[])?.includes('none')
+    ? []
+    : ((aiTools as AiTool[]) || []);
 
   const { language, mode } = await prompts(
     [
@@ -254,9 +279,9 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
             title: 'Yes (Install Meta Spatial Editor if needed)',
             value: true,
           },
-          { title: 'No (Can change later)', value: false },
+          { title: 'Skip for now (can change later)', value: false },
         ],
-        initial: 0,
+        initial: 1,
       },
       { onCancel },
     );
@@ -300,6 +325,10 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
     { onCancel },
   );
 
+  if (cancelled) {
+    throw new Error('Input cancelled');
+  }
+
   const kind = metaspatial ? 'metaspatial' : 'manual';
   const id = `${mode}-${kind}-${language}` as VariantId;
   return {
@@ -319,6 +348,7 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
       environmentRaycastEnabled: !!environmentRaycastEnabled,
     },
     gitInit,
+    aiTools: resolvedAiTools,
     xrFeatureStates,
     actionItems,
     prerequisites,

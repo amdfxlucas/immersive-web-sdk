@@ -7,7 +7,7 @@
 
 import { spawn, type ChildProcess } from 'child_process';
 import { existsSync } from 'fs';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import * as path from 'path';
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite';
 import { WebSocketServer } from 'ws';
@@ -18,10 +18,197 @@ import type {
   IWERPluginOptions,
   ProcessedIWEROptions,
   InjectionBundleResult,
+  AiTool,
 } from './types.js';
 
 // Export types for users
-export type { IWERPluginOptions, SEMOptions, MCPOptions } from './types.js';
+export type { IWERPluginOptions, SEMOptions, MCPOptions, AiTool } from './types.js';
+
+/**
+ * MCP config target descriptor for each AI tool.
+ */
+type McpConfigTarget = {
+  /** Path relative to project root */
+  file: string;
+  /** JSON key that holds server entries (null for TOML) */
+  jsonKey: string | null;
+  /** 'json' or 'toml' */
+  format: 'json' | 'toml';
+};
+
+const MCP_CONFIG_TARGETS: Record<AiTool, McpConfigTarget> = {
+  claude: { file: '.mcp.json', jsonKey: 'mcpServers', format: 'json' },
+  cursor: { file: '.cursor/mcp.json', jsonKey: 'mcpServers', format: 'json' },
+  copilot: { file: '.vscode/mcp.json', jsonKey: 'servers', format: 'json' },
+  codex: { file: '.codex/config.toml', jsonKey: null, format: 'toml' },
+};
+
+const TOML_BLOCK_START = '# --- IWER managed (do not edit) ---';
+const TOML_BLOCK_END = '# --- end IWER managed ---';
+
+/**
+ * Merge our server entries into an existing (or new) JSON config file.
+ * Returns true if the file was newly created.
+ */
+export async function mergeJsonConfig(
+  filePath: string,
+  serverEntries: Record<string, unknown>,
+  jsonKey: string,
+): Promise<boolean> {
+  let existing: Record<string, unknown> = {};
+  let created = false;
+
+  try {
+    const raw = await readFile(filePath, 'utf-8');
+    existing = JSON.parse(raw);
+  } catch {
+    // File doesn't exist or invalid JSON — start fresh
+    created = true;
+  }
+
+  const section = (existing[jsonKey] as Record<string, unknown>) ?? {};
+  Object.assign(section, serverEntries);
+  existing[jsonKey] = section;
+
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, JSON.stringify(existing, null, 2) + '\n');
+  return created;
+}
+
+/**
+ * Remove our managed server keys from a JSON config file.
+ * If we originally created the file and the servers section is now empty
+ * with no other top-level keys, delete the file entirely.
+ */
+export async function unmergeJsonConfig(
+  filePath: string,
+  serverKeys: string[],
+  jsonKey: string,
+  weCreatedFile: boolean,
+): Promise<void> {
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf-8');
+  } catch {
+    return; // file doesn't exist — no-op
+  }
+
+  let existing: Record<string, unknown>;
+  try {
+    existing = JSON.parse(raw);
+  } catch {
+    return; // invalid JSON — leave it alone
+  }
+
+  const section = existing[jsonKey] as Record<string, unknown> | undefined;
+  if (section) {
+    for (const key of serverKeys) {
+      delete section[key];
+    }
+    if (Object.keys(section).length === 0) {
+      delete existing[jsonKey];
+    }
+  }
+
+  if (weCreatedFile && Object.keys(existing).length === 0) {
+    try {
+      await unlink(filePath);
+    } catch {}
+  } else {
+    await writeFile(filePath, JSON.stringify(existing, null, 2) + '\n');
+  }
+}
+
+/**
+ * Merge our managed TOML block into an existing (or new) config file.
+ * Returns true if the file was newly created.
+ */
+export async function mergeTomlConfig(
+  filePath: string,
+  serverEntries: Record<string, { command: string; args: string[] }>,
+): Promise<boolean> {
+  let existing = '';
+  let created = false;
+
+  try {
+    existing = await readFile(filePath, 'utf-8');
+  } catch {
+    created = true;
+  }
+
+  // Remove any old managed block
+  const startIdx = existing.indexOf(TOML_BLOCK_START);
+  const endIdx = existing.indexOf(TOML_BLOCK_END);
+  if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+    existing =
+      existing.slice(0, startIdx).trimEnd() +
+      '\n' +
+      existing.slice(endIdx + TOML_BLOCK_END.length).trimStart();
+    existing = existing.trim();
+  }
+
+  // Build new managed block
+  const tomlLines: string[] = [TOML_BLOCK_START];
+  for (const [name, entry] of Object.entries(serverEntries)) {
+    tomlLines.push(`[mcp_servers.${name}]`);
+    tomlLines.push(`command = ${JSON.stringify(entry.command)}`);
+    tomlLines.push(
+      `args = [${entry.args.map((a) => JSON.stringify(a)).join(', ')}]`,
+    );
+    tomlLines.push('');
+  }
+  tomlLines.push(TOML_BLOCK_END);
+
+  const newContent = existing
+    ? existing.trimEnd() + '\n\n' + tomlLines.join('\n') + '\n'
+    : tomlLines.join('\n') + '\n';
+
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, newContent);
+  return created;
+}
+
+/**
+ * Remove our managed TOML block from a config file.
+ * If we originally created the file and it's now effectively empty, delete it.
+ */
+export async function unmergeTomlConfig(
+  filePath: string,
+  weCreatedFile: boolean,
+): Promise<void> {
+  let existing: string;
+  try {
+    existing = await readFile(filePath, 'utf-8');
+  } catch {
+    return; // file doesn't exist — no-op
+  }
+
+  const startIdx = existing.indexOf(TOML_BLOCK_START);
+  const endIdx = existing.indexOf(TOML_BLOCK_END);
+  if (startIdx === -1 || endIdx === -1 || startIdx >= endIdx) {
+    // No managed block found — nothing to remove
+    if (weCreatedFile && existing.trim() === '') {
+      try {
+        await unlink(filePath);
+      } catch {}
+    }
+    return;
+  }
+
+  const cleaned =
+    existing.slice(0, startIdx).trimEnd() +
+    '\n' +
+    existing.slice(endIdx + TOML_BLOCK_END.length).trimStart();
+  const result = cleaned.trim();
+
+  if (weCreatedFile && result === '') {
+    try {
+      await unlink(filePath);
+    } catch {}
+  } else {
+    await writeFile(filePath, result + '\n');
+  }
+}
 
 /**
  * Warm up the RAG MCP server by spawning it and waiting for initialization.
@@ -108,11 +295,15 @@ function processOptions(options: IWERPluginOptions = {}): ProcessedIWEROptions {
   const mcpOption = options.mcp ?? true;
   if (mcpOption) {
     if (typeof mcpOption === 'boolean') {
-      processed.mcp = { verbose: false };
+      processed.mcp = {
+        verbose: false,
+        tools: ['claude', 'cursor', 'copilot', 'codex'],
+      };
     } else {
       processed.mcp = {
         port: mcpOption.port,
         verbose: mcpOption.verbose ?? false,
+        tools: mcpOption.tools ?? ['claude', 'cursor', 'copilot', 'codex'],
       };
     }
   }
@@ -228,9 +419,8 @@ export function injectIWER(options: IWERPluginOptions = {}): Plugin {
         );
       }
 
-      // Generate .mcp.json for Claude Code integration after server starts
+      // Generate MCP config files for selected AI tools after server starts
       // We wait for the 'listening' event to get the actual port (in case configured port was busy)
-      const mcpJsonPath = path.join(config.root, '.mcp.json');
 
       // Find the path to the MCP server script
       // It's installed in node_modules/@iwsdk/vite-plugin-iwer/dist/mcp-server.js
@@ -253,38 +443,71 @@ export function injectIWER(options: IWERPluginOptions = {}): Plugin {
         'index.js',
       );
 
-      const writeMcpJson = (actualPort: number) => {
-        const mcpConfig: { mcpServers: Record<string, { command: string; args: string[] }> } = {
-          mcpServers: {
-            iwer: {
-              command: 'node',
-              args: [mcpServerPath, '--port', String(actualPort)],
-            },
+      // Track which files we created (so cleanup can decide whether to delete them)
+      const filesWeCreated = new Set<string>();
+      // Track our managed server entry keys for JSON unmerge
+      const managedServerKeys: string[] = [];
+      // Track the in-flight config write so cleanup can await it
+      let configWritePromise: Promise<void> | null = null;
+
+      const writeMcpConfigs = async (actualPort: number) => {
+        const serverEntries: Record<string, { command: string; args: string[] }> = {
+          iwer: {
+            command: 'node',
+            args: [mcpServerPath, '--port', String(actualPort)],
           },
         };
 
         // Only include RAG MCP server if the package is actually installed
         if (existsSync(ragMcpServerPath)) {
-          mcpConfig.mcpServers['iwsdk-rag-local'] = {
+          serverEntries['iwsdk-rag-local'] = {
             command: 'node',
             args: [ragMcpServerPath],
           };
         }
 
-        writeFile(mcpJsonPath, JSON.stringify(mcpConfig, null, 2))
-          .then(() => {
-            if (pluginOptions.verbose) {
-              console.log(
-                `📝 MCP-IWER: Generated ${mcpJsonPath} (port: ${actualPort})`,
-              );
-              console.log(
-                `   Claude Code can now use IWER tools when launched in this project`,
-              );
-            }
-          })
-          .catch((error) => {
-            console.error('[MCP-IWER] Failed to write .mcp.json:', error);
-          });
+        // Remember which keys we manage for cleanup
+        managedServerKeys.length = 0;
+        managedServerKeys.push(...Object.keys(serverEntries));
+
+        const tools = pluginOptions.mcp!.tools;
+        const writes: Promise<void>[] = [];
+
+        for (const tool of tools) {
+          const target = MCP_CONFIG_TARGETS[tool];
+          const filePath = path.join(config.root, target.file);
+
+          if (target.format === 'json') {
+            writes.push(
+              mergeJsonConfig(filePath, serverEntries, target.jsonKey!).then(
+                (created) => {
+                  if (created) filesWeCreated.add(filePath);
+                },
+              ),
+            );
+          } else {
+            writes.push(
+              mergeTomlConfig(filePath, serverEntries).then((created) => {
+                if (created) filesWeCreated.add(filePath);
+              }),
+            );
+          }
+        }
+
+        const results = await Promise.allSettled(writes);
+        const failures = results.filter(
+          (r): r is PromiseRejectedResult => r.status === 'rejected',
+        );
+        if (failures.length > 0) {
+          for (const f of failures) {
+            console.error('[MCP] Config write failed:', f.reason);
+          }
+        } else if (pluginOptions.verbose) {
+          const toolNames = tools.join(', ');
+          console.log(
+            `📝 MCP: Generated config files for [${toolNames}] (port: ${actualPort})`,
+          );
+        }
       };
 
       // Wait for server to start listening to get the actual port
@@ -294,14 +517,14 @@ export function injectIWER(options: IWERPluginOptions = {}): Plugin {
           typeof address === 'object' && address
             ? address.port
             : server.config.server.port || 5173;
-        writeMcpJson(actualPort);
+        configWritePromise = writeMcpConfigs(actualPort);
 
         // Warm up RAG MCP server (downloads embedding model if needed)
         // This ensures the model is cached before Claude Code tries to use it
         warmupRagMcp(ragMcpServerPath, pluginOptions.verbose);
       });
 
-      // Clean up WebSocket server and .mcp.json when Vite server closes
+      // Clean up WebSocket server and MCP config files when Vite server closes
       server.httpServer?.on('close', () => {
         if (mcpWss) {
           for (const client of mcpClients || []) {
@@ -311,9 +534,40 @@ export function injectIWER(options: IWERPluginOptions = {}): Plugin {
           mcpWss.close();
           mcpWss = null;
         }
-        unlink(mcpJsonPath).catch(() => {
-          // Ignore errors - file may not exist
-        });
+
+        const doCleanup = async () => {
+          // Wait for any in-flight config write to finish before cleaning up
+          if (configWritePromise) {
+            await configWritePromise.catch(() => {});
+          }
+
+          // Remove our managed entries from all configured MCP config files
+          const tools = pluginOptions.mcp!.tools;
+          const cleanups: Promise<void>[] = [];
+
+          for (const tool of tools) {
+            const target = MCP_CONFIG_TARGETS[tool];
+            const filePath = path.join(config.root, target.file);
+            const weCreated = filesWeCreated.has(filePath);
+
+            if (target.format === 'json') {
+              cleanups.push(
+                unmergeJsonConfig(
+                  filePath,
+                  managedServerKeys,
+                  target.jsonKey!,
+                  weCreated,
+                ),
+              );
+            } else {
+              cleanups.push(unmergeTomlConfig(filePath, weCreated));
+            }
+          }
+
+          await Promise.allSettled(cleanups);
+        };
+
+        doCleanup().catch(() => {});
       });
     },
 

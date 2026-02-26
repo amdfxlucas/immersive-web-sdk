@@ -324,6 +324,83 @@ init() {
 }
 ```
 
+### 15. Direct asset loaders instead of AssetManager
+
+Flag: `new GLTFLoader()`, `new OBJLoader()`, `new TextureLoader()` used directly.
+
+```typescript
+// ❌ BAD - bypasses DRACO/KTX2 setup, no caching, no de-duplication
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const loader = new GLTFLoader();
+const gltf = await loader.loadAsync(url);
+
+// ✅ GOOD - use AssetManager
+const gltf = await AssetManager.loadGLTF(url, 'myModel');
+// or declare in World.create({ assets: { myModel: { url, type: AssetType.GLTF } } })
+```
+
+### 16. Raw scene.add() instead of createTransformEntity
+
+Flag: `scene.add(...)` or `world.scene.add(...)` or `this.scene.add(...)` for adding content.
+
+```typescript
+// ❌ BAD - bypasses ECS, no Transform component, no level lifecycle
+this.scene.add(mesh);
+
+// ✅ GOOD - proper entity creation
+world.createTransformEntity(mesh, parentEntity);
+```
+
+### 17. Manual Raycaster instead of Interactable
+
+Flag: `new THREE.Raycaster()` or `new Raycaster()` for interaction detection.
+
+```typescript
+// ❌ BAD - no BVH acceleration, doesn't work in XR, no pointer events
+const raycaster = new Raycaster();
+
+// ✅ GOOD - add Interactable component, query Hovered/Pressed in system
+entity.addComponent(Interactable);
+```
+
+### 18. Environment components on wrong entity
+
+Flag: `DomeGradient`/`DomeTexture`/`IBLGradient`/`IBLTexture` added to entities that don't have `LevelRoot`.
+
+```typescript
+// ❌ BAD - Environment components only work on the level root entity
+someEntity.addComponent(DomeGradient, { ... });
+
+// ✅ GOOD - Add to the level root
+const root = world.activeLevel.value;
+root.addComponent(DomeGradient, { ... });
+```
+
+### 19. Missing `_needsUpdate` on environment changes
+
+Flag: Setting properties on `DomeGradient`/`DomeTexture`/`IBLGradient`/`IBLTexture` without setting `_needsUpdate: true`.
+
+```typescript
+// ❌ BAD - Changes are silently ignored
+root.setValue(DomeGradient, 'sky', [0.1, 0.2, 0.8, 1.0]);
+
+// ✅ GOOD - Always set _needsUpdate after property changes
+root.setValue(DomeGradient, 'sky', [0.1, 0.2, 0.8, 1.0]);
+root.setValue(DomeGradient, '_needsUpdate', true);
+```
+
+### 20. Using `destroy()` instead of `dispose()` for GPU objects
+
+Flag: `entity.destroy()` on entities with meshes/materials.
+
+```typescript
+// ❌ BAD - GPU memory for geometry/materials/textures is leaked
+entity.destroy();
+
+// ✅ GOOD - Use dispose() for proper GPU cleanup
+entity.dispose();
+```
+
 ---
 
 ## Confidence-Based Reporting

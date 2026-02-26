@@ -30,7 +30,7 @@ import {
 import { MSE_MIN_VERSION } from './mse-config.js';
 import { scaffoldProject } from './scaffold.js';
 import { resolveSource, SDK_PACKAGES_DIR } from './source.js';
-import { MSEInstallResult, PromptResult, TriState, VariantId } from './types.js';
+import { MSEInstallResult, PromptResult, TriState, VariantId, AiTool } from './types.js';
 import { VERSION, NODE_ENGINE } from './version.js';
 
 type CliOptions = {
@@ -46,6 +46,7 @@ type CliOptions = {
   physics?: boolean;
   sceneUnderstanding?: boolean;
   environmentRaycast?: boolean;
+  aiTools?: string;
 };
 
 async function main() {
@@ -112,6 +113,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
     .option('--no-scene-understanding', 'Disable scene understanding')
     .option('--environment-raycast', 'Enable environment raycast (AR mode)', true)
     .option('--no-environment-raycast', 'Disable environment raycast')
+    .option('--ai-tools <tools>', 'AI tools to configure (comma-separated: claude,cursor,copilot,codex; or "none")', 'claude,cursor,copilot,codex')
     .action((n: string | undefined, opts: CliOptions) => {
       nameArg = n;
       cliOpts = opts;
@@ -169,6 +171,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       '--physics', '--no-physics',
       '--scene-understanding', '--no-scene-understanding',
       '--environment-raycast', '--no-environment-raycast',
+      '--ai-tools',
     ];
     const hasExplicitFlags = process.argv.some((arg) =>
       explicitFlags.includes(arg),
@@ -201,6 +204,12 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
 
       const workflow = metaspatial ? 'metaspatial' : 'manual';
       const variantId = `${mode}-${workflow}-${language}` as VariantId;
+
+      const validAiTools = ['claude', 'cursor', 'copilot', 'codex'] as const;
+      const rawAiTools = (cliOpts.aiTools || 'claude,cursor,copilot,codex').split(',').map((t) => t.trim());
+      const aiTools = rawAiTools.includes('none')
+        ? []
+        : rawAiTools.filter((t): t is AiTool => validAiTools.includes(t as AiTool));
 
       const locomotionEnabled =
         mode === 'vr' ? (cliOpts.locomotion ?? true) : false;
@@ -255,6 +264,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
               : false,
         },
         gitInit: cliOpts.git ?? true,
+        aiTools,
         xrFeatureStates:
           mode === 'ar'
             ? {
@@ -356,6 +366,13 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       }
       const xrLiteral = `{ ${entries.join(', ')} }`;
       resolvedRecipe.edits['@xrFeaturesStr'] = xrLiteral;
+
+      // MCP tool selection for vite.config.ts
+      const mcpToolsLiteral = res.aiTools.length > 0
+        ? `[${res.aiTools.map((t) => `'${t}'`).join(', ')}]`
+        : `['claude', 'cursor', 'copilot', 'codex']`;
+      resolvedRecipe.edits['@mcpToolsStr'] = mcpToolsLiteral;
+
       const outDir = join(process.cwd(), res.name);
 
       // Check if target directory already exists and is non-empty
@@ -369,20 +386,70 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
         );
       }
 
-      // Try to load the Claude Code configuration recipe
-      let claudeRecipe: Recipe | null = null;
-      try {
-        const rawClaudeRecipe = await source.fetchRecipe(
-          'base-claude-config.recipe.json',
-        );
-        claudeRecipe = source.resolveRecipeUrls(rawClaudeRecipe);
-      } catch {
-        // Not yet published — skip silently
+      // Load AI tool configuration recipes based on user selection
+      const aiRecipes: Recipe[] = [];
+
+      if (res.aiTools.length > 0) {
+        // AGENTS.md recipe (loaded when any AI tool is selected — universal baseline)
+        try {
+          const rawAgentsRecipe = await source.fetchRecipe(
+            'base-agents-config.recipe.json',
+          );
+          aiRecipes.push(source.resolveRecipeUrls(rawAgentsRecipe));
+        } catch {
+          // Not yet published — skip silently
+        }
       }
 
-      const recipes: Recipe[] = claudeRecipe
-        ? [resolvedRecipe, claudeRecipe]
-        : [resolvedRecipe];
+      // Claude Code recipe (conditional)
+      if (res.aiTools.includes('claude')) {
+        try {
+          const rawClaudeRecipe = await source.fetchRecipe(
+            'base-claude-config.recipe.json',
+          );
+          aiRecipes.push(source.resolveRecipeUrls(rawClaudeRecipe));
+        } catch {
+          // Not yet published — skip silently
+        }
+      }
+
+      // Cursor recipe (conditional)
+      if (res.aiTools.includes('cursor')) {
+        try {
+          const rawCursorRecipe = await source.fetchRecipe(
+            'base-cursor-config.recipe.json',
+          );
+          aiRecipes.push(source.resolveRecipeUrls(rawCursorRecipe));
+        } catch {
+          // Not yet published — skip silently
+        }
+      }
+
+      // Copilot recipe (conditional)
+      if (res.aiTools.includes('copilot')) {
+        try {
+          const rawCopilotRecipe = await source.fetchRecipe(
+            'base-copilot-config.recipe.json',
+          );
+          aiRecipes.push(source.resolveRecipeUrls(rawCopilotRecipe));
+        } catch {
+          // Not yet published — skip silently
+        }
+      }
+
+      // Codex recipe (conditional)
+      if (res.aiTools.includes('codex')) {
+        try {
+          const rawCodexRecipe = await source.fetchRecipe(
+            'base-codex-config.recipe.json',
+          );
+          aiRecipes.push(source.resolveRecipeUrls(rawCodexRecipe));
+        } catch {
+          // Not yet published — skip silently
+        }
+      }
+
+      const recipes: Recipe[] = [resolvedRecipe, ...aiRecipes];
       await scaffoldProject(recipes, outDir);
 
       // Git init

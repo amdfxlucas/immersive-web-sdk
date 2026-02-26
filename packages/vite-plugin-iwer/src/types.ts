@@ -21,6 +21,8 @@ export interface SEMOptions {
     | 'office_small';
 }
 
+export type AiTool = 'claude' | 'cursor' | 'copilot' | 'codex';
+
 /**
  * MCP (Model Context Protocol) configuration
  * Enables AI agent control of the IWER runtime via WebSocket
@@ -38,6 +40,12 @@ export interface MCPOptions {
    * @default false
    */
   verbose?: boolean;
+
+  /**
+   * Which AI tools to generate MCP config files for.
+   * @default ['claude', 'cursor', 'copilot', 'codex']
+   */
+  tools?: AiTool[];
 }
 
 /**
@@ -104,6 +112,7 @@ export interface ProcessedIWEROptions {
   mcp?: {
     port?: number;
     verbose: boolean;
+    tools: AiTool[];
   };
   injectOnBuild: boolean;
   activation: 'localhost' | 'always' | RegExp;

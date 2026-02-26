@@ -180,8 +180,8 @@ async function generateRecipeForStarter(
   const files = [];
 
   function transformTemplate(source, ctx) {
-    // Pass 1: feature anchors /* @chef:xr */ and /* @chef:app */
-    // Scan, track brace stack and last closed object; collect edits, then apply back-to-front
+    // Pass 1: feature anchors /* @chef:xr */, /* @chef:app */, /* @chef:mcp */
+    // Scan, track brace/bracket stacks and last closed object/array; collect edits, then apply back-to-front
     const edits = [];
     let i = 0;
     let n = source.length;
@@ -193,6 +193,8 @@ async function generateRecipeForStarter(
       esc = false;
     const braceStack = [];
     let lastClosed = null; // { start, end }
+    const bracketStack = [];
+    let lastClosedBracket = null; // { start, end }
     while (i < n) {
       const ch = source[i];
       const next2 = source.slice(i, i + 2);
@@ -257,6 +259,21 @@ async function generateRecipeForStarter(
           i = end + 2;
           continue;
         }
+        if (trimmed === '@chef:mcp') {
+          if (!lastClosedBracket) {
+            i = end + 2;
+            continue;
+          }
+          edits.push({
+            start: lastClosedBracket.start,
+            end: lastClosedBracket.end + 1,
+            replace: '{{ @mcpToolsStr }}',
+          });
+          // also remove the comment itself
+          edits.push({ start: i, end: end + 2, replace: '' });
+          i = end + 2;
+          continue;
+        }
         inBC = true;
         i += 2;
         continue;
@@ -287,6 +304,17 @@ async function generateRecipeForStarter(
       if (ch === '}') {
         const start = braceStack.pop();
         if (start != null) lastClosed = { start, end: i };
+        i++;
+        continue;
+      }
+      if (ch === '[') {
+        bracketStack.push(i);
+        i++;
+        continue;
+      }
+      if (ch === ']') {
+        const start = bracketStack.pop();
+        if (start != null) lastClosedBracket = { start, end: i };
         i++;
         continue;
       }
@@ -465,6 +493,7 @@ async function generateRecipeForStarter(
   const xrFeaturesObj = { handTracking: true };
   edits['@appFeaturesStr'] = toJsObjectLiteral(appFeaturesObj);
   edits['@xrFeaturesStr'] = toJsObjectLiteral(xrFeaturesObj);
+  edits['@mcpToolsStr'] = "['claude', 'cursor', 'copilot', 'codex']";
   edits['@appName'] = title;
 
   const recipe = { name: id, version: casVersion, edits };
@@ -505,6 +534,84 @@ async function generateClaudeConfigRecipe(version) {
   }
 
   return { name: 'base-claude-config', version, edits };
+}
+
+/**
+ * Generate a universal AGENTS.md recipe from PROJECT_AGENTS.md.
+ * This provides vendor-neutral project instructions for all AI tools.
+ */
+async function generateAgentsConfigRecipe(version) {
+  const projectAgentsPath = path.join(PKG_ROOT, 'PROJECT_AGENTS.md');
+  const edits = {};
+
+  if (fs.existsSync(projectAgentsPath)) {
+    const content = await fsp.readFile(projectAgentsPath, 'utf8');
+    edits['AGENTS.md'] = { lines: content.split(/\r?\n/) };
+  }
+
+  return { name: 'base-agents-config', version, edits };
+}
+
+/**
+ * Generate a Cursor configuration recipe.
+ * Creates .cursor/rules/iwsdk.mdc with YAML frontmatter wrapping PROJECT_AGENTS.md content.
+ */
+async function generateCursorConfigRecipe(version) {
+  const projectAgentsPath = path.join(PKG_ROOT, 'PROJECT_AGENTS.md');
+  const edits = {};
+
+  if (fs.existsSync(projectAgentsPath)) {
+    const content = await fsp.readFile(projectAgentsPath, 'utf8');
+    const mdcContent = [
+      '---',
+      'description: IWSDK project conventions and best practices',
+      'alwaysApply: true',
+      '---',
+      '',
+      content,
+    ].join('\n');
+    edits['.cursor/rules/iwsdk.mdc'] = { lines: mdcContent.split(/\r?\n/) };
+  }
+
+  return { name: 'base-cursor-config', version, edits };
+}
+
+/**
+ * Generate a GitHub Copilot configuration recipe.
+ * Creates .github/copilot-instructions.md from PROJECT_AGENTS.md content.
+ */
+async function generateCopilotConfigRecipe(version) {
+  const projectAgentsPath = path.join(PKG_ROOT, 'PROJECT_AGENTS.md');
+  const edits = {};
+
+  if (fs.existsSync(projectAgentsPath)) {
+    const content = await fsp.readFile(projectAgentsPath, 'utf8');
+    edits['.github/copilot-instructions.md'] = { lines: content.split(/\r?\n/) };
+  }
+
+  return { name: 'base-copilot-config', version, edits };
+}
+
+/**
+ * Generate an OpenAI Codex configuration recipe.
+ * Codex reads AGENTS.md natively (handled by the agents recipe).
+ * This recipe creates .codex/config.toml as a placeholder so the project
+ * directory structure is ready for runtime MCP config injection.
+ */
+async function generateCodexConfigRecipe(version) {
+  const edits = {};
+
+  // The .codex/config.toml is generated at runtime by the dev server with
+  // actual MCP server paths/ports. We scaffold an empty placeholder so users
+  // know the directory is expected.
+  const tomlContent = [
+    '# Codex MCP configuration — auto-generated by dev server at runtime.',
+    '# Start the dev server (npm run dev) to populate MCP server entries.',
+    '',
+  ].join('\n');
+  edits['.codex/config.toml'] = { lines: tomlContent.split(/\r?\n/) };
+
+  return { name: 'base-codex-config', version, edits };
 }
 
 async function main() {
@@ -558,6 +665,42 @@ async function main() {
     JSON.stringify(claudeRecipe, null, 2),
   );
   console.log(`• Built Claude config recipe: ${claudeFileName}`);
+
+  // Generate AGENTS.md recipe (universal baseline, not added to index.json)
+  const agentsRecipe = await generateAgentsConfigRecipe(pkgVersion);
+  const agentsFileName = `${agentsRecipe.name}.recipe.json`;
+  await fsp.writeFile(
+    path.join(DIST_ROOT, 'recipes', agentsFileName),
+    JSON.stringify(agentsRecipe, null, 2),
+  );
+  console.log(`• Built AGENTS config recipe: ${agentsFileName}`);
+
+  // Generate Cursor config recipe (not added to index.json)
+  const cursorRecipe = await generateCursorConfigRecipe(pkgVersion);
+  const cursorFileName = `${cursorRecipe.name}.recipe.json`;
+  await fsp.writeFile(
+    path.join(DIST_ROOT, 'recipes', cursorFileName),
+    JSON.stringify(cursorRecipe, null, 2),
+  );
+  console.log(`• Built Cursor config recipe: ${cursorFileName}`);
+
+  // Generate Copilot config recipe (not added to index.json)
+  const copilotRecipe = await generateCopilotConfigRecipe(pkgVersion);
+  const copilotFileName = `${copilotRecipe.name}.recipe.json`;
+  await fsp.writeFile(
+    path.join(DIST_ROOT, 'recipes', copilotFileName),
+    JSON.stringify(copilotRecipe, null, 2),
+  );
+  console.log(`• Built Copilot config recipe: ${copilotFileName}`);
+
+  // Generate Codex config recipe (not added to index.json)
+  const codexRecipe = await generateCodexConfigRecipe(pkgVersion);
+  const codexFileName = `${codexRecipe.name}.recipe.json`;
+  await fsp.writeFile(
+    path.join(DIST_ROOT, 'recipes', codexFileName),
+    JSON.stringify(codexRecipe, null, 2),
+  );
+  console.log(`• Built Codex config recipe: ${codexFileName}`);
 
   await fsp.writeFile(
     path.join(DIST_ROOT, 'recipes', 'index.json'),

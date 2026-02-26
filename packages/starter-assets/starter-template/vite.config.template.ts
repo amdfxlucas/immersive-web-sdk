@@ -24,6 +24,7 @@ export default defineConfig({
       device: 'metaQuest3',
       activation: 'localhost',
       verbose: true,
+      mcp: { tools: ['claude', 'cursor', 'copilot', 'codex'] /* @chef:mcp */ },
       /* @template:if mode='ar' */ sem: {
         defaultScene: 'living_room',
       } /* @template:end */,
