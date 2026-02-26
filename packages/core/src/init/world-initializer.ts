@@ -28,6 +28,7 @@ import { InputSystem } from '../input/index.js';
 import { LevelTag, LevelRoot } from '../level/index.js';
 import { LevelSystem } from '../level/index.js';
 import { LocomotionSystem } from '../locomotion/index.js';
+import { MCPRuntime } from '../mcp/index.js';
 import {
   PhysicsBody,
   PhysicsManipulation,
@@ -185,6 +186,14 @@ export function initializeWorld(
   // Manage XR offer flow if configured
   if (config.xr.offer && config.xr.offer !== 'none') {
     manageOfferFlow(world, config.xr.offer);
+  }
+
+  // Setup MCP runtime for framework-specific tools (dev only).
+  // In production Vite builds, import.meta.env.DEV is false and this entire
+  // code path is tree-shaken. In Node.js/tests, import.meta.env is undefined
+  // so the check defaults to enabled.
+  if ((import.meta as any).env?.DEV !== false) {
+    setupMCPRuntime(world);
   }
 
   // Return promise that resolves after asset preloading
@@ -600,4 +609,20 @@ function finalizeInitialization(
       .then(() => resolve(world))
       .catch(reject);
   });
+}
+
+/**
+ * Setup MCP runtime for framework-specific tools.
+ * This creates the MCPRuntime and exposes it on window.FRAMEWORK_MCP_RUNTIME
+ * for vite-plugin-iwer to route framework-specific tool calls.
+ */
+function setupMCPRuntime(world: World) {
+  world.mcpRuntime = new MCPRuntime(world);
+
+  // Expose globally for vite-plugin discovery
+  // This allows the vite plugin to route framework-specific MCP tools
+  // without having a direct dependency on @iwsdk/core
+  if (typeof window !== 'undefined') {
+    (window as any).FRAMEWORK_MCP_RUNTIME = world.mcpRuntime;
+  }
 }

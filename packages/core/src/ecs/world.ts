@@ -11,6 +11,7 @@ import { Signal, signal } from '@preact/signals-core';
 import { AnyComponent, World as ElicsWorld } from 'elics';
 import { AssetManager } from '../asset/index.js';
 // Environment is driven by components/systems; no world helpers
+import type { MCPRuntime } from '../mcp/index.js';
 import {
   WorldOptions,
   initializeWorld,
@@ -81,6 +82,8 @@ export class World extends ElicsWorld {
   public _resolveLevelLoad: (() => void) | undefined;
   /** Default XR options used when calling {@link World.launchXR} without overrides. */
   public xrDefaults: import('../init/xr.js').XROptions | undefined;
+  /** MCP runtime for framework-specific tools. Set automatically during World.create(). */
+  public mcpRuntime?: MCPRuntime;
 
   constructor() {
     super();
