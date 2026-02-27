@@ -91,7 +91,9 @@ export class OcclusionDemoSystem extends createSystem({
       movementMode: MovementMode.MoveFromTarget,
     });
     entity.addComponent(XRAnchor);
-    entity.addComponent(DepthOccludable, { mode: OcclusionShadersMode.HardOcclusion });
+    entity.addComponent(DepthOccludable, {
+      mode: OcclusionShadersMode.HardOcclusion,
+    });
 
     return entity;
   }
@@ -214,18 +216,17 @@ World.create(document.getElementById('scene-container'), {
   camera.position.set(0, 1.6, 0);
 
   // Register the depth sensing system with occlusion enabled
-  world.registerSystem(DepthSensingSystem, {
-    enableDepthTexture: true,
-    enableOcclusion: true,
-    useFloat32: true,
-    blurRadius: 20.0,
-  });
+  world
+    .registerSystem(DepthSensingSystem, {
+      enableDepthTexture: true,
+      enableOcclusion: true,
+      useFloat32: true,
+      blurRadius: 20.0,
+    })
+    .registerComponent(DepthOccludable);
 
   // Register the demo system
   world.registerSystem(OcclusionDemoSystem);
-
-  // Register the DepthOccludable component
-  world.registerComponent(DepthOccludable);
 
   console.log('Depth Occlusion Demo initialized');
   console.log('Virtual objects will be hidden when behind real-world surfaces');

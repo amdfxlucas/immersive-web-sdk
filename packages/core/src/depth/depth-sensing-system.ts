@@ -66,6 +66,7 @@ export class DepthSensingSystem extends createSystem(
 
   // Occlusion
   private entityShaderMap = new Map<Entity, Set<ShaderUniforms>>();
+  private readonly viewportSize = new Vector2();
 
   /**
    * Get the raw value to meters conversion factor.
@@ -372,8 +373,7 @@ export class DepthSensingSystem extends createSystem(
     const depthTextureArray = isGPUDepth ? nativeTexture : dataArrayTexture;
     if (!depthTextureArray) return;
 
-    const viewportSize = new Vector2();
-    this.renderer.getDrawingBufferSize(viewportSize);
+    this.renderer.getDrawingBufferSize(this.viewportSize);
 
     for (const [entity, entityUniforms] of this.entityShaderMap) {
       const isHardMode =
@@ -385,7 +385,7 @@ export class DepthSensingSystem extends createSystem(
         uniforms.uRawValueToMeters.value = this.rawValueToMeters;
         uniforms.uIsGPUDepth.value = isGPUDepth;
         uniforms.uDepthNear.value = depthNear;
-        (uniforms.uViewportSize.value as Vector2).copy(viewportSize);
+        (uniforms.uViewportSize.value as Vector2).copy(this.viewportSize);
         uniforms.uOcclusionBlurRadius.value = this.config.blurRadius.value;
         uniforms.uOcclusionHardMode.value = isHardMode;
         uniforms.occlusionEnabled.value = this.config.enableOcclusion.value;
