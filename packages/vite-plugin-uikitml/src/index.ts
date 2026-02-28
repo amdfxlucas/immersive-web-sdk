@@ -256,6 +256,31 @@ export function compileUIKit(options: CompileUIKitOptions = {}): Plugin {
   return {
     name: 'compile-uikitml',
 
+    config(userConfig) {
+      // Ensure @pmndrs/uikit and @preact/signals-core are deduplicated.
+      // Without this, Vite may pre-bundle separate copies of these packages
+      // when workspace-linked @iwsdk/core and npm-installed kit packages
+      // (e.g. @pmndrs/uikit-horizon) each pull in their own instance.
+      // This breaks singleton patterns (StyleSheet, Container class identity)
+      // and causes UIKitML interpretation to silently fail.
+      // TODO: @pmndrs/uikitml@0.1.13 replaces the `instanceof Container`
+      // check with a static type check, removing the hard requirement for
+      // module deduplication. Once 0.1.13+ is the minimum version, this
+      // workaround can be removed (dedupe is still a nice-to-have for
+      // StyleSheet singleton consistency).
+      const dedupePackages = ['@pmndrs/uikit', '@preact/signals-core'];
+      const existing = userConfig.resolve?.dedupe ?? [];
+      const merged = [
+        ...existing,
+        ...dedupePackages.filter((pkg) => !existing.includes(pkg)),
+      ];
+      return {
+        resolve: {
+          dedupe: merged,
+        },
+      };
+    },
+
     configResolved(resolvedConfig) {
       // Store the resolved config to determine dev vs build mode
       config = resolvedConfig;

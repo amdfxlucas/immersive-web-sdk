@@ -10,6 +10,7 @@ overrides:
   three-mesh-bvh: ^0.9.1
   axios: ^1.12.0
   preact: ^10.27.3
+  '@pmndrs/uikit': ^1.0.62
 
 importers:
 
@@ -121,8 +122,8 @@ importers:
         specifier: ^6.6.22
         version: 6.6.28
       '@pmndrs/uikit':
-        specifier: ^1.0.60
-        version: 1.0.60(super-three@0.181.0)
+        specifier: ^1.0.62
+        version: 1.0.62(super-three@0.181.0)
       '@pmndrs/uikitml':
         specifier: ^0.1.12
         version: 0.1.12(super-three@0.181.0)
@@ -1259,9 +1260,6 @@ packages:
   '@pmndrs/handle@6.6.28':
     resolution: {integrity: sha512-5qlu9PfEN0uEGRUBWAjHEN1zugvt4V0bNRDIAh5uWadVHJg7Obb0T8Rd/3/YOnjP9lM56KEGEG4WCnDAn6ZJ4A==}
 
-  '@pmndrs/msdfonts@1.0.60':
-    resolution: {integrity: sha512-ZSYH/Y5XRgsnXCRpYkM6KmlM47m06CD1K1VjdBmoRsaXki7tqurP83QemPrV/VfQXfCqC49lQIYCabOCCL3HwQ==}
-
   '@pmndrs/msdfonts@1.0.62':
     resolution: {integrity: sha512-TGmAo0mFbdzPwwNCDzJoy6Khr3T/Z613ApwegYsRs6S+P+AeOSIS4+4aB5bL4G7hY6uNt5cyZVClESuEjYXt9g==}
 
@@ -1274,16 +1272,8 @@ packages:
   '@pmndrs/uikit-lucide@1.0.62':
     resolution: {integrity: sha512-aGgFJixWnYf+Gb3anQr04G3MaDYf82AQSZZFYO/Xzo1Y8QxaAjeiQdIgZtq7rrEWWxzJbVepHN9YgHyfLmBPMg==}
 
-  '@pmndrs/uikit-pub-sub@1.0.60':
-    resolution: {integrity: sha512-rciKs4iRsAYfGCuWS2b3uYGd2hoJXFso0rOcP20iHxu2Lk1XnYamPgtCmJZyhnkNiqJm+6Ms2MzGad+jcZ0yKw==}
-
   '@pmndrs/uikit-pub-sub@1.0.62':
     resolution: {integrity: sha512-E/8z5ZnqGfHgsgyUtMujJwRM11JSsZpxYnSxDDOZ+Q5FcK7aLSBCfT80Nm32EdytpN+xQ76mDI8ROvWYg3abxg==}
-
-  '@pmndrs/uikit@1.0.60':
-    resolution: {integrity: sha512-yKBxMIjT3JEHz6hcQxieqklCjBrAEq3oVvBcccCSvmkXmkBYJ+QLlBWDQTxcIQWxOQVBoiehgUB2G6mTNIuceQ==}
-    peerDependencies:
-      three: '>=0.162'
 
   '@pmndrs/uikit@1.0.62':
     resolution: {integrity: sha512-TRV7Q1hKmGIFEzhJYF4xaXowdgqGUQd+XKcpEfyvwShOWEWqiDAYoI5OYjDQPhVVshI2frb5XVPr6acGf2laFQ==}
@@ -2711,21 +2701,23 @@ packages:
 
   glob@10.5.0:
     resolution: {integrity: sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@11.1.0:
     resolution: {integrity: sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw==}
     engines: {node: 20 || >=22}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   glob@8.1.0:
     resolution: {integrity: sha512-r8hpEjiQEYlF2QU0df3dS+nxxSIreXQS1qRhMJM0Q5NDdR386C7jb7Hwwod8Fgiuex+k0GFjgft18yvxm5XoCQ==}
     engines: {node: '>=12'}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   globals@13.24.0:
     resolution: {integrity: sha512-AhO5QUcj8llrbG09iWhPU2B204J1xnPeL8kQmVorSsy+Sjj1sk8gIyh6cUocGmH4L0UuhAJy+hJMRA4mgA4mFQ==}
@@ -5374,8 +5366,6 @@ snapshots:
       - immer
       - react
 
-  '@pmndrs/msdfonts@1.0.60': {}
-
   '@pmndrs/msdfonts@1.0.62': {}
 
   '@pmndrs/pointer-events@6.6.28': {}
@@ -5393,21 +5383,9 @@ snapshots:
     transitivePeerDependencies:
       - three
 
-  '@pmndrs/uikit-pub-sub@1.0.60':
-    dependencies:
-      '@preact/signals-core': 1.12.1
-
   '@pmndrs/uikit-pub-sub@1.0.62':
     dependencies:
       '@preact/signals-core': 1.12.1
-
-  '@pmndrs/uikit@1.0.60(super-three@0.181.0)':
-    dependencies:
-      '@pmndrs/msdfonts': 1.0.60
-      '@pmndrs/uikit-pub-sub': 1.0.60
-      '@preact/signals-core': 1.12.1
-      three: super-three@0.181.0
-      yoga-layout: 3.2.1
 
   '@pmndrs/uikit@1.0.62(super-three@0.181.0)':
     dependencies:
@@ -5420,7 +5398,7 @@ snapshots:
 
   '@pmndrs/uikitml@0.1.12(super-three@0.181.0)':
     dependencies:
-      '@pmndrs/uikit': 1.0.60(super-three@0.181.0)
+      '@pmndrs/uikit': 1.0.62(super-three@0.181.0)
       '@preact/signals-core': 1.12.1
       chai: 5.3.3
       inline-style-parser: 0.2.7
