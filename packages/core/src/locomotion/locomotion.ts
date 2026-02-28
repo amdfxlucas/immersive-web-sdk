@@ -90,6 +90,8 @@ export class LocomotionSystem extends createSystem(
     jumpCooldown: { type: Types.Float32, default: 0.1 },
     /** Button used to jump in SlideSystem. */
     jumpButton: { type: Types.String, default: InputComponent.A_Button },
+    /** Whether jumping is enabled. */
+    enableJumping: { type: Types.Boolean, default: true },
   },
 ) {
   private locomotor!: Locomotor;
@@ -150,6 +152,11 @@ export class LocomotionSystem extends createSystem(
             this.slideSystem.config.jumpButton.value = value;
           }
         }),
+        this.config.enableJumping.subscribe((value) => {
+          if (this.slideSystem) {
+            this.slideSystem.config.enableJumping.value = value;
+          }
+        }),
       );
     });
 
@@ -190,6 +197,7 @@ export class LocomotionSystem extends createSystem(
         maxSpeed: this.config.slidingSpeed.value,
         comfortAssist: this.config.comfortAssist.value,
         jumpButton: this.config.jumpButton.value,
+        enableJumping: this.config.enableJumping.value,
         locomotor: this.locomotor,
       },
     });
@@ -204,6 +212,9 @@ export class LocomotionSystem extends createSystem(
   }
 
   private addEnvironmentToEngine(entity: Entity): void {
+    if (!this.locomotor?.isInitialized()) {
+      return;
+    }
     if (entity.getValue(LocomotionEnvironment, '_initialized')) {
       return; // Already initialized
     }
@@ -230,6 +241,9 @@ export class LocomotionSystem extends createSystem(
   }
 
   private removeEnvironmentFromEngine(entity: Entity): void {
+    if (!this.locomotor) {
+      return;
+    }
     const envHandle = entity.getValue(LocomotionEnvironment, '_envHandle');
     if (envHandle === 0) {
       return; // Not initialized or invalid handle
@@ -239,6 +253,9 @@ export class LocomotionSystem extends createSystem(
   }
 
   update(delta: number): void {
+    if (!this.locomotor) {
+      return;
+    }
     this.locomotor.updateKinematicEnvironments();
     this.locomotor.update(delta);
     this.player.position.copy(this.locomotor.position);
@@ -285,6 +302,5 @@ export class LocomotionSystem extends createSystem(
     if (this.slideSystem) {
       this.world.unregisterSystem(SlideSystem);
     }
-    this.cleanupFuncs.forEach((fn) => fn());
   }
 }

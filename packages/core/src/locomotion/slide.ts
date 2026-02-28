@@ -87,6 +87,8 @@ export class SlideSystem extends createSystem(
     comfortAssist: { type: Types.Float32, default: 0.5 },
     /** Button used to trigger jump. */
     jumpButton: { type: Types.String, default: InputComponent.A_Button },
+    /** Whether jumping is enabled. */
+    enableJumping: { type: Types.Boolean, default: true },
   },
 ) {
   private movementVector = new Vector3();
@@ -111,6 +113,7 @@ export class SlideSystem extends createSystem(
 
     // Handle jump input
     if (
+      this.config.enableJumping.value &&
       this.input.gamepads.right?.getButtonDown(
         this.config.jumpButton.value as InputComponent,
       )

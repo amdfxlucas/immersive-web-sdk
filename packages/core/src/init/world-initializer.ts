@@ -27,7 +27,7 @@ import { Interactable, Hovered, Pressed } from '../grab/index.js';
 import { InputSystem } from '../input/index.js';
 import { LevelTag, LevelRoot } from '../level/index.js';
 import { LevelSystem } from '../level/index.js';
-import { LocomotionSystem } from '../locomotion/index.js';
+import { LocomotionSystem, TurningMethod } from '../locomotion/index.js';
 import { MCPRuntime } from '../mcp/index.js';
 import {
   PhysicsBody,
@@ -101,7 +101,16 @@ export type WorldOptions = {
   /** Opt‑in feature systems. */
   features?: {
     /** Locomotion (teleport/slide/turn). Boolean or config. @defaultValue false */
-    locomotion?: boolean | { useWorker?: boolean };
+    locomotion?:
+      | boolean
+      | {
+          useWorker?: boolean;
+          initialPlayerPosition?: [number, number, number];
+          comfortAssistLevel?: number;
+          turningMethod?: TurningMethod;
+          /** Whether jumping is enabled. @defaultValue true */
+          enableJumping?: boolean;
+        };
     /** Grabbing (one/two‑hand, distance). @defaultValue false */
     grabbing?: boolean | { useHandPinchForGrab?: boolean };
     /** Physics simulation (Havok). @defaultValue false */
@@ -442,7 +451,13 @@ function registerFeatureSystems(
 ) {
   const locomotion = config.features.locomotion as
     | boolean
-    | { useWorker?: boolean };
+    | {
+        useWorker?: boolean;
+        initialPlayerPosition?: [number, number, number];
+        comfortAssistLevel?: number;
+        turningMethod?: TurningMethod;
+        enableJumping?: boolean;
+      };
   const locomotionEnabled = !!locomotion;
   const grabbing = config.features.grabbing as
     | boolean
@@ -467,7 +482,15 @@ function registerFeatureSystems(
   if (locomotionEnabled) {
     const locOpts =
       typeof locomotion === 'object' && locomotion
-        ? { useWorker: locomotion.useWorker }
+        ? Object.fromEntries(
+            Object.entries({
+              useWorker: locomotion.useWorker,
+              initialPlayerPosition: locomotion.initialPlayerPosition,
+              comfortAssist: locomotion.comfortAssistLevel,
+              turningMethod: locomotion.turningMethod,
+              enableJumping: locomotion.enableJumping,
+            }).filter(([, v]) => v !== undefined),
+          )
         : undefined;
     world.registerSystem(LocomotionSystem, {
       priority: -5,
@@ -478,7 +501,11 @@ function registerFeatureSystems(
   if (grabbingEnabled) {
     const grabOpts =
       typeof grabbing === 'object' && grabbing
-        ? { useHandPinchForGrab: grabbing.useHandPinchForGrab }
+        ? Object.fromEntries(
+            Object.entries({
+              useHandPinchForGrab: grabbing.useHandPinchForGrab,
+            }).filter(([, v]) => v !== undefined),
+          )
         : undefined;
     world.registerSystem(GrabSystem, { priority: -3, configData: grabOpts });
   }
@@ -496,7 +523,11 @@ function registerFeatureSystems(
   if (sceneUnderstandingEnabled) {
     const sceneOpts =
       typeof sceneUnderstanding === 'object' && sceneUnderstanding
-        ? { showWireFrame: sceneUnderstanding.showWireFrame }
+        ? Object.fromEntries(
+            Object.entries({
+              showWireFrame: sceneUnderstanding.showWireFrame,
+            }).filter(([, v]) => v !== undefined),
+          )
         : undefined;
     world
       .registerComponent(XRPlane)

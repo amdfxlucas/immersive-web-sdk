@@ -62,6 +62,9 @@ temp/
 # Development tools
 .aider.conf.yml
 .claude/
+.codex/
+.cursor/
+.mcp.json
 
 # Backup files created by build scripts
 **/package.json.backup
@@ -82,9 +85,6 @@ examples/**/public/glxf/
 examples/**/public/gltf/generated/
 examples/**/public/ui/
 examples/**/metaspatial/components/
-example-local-build/**/public/glxf/
-example-local-build/**/public/gltf/generated/
-example-local-build/**/public/ui/
 
 # Auto generated version files
 **/version.ts
@@ -92,3 +92,6 @@ example-local-build/**/public/ui/
 
 # Meta Spatial Editor CLI (downloaded by build-examples.sh in CI)
 .meta-spatial-cli/
+
+# Local playground (created via `node packages/create/dist/cli.js playground`)
+/playground/
