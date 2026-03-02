@@ -7,6 +7,7 @@
 
 import prompts from 'prompts';
 import { installMSE } from './mse-installer.js';
+import { MSE_MIN_VERSION } from './mse-config.js';
 import { MSEInstallResult, PromptResult, TriState, VariantId, AiTool } from './types.js';
 
 export async function promptFlow(nameArg?: string): Promise<PromptResult> {
@@ -297,7 +298,7 @@ export async function promptFlow(nameArg?: string): Promise<PromptResult> {
       prerequisites.push({
         level: 'important',
         message:
-          'Required: Install Meta Spatial Editor (v9 or later). The build pipeline depends on its CLI tool; without it, build or dev WILL FAIL. Download: https://developers.meta.com/horizon/documentation/spatial-sdk/spatial-editor-overview',
+          `Required: Install Meta Spatial Editor (v${MSE_MIN_VERSION} or later). The build pipeline depends on its CLI tool; without it, build or dev WILL FAIL. Download: https://developers.meta.com/horizon/documentation/spatial-sdk/spatial-editor-overview`,
       });
     }
   }
