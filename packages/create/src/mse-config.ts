@@ -37,7 +37,7 @@ export const MSE_DOWNLOAD_URLS = {
   default: 'https://developers.meta.com/horizon/downloads/spatial-sdk/',
 } as const;
 
-export const MSE_MIN_VERSION = '9.0.0';
+export const MSE_MIN_VERSION = '14.0.0';
 
 export const MSE_TOS_CONTENT = `
 By downloading and using Meta Spatial Editor, you agree to:

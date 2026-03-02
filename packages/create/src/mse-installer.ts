@@ -331,6 +331,7 @@ export async function installMSE(): Promise<MSEInstallResult> {
   if (existingVersion) {
     const installedNormalized = normalizeVersion(existingVersion);
     const latestNormalized = latestVersion ? normalizeVersion(latestVersion) : null;
+    const belowMinimum = !isVersionSufficient(installedNormalized);
 
     if (latestNormalized && installedNormalized === latestNormalized) {
       console.log(chalk.green(`\n✓ ${productName} ${existingVersion} is already installed (latest version).`));
@@ -345,10 +346,14 @@ export async function installMSE(): Promise<MSEInstallResult> {
         }
       } catch {}
 
+      const upgradeMessage = belowMinimum
+        ? `${productName} ${existingVersion} is installed. Upgrade to ${latestVersion}? (version ${MSE_MIN_VERSION}+ is required for compatibility. The build pipeline may not work correctly if not updated)`
+        : `${productName} ${existingVersion} is installed. Upgrade to ${latestVersion}?`;
+
       const { shouldUpgrade } = await prompts({
         type: 'confirm',
         name: 'shouldUpgrade',
-        message: `${productName} ${existingVersion} is installed. Upgrade to ${latestVersion}?`,
+        message: upgradeMessage,
         initial: true,
       });
 
@@ -358,7 +363,7 @@ export async function installMSE(): Promise<MSEInstallResult> {
           installed: true,
           version: existingVersion,
           manual: false,
-          outdated: !isVersionSufficient(existingVersion),
+          outdated: belowMinimum,
         };
       }
     } else if (isVersionSufficient(existingVersion)) {

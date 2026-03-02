@@ -74,15 +74,15 @@ describe('MSE Installer', () => {
 
   describe('isVersionSufficient', () => {
     it('should return true for versions >= minimum', () => {
-      expect(isVersionSufficient('9.0.0')).toBe(true);
-      expect(isVersionSufficient('9.0.1')).toBe(true);
-      expect(isVersionSufficient('10.0.0')).toBe(true);
-      expect(isVersionSufficient('11.0.0')).toBe(true);
+      expect(isVersionSufficient('14.0.0')).toBe(true);
+      expect(isVersionSufficient('14.0.1')).toBe(true);
+      expect(isVersionSufficient('16.0.0')).toBe(true);
+      expect(isVersionSufficient('20.0.0')).toBe(true);
     });
 
     it('should return false for versions < minimum', () => {
-      expect(isVersionSufficient('8.0.0')).toBe(false);
-      expect(isVersionSufficient('8.9.9')).toBe(false);
+      expect(isVersionSufficient('13.9.9')).toBe(false);
+      expect(isVersionSufficient('9.0.0')).toBe(false);
       expect(isVersionSufficient('1.0.0')).toBe(false);
     });
 
@@ -112,7 +112,7 @@ describe('MSE Installer', () => {
     });
 
     it('should have minimum version set', () => {
-      expect(MSE_MIN_VERSION).toBe('9.0.0');
+      expect(MSE_MIN_VERSION).toBe('14.0.0');
     });
   });
 
