@@ -20,7 +20,7 @@ import { Types, createComponent } from '../ecs/index.js';
 export const IBLTexture = createComponent(
   'IBLTexture',
   {
-    src: { type: Types.String, default: 'room' },
+    src: { type: Types.FilePath, default: 'room', fileTypes: ".png,.jpg,.ktx2,.hdr,.exr", subfolder: "textures"},
     intensity: { type: Types.Float32, default: 1.0 },
     rotation: { type: Types.Vec3, default: [0, 0, 0] },
     _needsUpdate: { type: Types.Boolean, default: true },

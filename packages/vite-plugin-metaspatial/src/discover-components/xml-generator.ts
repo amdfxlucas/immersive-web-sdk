@@ -212,6 +212,16 @@ function generateXMLForComponent(
     if (defaultValue !== null) {
       attributeElement.att('defaultValue', defaultValue);
     }
+
+    // Handle FilePath-specific attributes (fileTypes and subfolder)
+    if (fieldDef.type === 'FilePath') {
+      if (fieldDef.fileTypes && typeof fieldDef.fileTypes === 'string') {
+        attributeElement.att('fileTypes', fieldDef.fileTypes);
+      }
+      if (fieldDef.subfolder && typeof fieldDef.subfolder === 'string') {
+        attributeElement.att('subfolder', fieldDef.subfolder);
+      }
+    }
   });
 
   return doc.end({

@@ -19,7 +19,7 @@ import { Types, createComponent } from '../ecs/index.js';
 export const DomeTexture = createComponent(
   'DomeTexture',
   {
-    src: { type: Types.String, default: '' },
+    src: { type: Types.FilePath, default: '', fileTypes: ".png,.jpg,.ktx2,.hdr,.exr", subfolder: "textures" },
     blurriness: { type: Types.Float32, default: 0.0 },
     intensity: { type: Types.Float32, default: 1.0 },
     rotation: { type: Types.Vec3, default: [0, 0, 0] }, // radians [x,y,z]
