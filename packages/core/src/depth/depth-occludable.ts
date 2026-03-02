@@ -13,6 +13,8 @@ export const OcclusionShadersMode = {
   SoftOcclusion: 'SoftOcclusion',
   /** Hard occlusion with a single depth sample per fragment. */
   HardOcclusion: 'HardOcclusion',
+  /** MinMax soft occlusion with depth preprocessing for edge-aware smooth edges. */
+  MinMaxSoftOcclusion: 'MinMaxSoftOcclusion',
 };
 
 /**

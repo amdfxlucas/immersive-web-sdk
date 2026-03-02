@@ -106,9 +106,7 @@ export class DepthTextures {
       this.nativeTexture.sourceTexture = depthData.texture;
     }
     // Update the texture properties for three.js
-    const textureProperties = renderer.properties.get(
-      this.nativeTexture,
-    ) as {
+    const textureProperties = renderer.properties.get(this.nativeTexture) as {
       __webglTexture: WebGLTexture;
       __version: number;
     };

@@ -5,9 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// Types and configuration
-export * from './types.js';
-
 // Components
 export * from './depth-occludable.js';
 

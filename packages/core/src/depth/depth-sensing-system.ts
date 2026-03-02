@@ -6,10 +6,19 @@
  */
 
 import { createSystem, Entity, Types } from '../ecs/index.js';
-import { Mesh, Vector2 } from '../runtime/three.js';
+import { type IUniform, Mesh, Texture, Vector2 } from '../runtime/three.js';
 import { DepthOccludable, OcclusionShadersMode } from './depth-occludable.js';
 import { DepthTextures } from './depth-textures.js';
-import type { Shader, ShaderUniforms } from './types.js';
+import { DepthPreprocessingPass } from './occlusion/preprocessing-pass.js';
+
+type ShaderUniforms = { [uniform: string]: IUniform };
+
+interface Shader {
+  uniforms: ShaderUniforms;
+  defines?: { [key: string]: unknown };
+  vertexShader: string;
+  fragmentShader: string;
+}
 
 /**
  * DepthSensingSystem - Manages WebXR depth sensing and occlusion.
@@ -67,6 +76,8 @@ export class DepthSensingSystem extends createSystem(
   // Occlusion
   private entityShaderMap = new Map<Entity, Set<ShaderUniforms>>();
   private readonly viewportSize = new Vector2();
+  private preprocessingPass?: DepthPreprocessingPass;
+  private minMaxEntityCount = 0;
 
   /**
    * Get the raw value to meters conversion factor.
@@ -98,8 +109,20 @@ export class DepthSensingSystem extends createSystem(
 
     this.queries.occludables.subscribe('qualify', (entity: Entity) => {
       this.attachOcclusionToEntity(entity);
+      if (
+        DepthOccludable.data.mode[entity.index] ===
+        OcclusionShadersMode.MinMaxSoftOcclusion
+      ) {
+        this.minMaxEntityCount++;
+      }
     });
     this.queries.occludables.subscribe('disqualify', (entity: Entity) => {
+      if (
+        DepthOccludable.data.mode[entity.index] ===
+        OcclusionShadersMode.MinMaxSoftOcclusion
+      ) {
+        this.minMaxEntityCount--;
+      }
       this.detachOcclusionFromEntity(entity);
     });
   }
@@ -166,6 +189,9 @@ export class DepthSensingSystem extends createSystem(
     shader.uniforms.uViewportSize = { value: new Vector2() };
     shader.uniforms.uOcclusionBlurRadius = { value: 20.0 };
     shader.uniforms.uOcclusionHardMode = { value: false };
+    shader.uniforms.uOcclusionMinMaxMode = { value: false };
+    shader.uniforms.uMinMaxTexture0 = { value: null };
+    shader.uniforms.uMinMaxTexture1 = { value: null };
 
     shader.defines = {
       ...(shader.defines ?? {}),
@@ -200,6 +226,9 @@ export class DepthSensingSystem extends createSystem(
           'uniform vec2 uViewportSize;',
           'uniform float uOcclusionBlurRadius;',
           'uniform bool uOcclusionHardMode;',
+          'uniform bool uOcclusionMinMaxMode;',
+          'uniform sampler2D uMinMaxTexture0;',
+          'uniform sampler2D uMinMaxTexture1;',
           'varying float vOcclusionViewDepth;',
           '',
           'uniform sampler2DArray uXRDepthTextureArray;',
@@ -231,7 +260,29 @@ export class DepthSensingSystem extends createSystem(
           '  vec2 screenUV = gl_FragCoord.xy / uViewportSize;',
           '  vec2 depthUV = uIsGPUDepth ? screenUV : vec2(screenUV.x, 1.0 - screenUV.y);',
           '  float occlusion_value;',
-          '  if (uOcclusionHardMode) {',
+          '  if (uOcclusionMinMaxMode) {',
+          '    // MinMax soft occlusion — two-cluster edge-aware blending',
+          '    vec4 mmData;',
+          '    if (uint(VIEW_ID) == 0u) {',
+          '      mmData = texture2D(uMinMaxTexture0, depthUV);',
+          '    } else {',
+          '      mmData = texture2D(uMinMaxTexture1, depthUV);',
+          '    }',
+          '    float minAvgDepth = mmData.r;',
+          '    float maxAvgDepth = mmData.g;',
+          '    float midAvgDepth = mmData.r + mmData.b;',
+          '    float fadeRange = vOcclusionViewDepth * 0.04;',
+          '    float fadeRangeInv = 1.0 / max(fadeRange, 0.001);',
+          '    vec3 envDepths = vec3(minAvgDepth, maxAvgDepth, midAvgDepth);',
+          '    vec3 occAlphas = clamp((envDepths - vOcclusionViewDepth) * fadeRangeInv, 0.0, 1.0);',
+          '    occlusion_value = occAlphas.z;',
+          '    float alphaDiff = occAlphas.y - occAlphas.x;',
+          '    if (alphaDiff > 0.03) {',
+          '      float denom = mmData.a;',
+          '      float interp = denom > 0.001 ? mmData.b / denom : 0.5;',
+          '      occlusion_value = mix(occAlphas.x, occAlphas.y, smoothstep(0.2, 0.8, interp));',
+          '    }',
+          '  } else if (uOcclusionHardMode) {',
           '    occlusion_value = OcclusionGetSample(depthUV, vec2(0.0));',
           '  } else {',
           '   vec2 texelSize = uOcclusionBlurRadius / uViewportSize;',
@@ -267,6 +318,9 @@ export class DepthSensingSystem extends createSystem(
     this.depthFeatureEnabled = undefined;
     this.cpuDepthData = [];
     this.gpuDepthData = [];
+    this.preprocessingPass?.dispose();
+    this.preprocessingPass = undefined;
+    this.minMaxEntityCount = 0;
   }
 
   private updateEnabledFeatures(xrSession: XRSession | null): void {
@@ -295,8 +349,60 @@ export class DepthSensingSystem extends createSystem(
     }
 
     if (this.config.enableOcclusion.value) {
+      this.runMinMaxPreprocessing();
       this.updateOcclusionUniforms();
     }
+  }
+
+  /**
+   * Runs the MinMax depth preprocessing pass if any entity uses MinMaxSoftOcclusion.
+   * Renders a fullscreen pass per eye that computes min/max/avg depth in a 4×4
+   * neighborhood, outputting to per-view 2D render targets.
+   */
+  private runMinMaxPreprocessing(): void {
+    if (this.minMaxEntityCount === 0) return;
+
+    const nativeTexture = this.depthTextures?.getNativeTexture();
+    const dataArrayTexture = this.depthTextures?.getDataArrayTexture();
+    const isGPUDepth = nativeTexture !== undefined;
+    const depthTextureArray = isGPUDepth
+      ? (nativeTexture as Texture)
+      : (dataArrayTexture as Texture);
+    if (!depthTextureArray) return;
+
+    const depthNear =
+      (this.gpuDepthData[0] as unknown as { depthNear: number } | undefined)
+        ?.depthNear ?? 0;
+
+    if (!this.preprocessingPass) {
+      this.preprocessingPass = new DepthPreprocessingPass();
+    }
+
+    this.preprocessingPass.setDepthTexture(
+      depthTextureArray,
+      this.rawValueToMeters,
+      isGPUDepth,
+      depthNear,
+    );
+
+    // Determine depth texture dimensions
+    let depthWidth: number;
+    let depthHeight: number;
+    if (this.cpuDepthData[0]) {
+      depthWidth = this.cpuDepthData[0].width;
+      depthHeight = this.cpuDepthData[0].height;
+    } else if (this.gpuDepthData[0]) {
+      // GPU depth textures have their own resolution (typically ~256×192),
+      // which is much smaller than the drawing buffer.
+      depthWidth = this.gpuDepthData[0].width;
+      depthHeight = this.gpuDepthData[0].height;
+    } else {
+      return; // No depth data available
+    }
+
+    // Render preprocessing for both eyes
+    this.preprocessingPass.render(this.renderer, depthWidth, depthHeight, 0);
+    this.preprocessingPass.render(this.renderer, depthWidth, depthHeight, 1);
   }
 
   /**
@@ -382,6 +488,9 @@ export class DepthSensingSystem extends createSystem(
       const isHardMode =
         DepthOccludable.data.mode[entity.index] ===
         OcclusionShadersMode.HardOcclusion;
+      const isMinMaxMode =
+        DepthOccludable.data.mode[entity.index] ===
+        OcclusionShadersMode.MinMaxSoftOcclusion;
 
       for (const uniforms of entityUniforms) {
         uniforms.uXRDepthTextureArray.value = depthTextureArray;
@@ -391,7 +500,13 @@ export class DepthSensingSystem extends createSystem(
         (uniforms.uViewportSize.value as Vector2).copy(this.viewportSize);
         uniforms.uOcclusionBlurRadius.value = this.config.blurRadius.value;
         uniforms.uOcclusionHardMode.value = isHardMode;
+        uniforms.uOcclusionMinMaxMode.value = isMinMaxMode;
         uniforms.occlusionEnabled.value = this.config.enableOcclusion.value;
+
+        if (isMinMaxMode && this.preprocessingPass) {
+          uniforms.uMinMaxTexture0.value = this.preprocessingPass.getTexture(0);
+          uniforms.uMinMaxTexture1.value = this.preprocessingPass.getTexture(1);
+        }
       }
     }
   }

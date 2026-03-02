@@ -155,7 +155,10 @@ export class OcclusionDemoSystem extends createSystem({
       movementMode: MovementMode.MoveFromTarget,
     });
     entity.addComponent(XRAnchor);
-    entity.addComponent(DepthOccludable);
+    entity.addComponent(DepthOccludable, {
+      mode: OcclusionShadersMode.MinMaxSoftOcclusion,
+    });
+
 
     return entity;
   }
