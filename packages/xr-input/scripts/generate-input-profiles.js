@@ -21,6 +21,16 @@ const OUTPUT_FILE = path.join(
   '../src/gamepad/generated-profiles.ts',
 );
 
+// Check if we should skip fetching (file exists and --force not passed)
+const forceRefresh = process.argv.includes('--force');
+if (!forceRefresh && fs.existsSync(OUTPUT_FILE)) {
+  console.log(
+    `✅ Input profiles already exist at ${OUTPUT_FILE}, skipping CDN fetch.`,
+  );
+  console.log('   Use --force to refresh from CDN.');
+  process.exit(0);
+}
+
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
     https

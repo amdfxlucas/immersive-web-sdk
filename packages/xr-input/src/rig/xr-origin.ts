@@ -30,6 +30,17 @@ export class XROrigin extends Group {
     right: new Group(),
   };
 
+  /**
+   * Spaces representing the index finger tip positions for each hand.
+   * Used by TouchPointer for poke interactions.
+   * Updated from hand tracking joint data when hands are active.
+   * Falls back to raySpaces when controllers are used.
+   */
+  public readonly indexTipSpaces = {
+    left: new Group(),
+    right: new Group(),
+  };
+
   private headsetMatrix = new Matrix4();
 
   constructor() {
@@ -43,6 +54,8 @@ export class XROrigin extends Group {
       this.raySpaces.right,
       this.gripSpaces.left,
       this.gripSpaces.right,
+      this.indexTipSpaces.left,
+      this.indexTipSpaces.right,
     );
   }
 

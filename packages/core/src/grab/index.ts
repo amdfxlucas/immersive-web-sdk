@@ -12,8 +12,6 @@ import {
   patchedIntersectSpherePointerCapture,
 } from './pointer-events-patch.js';
 
-// Interaction state flags and Interactable marker now live in InputSystem
-export { Interactable, Hovered, Pressed } from '../input/index.js';
 export * from './grab-system.js';
 export * from './one-hand-grabbable.js';
 export * from './two-hands-grabbable.js';

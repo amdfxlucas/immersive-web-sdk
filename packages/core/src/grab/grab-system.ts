@@ -8,6 +8,7 @@
 import { HandleStore } from '@pmndrs/handle';
 import { PointerEventsMap } from '@pmndrs/pointer-events';
 import { createSystem, Entity, Types } from '../ecs/index.js';
+import { LevelTag } from '../level/index.js';
 import {
   Object3D,
   Object3DEventMap,
@@ -18,7 +19,6 @@ import { DistanceGrabbable } from './distance-grabbable.js';
 import { DistanceGrabHandle, MovementMode, Handle } from './handles.js';
 import { OneHandGrabbable } from './one-hand-grabbable.js';
 import { TwoHandsGrabbable } from './two-hands-grabbable.js';
-import { LevelTag } from '../level/index.js';
 
 /**
  * Manages interactive object grabbing and manipulation for VR/AR experiences.
@@ -159,9 +159,9 @@ export class GrabSystem extends createSystem(
   }
 
   private initializeOneHandHandle(entity: Entity) {
-    if (entity.hasComponent(Handle)) return;
+    if (entity.hasComponent(Handle)) {return;}
     const object = entity.object3D;
-    if (!(object instanceof Object3D)) return;
+    if (!(object instanceof Object3D)) {return;}
     const obj = object as Object3D<PointerEventsMap & Object3DEventMap>;
     const rotateMax = entity.getVectorView(OneHandGrabbable, 'rotateMax');
     const rotateMin = entity.getVectorView(OneHandGrabbable, 'rotateMin');
@@ -191,9 +191,9 @@ export class GrabSystem extends createSystem(
   }
 
   private initializeTwoHandsHandle(entity: Entity) {
-    if (entity.hasComponent(Handle)) return;
+    if (entity.hasComponent(Handle)) {return;}
     const object = entity.object3D;
-    if (!(object instanceof Object3D)) return;
+    if (!(object instanceof Object3D)) {return;}
     const obj = object as Object3D<PointerEventsMap & Object3DEventMap>;
     const rotateMax = entity.getVectorView(TwoHandsGrabbable, 'rotateMax');
     const rotateMin = entity.getVectorView(TwoHandsGrabbable, 'rotateMin');
@@ -238,9 +238,9 @@ export class GrabSystem extends createSystem(
   }
 
   private initializeDistanceHandle(entity: Entity) {
-    if (entity.hasComponent(Handle)) return;
+    if (entity.hasComponent(Handle)) {return;}
     const object = entity.object3D;
-    if (!(object instanceof Object3D)) return;
+    if (!(object instanceof Object3D)) {return;}
     const obj = object as Object3D<PointerEventsMap & Object3DEventMap>;
     const rootEntity = entity.hasComponent(LevelTag)
       ? this.world.activeLevel.value

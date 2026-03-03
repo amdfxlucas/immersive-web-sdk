@@ -8,43 +8,60 @@
 import { createComponent } from '../ecs/index.js';
 
 /**
- * Marks an entity as eligible for XR/UI pointer interaction.
+ * Marks an entity as eligible for ray-based pointer interaction.
  *
  * @remarks
- * - The {@link InputSystem} discovers all entities with `Interactable` and, when
- *   XR visibility is Visible, registers their Object3D roots as raycast targets
- *   (computing BVHs for meshes to accelerate intersection tests).
+ * - The {@link InputSystem} discovers all entities with `RayInteractable` and
+ *   registers their Object3D roots as raycast targets.
+ * - Used for UI elements, buttons, and clickable objects interacted via ray pointer.
  * - When a pointer enters/leaves or presses/releases on the entity, the system
- *   adds/removes the transient tags {@link Hovered} and {@link Pressed} so other
- *   systems can react declaratively without manual event wiring.
- * - Add this tag to the root Object3D of your UI/interactive object. Children
- *   are implicitly covered because the InputSystem registers the whole subtree.
+ *   adds/removes the transient tags {@link Hovered} and {@link Pressed}.
  *
  * @category Input
  * @example Highlight on hover
  * ```ts
- * export class HighlightSystem extends createSystem({ items: { required: [Interactable] } }) {
+ * export class HighlightSystem extends createSystem({ items: { required: [RayInteractable] } }) {
  *   update() {
  *     this.queries.items.entities.forEach(e => {
- *       e.object3D.visible = !e.hasComponent(Pressed);
  *       e.object3D.material.emissiveIntensity = e.hasComponent(Hovered) ? 1.0 : 0.0;
  *     });
  *   }
  * }
  * ```
  */
-export const Interactable = createComponent(
-  'Interactable',
+export const RayInteractable = createComponent(
+  'RayInteractable',
   {},
-  'Marks an entity as eligible for XR pointer interaction (ray/proximity).',
+  'Marks an entity as eligible for ray-based pointer interaction.',
 );
 
 /**
- * A transient tag set while a pointer ray is intersecting an `Interactable`.
+ * Marks an entity as eligible for poke/touch interaction.
  *
  * @remarks
- * - Managed by {@link InputSystem}; do not add/remove this component manually in normal usage.
+ * - Used for UI elements that can be poked/touched with finger or controller.
+ * - Auto-selects when finger crosses the surface (distance <= 0).
+ * - Uses hysteresis (separate enter/exit thresholds) to prevent flickering.
+ *
+ * @category Input
+ * @example Create a pokeable button
+ * ```ts
+ * entity.addComponent(PokeInteractable);
+ * ```
+ */
+export const PokeInteractable = createComponent(
+  'PokeInteractable',
+  {},
+  'Marks an entity as eligible for poke/touch interaction.',
+);
+
+/**
+ * A transient tag set while a pointer is intersecting an interactable.
+ *
+ * @remarks
+ * - Managed by {@link InputSystem}; do not add/remove this component manually.
  * - Use as a declarative condition for hover effects, tooltips, or affordances.
+ * - Works with both RayInteractable and PokeInteractable entities.
  *
  * @category Input
  * @hideineditor
@@ -56,11 +73,12 @@ export const Hovered = createComponent(
 );
 
 /**
- * A transient tag set while a pointer is actively pressing an `Interactable`.
+ * A transient tag set while a pointer is actively pressing an interactable.
  *
  * @remarks
- * - Managed by {@link InputSystem}; do not add/remove this component manually in normal usage.
+ * - Managed by {@link InputSystem}; do not add/remove this component manually.
  * - Often used to gate activation logic or pressed-state visuals.
+ * - Works with both RayInteractable and PokeInteractable entities.
  *
  * @category Input
  * @hideineditor
@@ -70,3 +88,8 @@ export const Pressed = createComponent(
   {},
   'A tag added by InputSystem while the entity is actively pressed.',
 );
+
+/**
+ * @deprecated Use `RayInteractable` instead. This will be removed in a future version.
+ */
+export const Interactable = RayInteractable;

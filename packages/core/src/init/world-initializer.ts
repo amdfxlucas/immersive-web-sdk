@@ -23,7 +23,12 @@ import {
   EnvironmentRaycastTarget,
 } from '../environment-raycast/index.js';
 import { GrabSystem } from '../grab/index.js';
-import { Interactable, Hovered, Pressed } from '../grab/index.js';
+import {
+  RayInteractable,
+  PokeInteractable,
+  Hovered,
+  Pressed,
+} from '../input/index.js';
 import { InputSystem } from '../input/index.js';
 import { LevelTag, LevelRoot } from '../level/index.js';
 import { LevelSystem } from '../level/index.js';
@@ -414,7 +419,8 @@ function registerCoreSystems(
   config: ReturnType<typeof extractConfiguration>,
 ) {
   world
-    .registerComponent(Interactable)
+    .registerComponent(RayInteractable)
+    .registerComponent(PokeInteractable)
     .registerComponent(Hovered)
     .registerComponent(Pressed)
     .registerComponent(LevelRoot)

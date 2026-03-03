@@ -333,10 +333,34 @@ export class XRInputManager {
           if (visualAdapter.visual) {
             visualAdapter.visual.model.visible = inputSourceData.isPrimary;
           }
+
+          // Update index tip space for hands (used by TouchPointer)
+          if (key === 'hand' && isPrimary) {
+            const handAdapter = this.visualAdapters.hand[handedness];
+            const indexTipXRSpace = handAdapter.getIndexTipSpace();
+            if (indexTipXRSpace) {
+              updatePose(
+                frame,
+                indexTipXRSpace,
+                refSpace,
+                this.xrOrigin.indexTipSpaces[handedness],
+              );
+            }
+          }
         } else if (visualAdapter.connected) {
           visualAdapter.disconnect();
         }
       });
+
+      // For controllers, fallback indexTipSpace to raySpace (no finger tracking)
+      const hasHandActive = !!this.activeInputSources.hand[handedness];
+      if (!hasHandActive && this.activeInputSources.controller[handedness]) {
+        const raySpace = this.xrOrigin.raySpaces[handedness];
+        const indexTipSpace = this.xrOrigin.indexTipSpaces[handedness];
+        indexTipSpace.position.copy(raySpace.position);
+        indexTipSpace.quaternion.copy(raySpace.quaternion);
+        indexTipSpace.scale.copy(raySpace.scale);
+      }
     });
     (['left', 'right'] as const).forEach((handedness) => {
       const inputSource = this.primaryInputSources[handedness];

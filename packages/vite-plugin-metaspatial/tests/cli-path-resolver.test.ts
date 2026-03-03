@@ -5,14 +5,14 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import * as path from 'path';
+import fs from 'fs-extra';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getHighestVersion,
   resolveMetaSpatialCliPath,
   validateCliPath,
 } from '../src/generate-glxf/cli-path-resolver.js';
-import fs from 'fs-extra';
-import * as path from 'path';
 
 // Mock fs module
 vi.mock('fs-extra');

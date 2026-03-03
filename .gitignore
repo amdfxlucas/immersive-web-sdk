@@ -62,6 +62,7 @@ temp/
 # Development tools
 .aider.conf.yml
 .claude/
+.claude/
 .codex/
 .cursor/
 .mcp.json

@@ -232,4 +232,12 @@ export class XRHandVisualAdapter extends XRInputVisualAdapter {
       };
     });
   }
+
+  /**
+   * Returns the XRSpace for the index finger tip, if available.
+   * Used for poke/touch interactions.
+   */
+  getIndexTipSpace(): XRSpace | undefined {
+    return this.indexTip;
+  }
 }
