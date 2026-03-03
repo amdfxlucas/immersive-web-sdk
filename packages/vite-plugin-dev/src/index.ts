@@ -533,7 +533,7 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
 
       const writeMcpConfigs = async (actualPort: number) => {
         const serverEntries: Record<string, { command: string; args: string[] }> = {
-          iwsdk: {
+          'iwsdk-dev-mcp': {
             command: 'node',
             args: [mcpServerPath, '--port', String(actualPort)],
           },

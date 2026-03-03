@@ -41,7 +41,7 @@ export const TOOLS = [
   // Session Management
   // =============================================================================
   {
-    name: 'get_session_status',
+    name: 'xr_get_session_status',
     description: 'Get XR session and device status',
     inputSchema: {
       type: 'object',
@@ -50,7 +50,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'accept_session',
+    name: 'xr_accept_session',
     description:
       'Accept an offered XR session (equivalent to clicking "Enter XR" button)',
     inputSchema: {
@@ -60,7 +60,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'end_session',
+    name: 'xr_end_session',
     description: 'End the current active XR session',
     inputSchema: {
       type: 'object',
@@ -73,7 +73,7 @@ export const TOOLS = [
   // Transform Control
   // =============================================================================
   {
-    name: 'get_transform',
+    name: 'xr_get_transform',
     description: 'Get position and orientation of a tracked device',
     inputSchema: {
       type: 'object',
@@ -94,7 +94,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'set_transform',
+    name: 'xr_set_transform',
     description:
       'Set position and/or orientation of a tracked device. Position is in meters, orientation can be quaternion or euler angles (degrees).',
     inputSchema: {
@@ -153,7 +153,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'look_at',
+    name: 'xr_look_at',
     description: 'Orient a device to look at a specific world position',
     inputSchema: {
       type: 'object',
@@ -188,7 +188,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'animate_to',
+    name: 'xr_animate_to',
     description:
       'Smoothly animate a device to a new position/orientation over time',
     inputSchema: {
@@ -249,7 +249,7 @@ export const TOOLS = [
   // Input Mode
   // =============================================================================
   {
-    name: 'set_input_mode',
+    name: 'xr_set_input_mode',
     description: 'Switch between controller and hand tracking input modes',
     inputSchema: {
       type: 'object',
@@ -264,7 +264,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'set_connected',
+    name: 'xr_set_connected',
     description: 'Connect or disconnect an input device',
     inputSchema: {
       type: 'object',
@@ -292,7 +292,7 @@ export const TOOLS = [
   // Select/Trigger Input
   // =============================================================================
   {
-    name: 'get_select_value',
+    name: 'xr_get_select_value',
     description:
       'Get the current select (trigger/pinch) value for an input device',
     inputSchema: {
@@ -313,7 +313,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'set_select_value',
+    name: 'xr_set_select_value',
     description:
       'Set the select (trigger/pinch) value for an input device. Use for grab-move-release patterns.',
     inputSchema: {
@@ -340,7 +340,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'select',
+    name: 'xr_select',
     description:
       'Perform a complete select action (press and release). Dispatches selectstart, select, selectend events.',
     inputSchema: {
@@ -369,7 +369,7 @@ export const TOOLS = [
   // Gamepad State (Controllers only)
   // =============================================================================
   {
-    name: 'get_gamepad_state',
+    name: 'xr_get_gamepad_state',
     description:
       'Get full gamepad state including all buttons and axes. Button indices in the result: 0=trigger, 1=squeeze, 2=thumbstick, 3=A/X, 4=B/Y, 5=thumbrest.',
     inputSchema: {
@@ -385,7 +385,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'set_gamepad_state',
+    name: 'xr_set_gamepad_state',
     description: 'Set gamepad button and axis values by index',
     inputSchema: {
       type: 'object',
@@ -439,7 +439,7 @@ export const TOOLS = [
   // Screenshot
   // =============================================================================
   {
-    name: 'screenshot',
+    name: 'browser_screenshot',
     description:
       'Capture a screenshot of the browser. Returns the image directly.',
     inputSchema: {
@@ -452,7 +452,7 @@ export const TOOLS = [
   // Device State
   // =============================================================================
   {
-    name: 'get_device_state',
+    name: 'xr_get_device_state',
     description:
       'Get comprehensive state of the XR device including headset, controllers, and hands',
     inputSchema: {
@@ -462,7 +462,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'set_device_state',
+    name: 'xr_set_device_state',
     description:
       'Set device state. When called with no state, resets everything to defaults.',
     inputSchema: {
@@ -563,7 +563,7 @@ export const TOOLS = [
   // Console Logs (Plugin-specific, not in IWER)
   // =============================================================================
   {
-    name: 'get_console_logs',
+    name: 'browser_get_console_logs',
     description:
       'Get console logs from the browser with optional filtering. By default excludes debug level logs.',
     inputSchema: {
@@ -602,7 +602,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'reload_page',
+    name: 'browser_reload_page',
     description:
       'Reload the browser page to reset application state. Use when the app enters an unrecoverable state or to apply code changes.',
     inputSchema: {
@@ -615,7 +615,7 @@ export const TOOLS = [
   // Framework-Specific Tools (IWSDK or any framework with FRAMEWORK_MCP_RUNTIME)
   // =============================================================================
   {
-    name: 'get_scene_hierarchy',
+    name: 'scene_get_hierarchy',
     description:
       'Get the Three.js scene hierarchy as a JSON tree. Returns object names, UUIDs, and entity indices where available. Requires IWSDK or a framework that provides FRAMEWORK_MCP_RUNTIME.',
     inputSchema: {
@@ -635,7 +635,7 @@ export const TOOLS = [
     },
   },
   {
-    name: 'get_object_transform',
+    name: 'scene_get_object_transform',
     description:
       'Get local and global transforms of an Object3D. Includes positionRelativeToXROrigin which can be used directly with xr_look_at tool. Requires IWSDK or a framework that provides FRAMEWORK_MCP_RUNTIME.',
     inputSchema: {
@@ -846,6 +846,35 @@ export const TOOLS = [
 ];
 
 /**
+ * Map MCP tool names → browser-side WS method names.
+ * The browser (IWER RemoteControlInterface) uses the original unprefixed names.
+ * ECS tools pass through unchanged (name === method).
+ */
+const TOOL_TO_METHOD: Record<string, string> = {
+  xr_get_session_status: 'get_session_status',
+  xr_accept_session: 'accept_session',
+  xr_end_session: 'end_session',
+  xr_get_transform: 'get_transform',
+  xr_set_transform: 'set_transform',
+  xr_look_at: 'look_at',
+  xr_animate_to: 'animate_to',
+  xr_set_input_mode: 'set_input_mode',
+  xr_set_connected: 'set_connected',
+  xr_get_select_value: 'get_select_value',
+  xr_set_select_value: 'set_select_value',
+  xr_select: 'select',
+  xr_get_gamepad_state: 'get_gamepad_state',
+  xr_set_gamepad_state: 'set_gamepad_state',
+  xr_get_device_state: 'get_device_state',
+  xr_set_device_state: 'set_device_state',
+  browser_screenshot: 'screenshot',
+  browser_get_console_logs: 'get_console_logs',
+  browser_reload_page: 'reload_page',
+  scene_get_hierarchy: 'get_scene_hierarchy',
+  scene_get_object_transform: 'get_object_transform',
+};
+
+/**
  * Tab-change tracker: processes raw browser responses and produces
  * MCP-formatted content blocks with tab-change warnings and _tab metadata.
  * Extracted for testability.
@@ -1052,7 +1081,7 @@ async function main() {
 
   const server = new Server(
     {
-      name: 'iwsdk',
+      name: 'iwsdk-dev-mcp',
       version: '1.0.0',
     },
     {
@@ -1086,9 +1115,10 @@ async function main() {
       }
     }
 
-    // Forward the tool call to the browser via WebSocket
+    // Forward the tool call — map prefixed MCP tool name to browser-side method name
     try {
-      const rawResponse = (await sendCommand(name, args)) as {
+      const method = TOOL_TO_METHOD[name] ?? name;
+      const rawResponse = (await sendCommand(method, args)) as {
         result?: unknown;
         _tabId?: string;
         _tabGeneration?: number;
@@ -1097,7 +1127,7 @@ async function main() {
       // Special handling for screenshot - return inline image
       const result = rawResponse?.result ?? rawResponse;
       if (
-        name === 'screenshot' &&
+        name === 'browser_screenshot' &&
         result &&
         typeof result === 'object' &&
         'imageData' in result

@@ -17,7 +17,7 @@ describe('MCP Server Tool Schemas', () => {
 
   describe('xr_set_transform', () => {
     test('should define orientation as object type', () => {
-      const tool = findTool('set_transform');
+      const tool = findTool('xr_set_transform');
       expect(tool).toBeDefined();
 
       const orientation = tool!.inputSchema.properties.orientation;
@@ -26,7 +26,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define orientation properties for quaternion format', () => {
-      const tool = findTool('set_transform');
+      const tool = findTool('xr_set_transform');
       const orientation = tool!.inputSchema.properties.orientation;
 
       expect(orientation.properties).toBeDefined();
@@ -37,7 +37,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define orientation properties for euler format', () => {
-      const tool = findTool('set_transform');
+      const tool = findTool('xr_set_transform');
       const orientation = tool!.inputSchema.properties.orientation;
 
       expect(orientation.properties).toBeDefined();
@@ -47,7 +47,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define position as object type with x, y, z properties', () => {
-      const tool = findTool('set_transform');
+      const tool = findTool('xr_set_transform');
       const position = tool!.inputSchema.properties.position;
 
       expect(position).toBeDefined();
@@ -60,7 +60,7 @@ describe('MCP Server Tool Schemas', () => {
 
   describe('xr_animate_to', () => {
     test('should define orientation as object type', () => {
-      const tool = findTool('animate_to');
+      const tool = findTool('xr_animate_to');
       expect(tool).toBeDefined();
 
       const orientation = tool!.inputSchema.properties.orientation;
@@ -69,7 +69,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define orientation properties for quaternion and euler formats', () => {
-      const tool = findTool('animate_to');
+      const tool = findTool('xr_animate_to');
       const orientation = tool!.inputSchema.properties.orientation;
 
       expect(orientation.properties).toBeDefined();
@@ -87,7 +87,7 @@ describe('MCP Server Tool Schemas', () => {
 
   describe('xr_set_device_state', () => {
     test('should define state as object type', () => {
-      const tool = findTool('set_device_state');
+      const tool = findTool('xr_set_device_state');
       expect(tool).toBeDefined();
 
       const state = tool!.inputSchema.properties.state;
@@ -96,7 +96,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define state.properties with expected fields', () => {
-      const tool = findTool('set_device_state');
+      const tool = findTool('xr_set_device_state');
       const state = tool!.inputSchema.properties.state;
 
       expect(state.properties).toBeDefined();
@@ -109,7 +109,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define headset with position and orientation', () => {
-      const tool = findTool('set_device_state');
+      const tool = findTool('xr_set_device_state');
       const headset = tool!.inputSchema.properties.state.properties.headset;
 
       expect(headset.type).toBe('object');
@@ -118,7 +118,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define controllers with left and right', () => {
-      const tool = findTool('set_device_state');
+      const tool = findTool('xr_set_device_state');
       const controllers =
         tool!.inputSchema.properties.state.properties.controllers;
 
@@ -131,7 +131,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should define hands with left and right', () => {
-      const tool = findTool('set_device_state');
+      const tool = findTool('xr_set_device_state');
       const hands = tool!.inputSchema.properties.state.properties.hands;
 
       expect(hands.type).toBe('object');
@@ -145,7 +145,7 @@ describe('MCP Server Tool Schemas', () => {
 
   describe('browser_get_console_logs', () => {
     test('should document that debug is excluded by default', () => {
-      const tool = findTool('get_console_logs');
+      const tool = findTool('browser_get_console_logs');
       expect(tool).toBeDefined();
 
       // Description should mention debug exclusion
@@ -153,7 +153,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should support array of levels', () => {
-      const tool = findTool('get_console_logs');
+      const tool = findTool('browser_get_console_logs');
       const level = tool!.inputSchema.properties.level;
 
       // Should have oneOf with string and array options
@@ -170,15 +170,15 @@ describe('MCP Server Tool Schemas', () => {
 
   describe('browser_reload_page', () => {
     test('should exist with empty properties schema', () => {
-      const tool = findTool('reload_page');
+      const tool = findTool('browser_reload_page');
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('reload_page');
+      expect(tool!.name).toBe('browser_reload_page');
       expect(tool!.inputSchema.type).toBe('object');
       expect(Object.keys(tool!.inputSchema.properties)).toHaveLength(0);
     });
 
     test('should mention unrecoverable state use case in description', () => {
-      const tool = findTool('reload_page');
+      const tool = findTool('browser_reload_page');
       expect(tool!.description).toContain('unrecoverable');
     });
   });
@@ -187,7 +187,7 @@ describe('MCP Server Tool Schemas', () => {
     test('orientation parameters should be typed as object, not string', () => {
       // This is a regression test to prevent the bug where
       // orientation parameters are accidentally typed as strings
-      const toolsWithOrientation = ['set_transform', 'animate_to'];
+      const toolsWithOrientation = ['xr_set_transform', 'xr_animate_to'];
 
       for (const toolName of toolsWithOrientation) {
         const tool = findTool(toolName);
@@ -206,7 +206,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('state parameter in xr_set_device_state should be typed as object, not string', () => {
-      const tool = findTool('set_device_state');
+      const tool = findTool('xr_set_device_state');
       expect(tool).toBeDefined();
 
       const state = tool!.inputSchema.properties.state;
@@ -223,13 +223,13 @@ describe('MCP Server Tool Schemas', () => {
   // =============================================================================
   describe('scene_get_hierarchy', () => {
     test('should exist and have correct schema', () => {
-      const tool = findTool('get_scene_hierarchy');
+      const tool = findTool('scene_get_hierarchy');
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('get_scene_hierarchy');
+      expect(tool!.name).toBe('scene_get_hierarchy');
     });
 
     test('should have optional parentId parameter', () => {
-      const tool = findTool('get_scene_hierarchy');
+      const tool = findTool('scene_get_hierarchy');
       const parentId = tool!.inputSchema.properties.parentId;
 
       expect(parentId).toBeDefined();
@@ -238,7 +238,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should have optional maxDepth parameter', () => {
-      const tool = findTool('get_scene_hierarchy');
+      const tool = findTool('scene_get_hierarchy');
       const maxDepth = tool!.inputSchema.properties.maxDepth;
 
       expect(maxDepth).toBeDefined();
@@ -246,20 +246,20 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should mention FRAMEWORK_MCP_RUNTIME in description', () => {
-      const tool = findTool('get_scene_hierarchy');
+      const tool = findTool('scene_get_hierarchy');
       expect(tool!.description).toContain('FRAMEWORK_MCP_RUNTIME');
     });
   });
 
   describe('scene_get_object_transform', () => {
     test('should exist and have correct schema', () => {
-      const tool = findTool('get_object_transform');
+      const tool = findTool('scene_get_object_transform');
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('get_object_transform');
+      expect(tool!.name).toBe('scene_get_object_transform');
     });
 
     test('should require uuid parameter', () => {
-      const tool = findTool('get_object_transform');
+      const tool = findTool('scene_get_object_transform');
       const uuid = tool!.inputSchema.properties.uuid;
 
       expect(uuid).toBeDefined();
@@ -268,12 +268,12 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('should mention positionRelativeToXROrigin in description', () => {
-      const tool = findTool('get_object_transform');
+      const tool = findTool('scene_get_object_transform');
       expect(tool!.description).toContain('positionRelativeToXROrigin');
     });
 
     test('should mention FRAMEWORK_MCP_RUNTIME in description', () => {
-      const tool = findTool('get_object_transform');
+      const tool = findTool('scene_get_object_transform');
       expect(tool!.description).toContain('FRAMEWORK_MCP_RUNTIME');
     });
   });
@@ -395,7 +395,7 @@ describe('MCP Server Tool Schemas', () => {
   // =============================================================================
   describe('gamepad button indices', () => {
     test('xr_get_gamepad_state description contains correct button index mapping', () => {
-      const tool = findTool('get_gamepad_state');
+      const tool = findTool('xr_get_gamepad_state');
       expect(tool).toBeDefined();
       expect(tool!.description).toContain('0=trigger');
       expect(tool!.description).toContain('1=squeeze');
@@ -406,7 +406,7 @@ describe('MCP Server Tool Schemas', () => {
     });
 
     test('xr_set_gamepad_state button index description has correct mapping (no 2=unused, no index 6)', () => {
-      const tool = findTool('set_gamepad_state');
+      const tool = findTool('xr_set_gamepad_state');
       expect(tool).toBeDefined();
 
       const buttonIndex = tool!.inputSchema.properties.buttons.items.properties.index;
@@ -427,7 +427,7 @@ describe('MCP Server Tool Schemas', () => {
   // =============================================================================
   describe('xr_select tool', () => {
     test('xr_select duration description says 0.15', () => {
-      const tool = findTool('select');
+      const tool = findTool('xr_select');
       expect(tool).toBeDefined();
 
       const duration = tool!.inputSchema.properties.duration;
