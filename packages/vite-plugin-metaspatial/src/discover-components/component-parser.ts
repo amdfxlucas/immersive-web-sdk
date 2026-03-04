@@ -219,12 +219,29 @@ function extractComponentMetadata(
     ? extractStringLiteral(descriptionArg)
     : null;
 
+  // Extract hideInEditor from fourth parameter (object expression) if available
+  const optionsArg = callExpression.arguments[3];
+  let hideInEditor: boolean | undefined;
+  if (optionsArg?.type === 'ObjectExpression') {
+    const hideInEditorProp = optionsArg.properties.find(
+      (prop: any) =>
+        prop.type === 'ObjectProperty' &&
+        prop.key.type === 'Identifier' &&
+        prop.key.name === 'hideInEditor' &&
+        prop.value.type === 'BooleanLiteral',
+    );
+    if (hideInEditorProp) {
+      hideInEditor = hideInEditorProp.value.value;
+    }
+  }
+
   return {
     name: name || `com.elics.${componentName}`, // fallback to inferred name
     description: description || `EliCS component: ${componentName}`, // fallback to inferred description
     file: filePath.replace(process.cwd(), '.'),
     exportName: componentName,
     schema: schema,
+    hideInEditor,
   };
 }
 

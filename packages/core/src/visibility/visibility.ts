@@ -13,6 +13,8 @@ export const Visibility = createComponent(
     isVisible: { type: Types.Boolean, default: true },
   },
   'Component to control if an entity object is visible',
+  // @ts-ignore - 4th argument is parsed by vite-plugin-metaspatial for XML generation
+  { hideInEditor: true },
 );
 
 function attachToEntity(entity: Entity): void {

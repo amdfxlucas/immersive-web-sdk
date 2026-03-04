@@ -25,6 +25,8 @@ export interface ComponentMetadata {
   schema: Record<string, FieldDefinition>;
   // Indicates origin for naming/cleaning policies
   source?: 'framework' | 'custom';
+  // If true, the component will not be shown in the editor
+  hideInEditor?: boolean;
 }
 
 export interface FieldDefinition {

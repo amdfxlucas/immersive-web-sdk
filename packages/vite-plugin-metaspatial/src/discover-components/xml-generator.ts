@@ -170,10 +170,14 @@ function generateXMLForComponent(
   });
 
   // Add component definition
-  const componentElement = doc
-    .ele('Component')
-    .att('name', componentName)
-    .att('description', description);
+  const componentElement = doc.ele('Component').att('name', componentName);
+
+  // Add hideInEditor attribute if set to true
+  if (component.hideInEditor === true) {
+    componentElement.att('hideInEditor', 'true');
+  }
+
+  componentElement.att('description', description);
 
   // Add attributes based on schema
   Object.entries(component.schema).forEach(([fieldName, fieldDef]) => {
