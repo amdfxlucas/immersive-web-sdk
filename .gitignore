@@ -67,6 +67,7 @@ temp/
 .claude/settings.local.json
 .claude/**/.DS_Store
 .claude/**/*.local.*
+.claude/mcp-feedback.jsonl
 # Example/package .claude dirs are local-only — don't track
 examples/**/.claude/
 packages/**/.claude/

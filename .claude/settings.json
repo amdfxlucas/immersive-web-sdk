@@ -49,5 +49,17 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "iwsdk-dev-mcp"
-  ]
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/iwsdk-stop-check.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
