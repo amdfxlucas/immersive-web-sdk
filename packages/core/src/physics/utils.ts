@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   Vector3,
   Mesh,
@@ -19,7 +20,6 @@ import {
   Quaternion,
 } from '../runtime/index.js';
 import { PhysicsShapeType } from './physicsShape';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const tempVec1 = new Vector3();
 const tempVec2 = new Vector3();

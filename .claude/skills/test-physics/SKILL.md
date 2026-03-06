@@ -1,7 +1,7 @@
 ---
 name: test-physics
-description: "Test Havok physics system (gravity, rigid bodies, static vs dynamic) against the physics example using mcp-call.mjs WebSocket CLI."
-argument-hint: "[--suite gravity|static|force|all]"
+description: 'Test Havok physics system (gravity, rigid bodies, static vs dynamic) against the physics example using mcp-call.mjs WebSocket CLI.'
+argument-hint: '[--suite gravity|static|force|all]'
 ---
 
 # Physics System Test
@@ -11,16 +11,20 @@ Run 5 test suites covering gravity, static body verification, PhysicsBody state,
 All tool calls go through `scripts/mcp-call.mjs` via WebSocket — no MCP server, no permission prompts.
 
 **Configuration:**
+
 - EXAMPLE_DIR: /Users/felixz/Projects/immersive-web-sdk/examples/physics
 - ROOT: /Users/felixz/Projects/immersive-web-sdk
 
 **SHORTHAND**: Throughout this document, `MCPCALL` means:
+
 ```
 node /Users/felixz/Projects/immersive-web-sdk/scripts/mcp-call.mjs --port <PORT>
 ```
+
 where `<PORT>` is the port number discovered in Step 2.
 
 **Tool calling pattern**: Every tool call is a Bash command using the MCPCALL shorthand:
+
 ```
 MCPCALL --tool <TOOL_NAME> --args '<JSON_ARGS>' 2>/dev/null
 ```
@@ -70,6 +74,7 @@ MCPCALL --tool ecs_list_systems 2>/dev/null
 ```
 
 This must return JSON with a list of systems. If it fails:
+
 1. Check the dev server output for errors
 2. Try killing and restarting the server (Step 2)
 3. If it still fails, report FAIL for all suites and skip to Step 5
@@ -94,23 +99,29 @@ Run these commands in order:
 ### Verify Physics Setup
 
 Find all physics bodies:
+
 ```bash
 MCPCALL --tool ecs_find_entities --args '{"withComponents":["PhysicsBody"]}' 2>/dev/null
 ```
+
 Assert: At least 1 entity.
 
 For each entity found, query to identify dynamic vs static:
+
 ```bash
 MCPCALL --tool ecs_query_entity --args '{"entityIndex":<N>,"components":["PhysicsBody"]}' 2>/dev/null
 ```
+
 Check `state` field: `"DYNAMIC"` or `"STATIC"`.
 
 Save the dynamic entity as `<sphere>` and any static entity as `<floor>`.
 
 Verify PhysicsSystem:
+
 ```bash
 MCPCALL --tool ecs_list_systems 2>/dev/null
 ```
+
 Assert: PhysicsSystem at priority -2, `physicsEntities` count >= 1.
 
 ---
@@ -118,10 +129,13 @@ Assert: PhysicsSystem at priority -2, `physicsEntities` count >= 1.
 ### Suite 1: Gravity — Dynamic Body Falls
 
 **Test 1.1: Verify Dynamic Entity Exists**
+
 ```bash
 MCPCALL --tool ecs_query_entity --args '{"entityIndex":<sphere>,"components":["PhysicsBody","Transform"]}' 2>/dev/null
 ```
+
 Assert:
+
 - `state`: `"DYNAMIC"`
 - `_engineBody`: > 0 (Havok body created)
 - `gravityFactor`: 1
@@ -131,26 +145,33 @@ Assert:
 **Test 1.2: Deterministic Gravity Test**
 
 Reset the sphere position, then use pause/step to observe fall:
+
 ```bash
 MCPCALL --tool ecs_pause 2>/dev/null
 ```
+
 ```bash
 MCPCALL --tool ecs_set_component --args '{"entityIndex":<sphere>,"componentId":"Transform","field":"position","value":"[0, 3, -1.5]"}' 2>/dev/null
 ```
+
 ```bash
 MCPCALL --tool ecs_snapshot --args '{"label":"before-fall"}' 2>/dev/null
 ```
+
 ```bash
 MCPCALL --tool ecs_step --args '{"count":50}' 2>/dev/null
 ```
+
 ```bash
 MCPCALL --tool ecs_snapshot --args '{"label":"after-fall"}' 2>/dev/null
 ```
+
 ```bash
 MCPCALL --tool ecs_diff --args '{"from":"before-fall","to":"after-fall"}' 2>/dev/null
 ```
 
 Assert:
+
 - Sphere's `Transform.position[1]` (Y) decreased from `3.0`
 - Only the dynamic sphere entity changed significantly
 
@@ -165,10 +186,13 @@ MCPCALL --tool ecs_resume 2>/dev/null
 **Test 2.1: Static Floor Stays Put**
 
 If a static entity was found during setup:
+
 ```bash
 MCPCALL --tool ecs_query_entity --args '{"entityIndex":<floor>,"components":["PhysicsBody","Transform"]}' 2>/dev/null
 ```
+
 Assert:
+
 - `state`: `"STATIC"`
 - `_linearVelocity`: `[0, 0, 0]`
 - `_angularVelocity`: `[0, 0, 0]`
@@ -180,10 +204,13 @@ Assert:
 ### Suite 3: PhysicsBody State Values
 
 **Test 3.1: Inspect Dynamic Body Fields**
+
 ```bash
 MCPCALL --tool ecs_query_entity --args '{"entityIndex":<sphere>,"components":["PhysicsBody"]}' 2>/dev/null
 ```
+
 Assert:
+
 - `state`: `"DYNAMIC"`
 - `linearDamping`: 0
 - `angularDamping`: 0
@@ -195,20 +222,26 @@ Assert:
 ### Suite 4: System & Component Registration
 
 **Test 4.1: PhysicsSystem at Correct Priority**
+
 ```bash
 MCPCALL --tool ecs_list_systems 2>/dev/null
 ```
+
 Assert:
+
 - PhysicsSystem at priority -2
 - Config keys: `gravity`
 
 **Test 4.2: Physics Components Registered**
+
 ```bash
 MCPCALL --tool ecs_list_components 2>/dev/null
 ```
+
 Assert:
-- `PhysicsBody`: state (Enum), linearDamping (Float32), angularDamping (Float32), gravityFactor (Float32), _linearVelocity (Vec3), _angularVelocity (Vec3), _engineBody (Float64)
-- `PhysicsShape`: shape (Enum), dimensions (Vec3), density (Float32), restitution (Float32), friction (Float32), _engineShape (Float64)
+
+- `PhysicsBody`: state (Enum), linearDamping (Float32), angularDamping (Float32), gravityFactor (Float32), \_linearVelocity (Vec3), \_angularVelocity (Vec3), \_engineBody (Float64)
+- `PhysicsShape`: shape (Enum), dimensions (Vec3), density (Float32), restitution (Float32), friction (Float32), \_engineShape (Float64)
 - `PhysicsManipulation`: force (Vec3), linearVelocity (Vec3), angularVelocity (Vec3)
 
 ---
@@ -218,6 +251,7 @@ Assert:
 ```bash
 MCPCALL --tool browser_get_console_logs --args '{"count":30,"level":["error","warn"]}' 2>/dev/null
 ```
+
 Assert: No application-level errors or warnings. Pre-existing 404 resource errors from page load are acceptable.
 
 ---
@@ -225,6 +259,7 @@ Assert: No application-level errors or warnings. Pre-existing 404 resource error
 ## Step 5: Cleanup & Results
 
 Kill the dev server:
+
 ```bash
 kill $(lsof -t -i :<PORT>) 2>/dev/null
 ```
@@ -248,6 +283,7 @@ If any suite fails, include which assertion failed and actual vs expected values
 ## Recovery
 
 If at any point a transient error occurs (server crash, WebSocket timeout, connection refused, etc.) that is NOT caused by a source code bug:
+
 1. Kill the dev server: `kill $(lsof -t -i :<PORT>) 2>/dev/null`
 2. Restart: re-run Step 2 to start a fresh dev server (port may change)
 3. Re-run the Pre-test Setup (reload, accept session)
@@ -260,16 +296,21 @@ Only give up after one retry attempt per suite. If the same suite fails twice, m
 ## Known Issues & Workarounds
 
 ### Sphere falls immediately
+
 The dynamic sphere starts falling as soon as the Havok body is created. Use `ecs_pause` immediately after reload to catch it, or use the deterministic reset approach.
 
 ### PhysicsManipulation is one-shot
+
 `PhysicsManipulation` is automatically removed after forces are applied in a single frame. You cannot query it after processing.
 
 ### ecs_set_component on Transform doesn't always override physics
+
 While PhysicsSystem is running, it may overwrite your position on the next frame. Use `ecs_pause` before modifying positions.
 
 ### Havok WASM initialization is async
+
 Bodies may not be created on the first frame. The `_engineBody` field transitions from 0 to non-zero once Havok processes the entity.
 
 ### Entity indices change on reload
+
 Never cache entity indices across page reloads. Always re-discover via `ecs_find_entities`.

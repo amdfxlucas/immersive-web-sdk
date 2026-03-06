@@ -6,12 +6,12 @@
  */
 
 import type { Recipe } from '@pmndrs/chef';
-import type { VariantId } from './types.js';
 import {
   DEFAULT_ASSETS_BASE,
   fetchRecipesIndex,
   fetchRecipeByFileName,
 } from './recipes.js';
+import type { VariantId } from './types.js';
 
 /**
  * Directory inside scaffolded projects where SDK package tarballs are stored.
@@ -79,7 +79,9 @@ export interface ResolvedSource {
  */
 function prependBaseUrl(recipe: Recipe, base: string): Recipe {
   const edits = recipe.edits;
-  if (!edits) return recipe;
+  if (!edits) {
+    return recipe;
+  }
 
   const baseWithSlash = base.endsWith('/') ? base : base + '/';
   const newEdits: Record<string, any> = {};
@@ -105,7 +107,9 @@ function prependBaseUrl(recipe: Recipe, base: string): Recipe {
     }
   }
 
-  if (!changed) return recipe;
+  if (!changed) {
+    return recipe;
+  }
   return { ...recipe, edits: newEdits };
 }
 
@@ -160,10 +164,7 @@ export class BundleSource implements ResolvedSource {
   private manifest: BundleManifest | null = null;
 
   constructor(fromFlag: string) {
-    if (
-      !fromFlag.startsWith('http://') &&
-      !fromFlag.startsWith('https://')
-    ) {
+    if (!fromFlag.startsWith('http://') && !fromFlag.startsWith('https://')) {
       throw new Error(
         `--from must be an HTTP or HTTPS URL. Got: "${fromFlag}"`,
       );
@@ -196,15 +197,21 @@ export class BundleSource implements ResolvedSource {
   }
 
   getPackageInstallSpec(name: string): string | undefined {
-    if (!this.manifest) return undefined;
+    if (!this.manifest) {
+      return undefined;
+    }
     const tgzRelPath = this.manifest.packages[name];
-    if (!tgzRelPath) return undefined;
+    if (!tgzRelPath) {
+      return undefined;
+    }
     return `file:${SDK_PACKAGES_DIR}/${this.manifestSubPath(tgzRelPath)}`;
   }
 
   async downloadPackages(destDir: string): Promise<void> {
     if (!this.manifest) {
-      throw new Error('BundleSource.prepare() must be called before downloadPackages()');
+      throw new Error(
+        'BundleSource.prepare() must be called before downloadPackages()',
+      );
     }
 
     const { mkdir, writeFile } = await import('fs/promises');
@@ -249,9 +256,7 @@ export class BundleSource implements ResolvedSource {
    * Resolve a relative path against the remote base URL.
    */
   private resolveUrl(relativePath: string): string {
-    const base = this.baseUrl.endsWith('/')
-      ? this.baseUrl
-      : this.baseUrl + '/';
+    const base = this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/';
     return new URL(relativePath, base).toString();
   }
 
@@ -268,6 +273,8 @@ export class BundleSource implements ResolvedSource {
  * Factory: create the appropriate source based on the --from flag.
  */
 export function resolveSource(fromFlag?: string): ResolvedSource {
-  if (!fromFlag) return new NpmSource();
+  if (!fromFlag) {
+    return new NpmSource();
+  }
   return new BundleSource(fromFlag);
 }

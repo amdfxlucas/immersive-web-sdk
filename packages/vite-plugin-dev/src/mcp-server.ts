@@ -24,7 +24,9 @@ for (let i = 0; i < args.length; i++) {
     if (!isNaN(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
       port = parsedPort;
     } else {
-      console.error(`[IWSDK-MCP] Invalid port: ${args[i + 1]}, using default ${port}`);
+      console.error(
+        `[IWSDK-MCP] Invalid port: ${args[i + 1]}, using default ${port}`,
+      );
     }
     i++;
   } else if (args[i] === '--verbose') {
@@ -904,7 +906,9 @@ export function createTabTracker(): TabTracker {
     const previousTabId = lastTabId;
     const tabChanged =
       previousTabId !== null && tabId != null && tabId !== previousTabId;
-    if (tabId) lastTabId = tabId;
+    if (tabId) {
+      lastTabId = tabId;
+    }
 
     const content: Array<{ type: string; text: string }> = [];
     if (tabChanged) {
@@ -920,9 +924,7 @@ export function createTabTracker(): TabTracker {
           ...(typeof result === 'object' && result !== null
             ? result
             : { value: result }),
-          ...(tabId
-            ? { _tab: { id: tabId, generation: tabGeneration } }
-            : {}),
+          ...(tabId ? { _tab: { id: tabId, generation: tabGeneration } } : {}),
         },
         null,
         2,

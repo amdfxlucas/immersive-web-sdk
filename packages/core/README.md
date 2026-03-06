@@ -71,12 +71,12 @@ For the best development experience, use our Vite plugins:
 npm install -D @iwsdk/vite-plugin-dev @iwsdk/vite-plugin-gltf-optimizer @iwsdk/vite-plugin-uikitml
 ```
 
-| Plugin                              | Description                                      |
-| ----------------------------------- | ------------------------------------------------ |
-| `@iwsdk/vite-plugin-dev`            | XR emulation, AI agent tooling, and dev browser  |
-| `@iwsdk/vite-plugin-gltf-optimizer` | GLTF/GLB optimization during build               |
-| `@iwsdk/vite-plugin-uikitml`        | Compile HTML-like UI templates to spatial UI     |
-| `@iwsdk/vite-plugin-metaspatial`    | Meta Spatial Editor integration                  |
+| Plugin                              | Description                                     |
+| ----------------------------------- | ----------------------------------------------- |
+| `@iwsdk/vite-plugin-dev`            | XR emulation, AI agent tooling, and dev browser |
+| `@iwsdk/vite-plugin-gltf-optimizer` | GLTF/GLB optimization during build              |
+| `@iwsdk/vite-plugin-uikitml`        | Compile HTML-like UI templates to spatial UI    |
+| `@iwsdk/vite-plugin-metaspatial`    | Meta Spatial Editor integration                 |
 
 ## Documentation
 

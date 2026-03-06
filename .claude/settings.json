@@ -47,9 +47,7 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "iwsdk-dev-mcp"
-  ],
+  "enabledMcpjsonServers": ["iwsdk-dev-mcp"],
   "hooks": {
     "Stop": [
       {

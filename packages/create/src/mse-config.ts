@@ -7,8 +7,7 @@
 
 /** TEDI Appcast base URL (Sparkle-format XML) */
 export const MSE_APPCAST_BASE =
-  process.env.IWSDK_MSE_APPCAST_BASE ||
-  'https://www.facebook.com/edt_release';
+  process.env.IWSDK_MSE_APPCAST_BASE || 'https://www.facebook.com/edt_release';
 
 /** App names in TEDI registry (internally called "Cosmo Studio") */
 export const MSE_APP_NAMES = {

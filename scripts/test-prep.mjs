@@ -17,9 +17,26 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const EXAMPLES = join(ROOT, 'examples');
 
-const CLONE_VARIANTS = ['poke-ecs', 'poke-environment', 'poke-level', 'poke-ui'];
-const ALL_DIRS = ['poke', ...CLONE_VARIANTS, 'audio', 'grab', 'locomotion', 'physics'];
-const EXCLUDE = new Set(['node_modules', 'package-lock.json', 'dist', '.mcp.json']);
+const CLONE_VARIANTS = [
+  'poke-ecs',
+  'poke-environment',
+  'poke-level',
+  'poke-ui',
+];
+const ALL_DIRS = [
+  'poke',
+  ...CLONE_VARIANTS,
+  'audio',
+  'grab',
+  'locomotion',
+  'physics',
+];
+const EXCLUDE = new Set([
+  'node_modules',
+  'package-lock.json',
+  'dist',
+  '.mcp.json',
+]);
 
 const command = process.argv[2];
 
@@ -80,8 +97,8 @@ if (command === 'install') {
               resolve({ dir, ok: false, reason: stderr.slice(-200) });
             }
           });
-        })
-    )
+        }),
+    ),
   );
 
   const failed = results.filter((r) => !r.ok);

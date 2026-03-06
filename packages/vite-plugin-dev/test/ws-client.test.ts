@@ -315,7 +315,10 @@ describe('MCPWebSocketClient', () => {
 
       // Now falls through to device.remote.dispatch since browser-side handling was removed
       await vi.waitFor(() => mockDevice.remote.dispatch.mock.calls.length > 0);
-      expect(mockDevice.remote.dispatch).toHaveBeenCalledWith('get_console_logs', { count: 10 });
+      expect(mockDevice.remote.dispatch).toHaveBeenCalledWith(
+        'get_console_logs',
+        { count: 10 },
+      );
     });
 
     test('should handle reload_page locally without calling device.remote.dispatch', async () => {
@@ -435,7 +438,9 @@ describe('MCPWebSocketClient', () => {
 
       // Wait for async message handling to complete and response to be sent
       await vi.waitFor(() => {
-        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(
+          0,
+        );
       });
 
       const sentMessages = mockWebSocketInstance!.getSentMessages();
@@ -463,7 +468,9 @@ describe('MCPWebSocketClient', () => {
 
       // Wait for async message handling to complete and response to be sent
       await vi.waitFor(() => {
-        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(
+          0,
+        );
       });
 
       const sentMessages = mockWebSocketInstance!.getSentMessages();
@@ -671,7 +678,9 @@ describe('MCPWebSocketClient', () => {
       });
 
       await vi.waitFor(() => {
-        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(
+          0,
+        );
       });
 
       const response = JSON.parse(mockWebSocketInstance!.getSentMessages()[0]);
@@ -697,7 +706,9 @@ describe('MCPWebSocketClient', () => {
       });
 
       await vi.waitFor(() => {
-        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(
+          0,
+        );
       });
 
       const response = JSON.parse(mockWebSocketInstance!.getSentMessages()[0]);
@@ -725,7 +736,9 @@ describe('MCPWebSocketClient', () => {
       });
 
       await vi.waitFor(() => {
-        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(0);
+        expect(mockWebSocketInstance!.getSentMessages().length).toBeGreaterThan(
+          0,
+        );
       });
 
       const response = JSON.parse(mockWebSocketInstance!.getSentMessages()[0]);
@@ -768,7 +781,10 @@ describe('MCPWebSocketClient', () => {
       expect(sent.length).toBe(1);
       const response = JSON.parse(sent[0]);
       expect(response.id).toBe('reload-test');
-      expect(response.result).toEqual({ success: true, message: 'Page reload initiated' });
+      expect(response.result).toEqual({
+        success: true,
+        message: 'Page reload initiated',
+      });
 
       // reload should NOT have fired yet (only 0ms elapsed)
       expect(mockReload).not.toHaveBeenCalled();
@@ -795,7 +811,8 @@ describe('MCPWebSocketClient', () => {
 
       // Should have logged connection messages
       const iwerLogs = consoleSpy.mock.calls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('[IWSDK-MCP]'),
+        (call) =>
+          typeof call[0] === 'string' && call[0].includes('[IWSDK-MCP]'),
       );
       expect(iwerLogs.length).toBeGreaterThan(0);
 
@@ -822,10 +839,12 @@ describe('MCPWebSocketClient', () => {
 
       // No [IWSDK-MCP] logs should be present in either log or debug
       const iwerLogCalls = consoleLogSpy.mock.calls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('[IWSDK-MCP]'),
+        (call) =>
+          typeof call[0] === 'string' && call[0].includes('[IWSDK-MCP]'),
       );
       const iwerDebugCalls = consoleDebugSpy.mock.calls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('[IWSDK-MCP]'),
+        (call) =>
+          typeof call[0] === 'string' && call[0].includes('[IWSDK-MCP]'),
       );
       expect(iwerLogCalls).toHaveLength(0);
       expect(iwerDebugCalls).toHaveLength(0);

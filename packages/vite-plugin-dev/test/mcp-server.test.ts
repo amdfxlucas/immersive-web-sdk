@@ -409,7 +409,8 @@ describe('MCP Server Tool Schemas', () => {
       const tool = findTool('xr_set_gamepad_state');
       expect(tool).toBeDefined();
 
-      const buttonIndex = tool!.inputSchema.properties.buttons.items.properties.index;
+      const buttonIndex =
+        tool!.inputSchema.properties.buttons.items.properties.index;
       expect(buttonIndex.description).toContain('0=trigger');
       expect(buttonIndex.description).toContain('1=squeeze');
       expect(buttonIndex.description).toContain('2=thumbstick');

@@ -6,13 +6,12 @@
  */
 
 import {
-  DEFAULT_ANGULAR_DAMPING,
-  DEFAULT_GRAVITY_FACTOR,
-  DEFAULT_LINEAR_DAMPING,
-  PhysicsBody,
-  PhysicsState,
-} from './physicsBody';
-import { PhysicsShape, PhysicsShapeType } from './physicsShape';
+  HavokPhysicsWithBindings,
+  HP_ShapeId,
+  HP_WorldId,
+  MassProperties,
+  MotionType,
+} from '@babylonjs/havok';
 import { createSystem, Entity, ne, Pressed, Types } from '.././index.js';
 import {
   Vector3,
@@ -23,14 +22,15 @@ import {
   Object3D,
 } from '../runtime/three.js';
 import {
-  HavokPhysicsWithBindings,
-  HP_ShapeId,
-  HP_WorldId,
-  MassProperties,
-  MotionType,
-} from '@babylonjs/havok';
-import { detectShapeFromGeometry, generateMergedGeometry } from './utils';
+  DEFAULT_ANGULAR_DAMPING,
+  DEFAULT_GRAVITY_FACTOR,
+  DEFAULT_LINEAR_DAMPING,
+  PhysicsBody,
+  PhysicsState,
+} from './physicsBody';
 import { PhysicsManipulation } from './physicsManipulation';
+import { PhysicsShape, PhysicsShapeType } from './physicsShape';
+import { detectShapeFromGeometry, generateMergedGeometry } from './utils';
 
 /**
  * Manages physics simulation using the Havok physics engine.

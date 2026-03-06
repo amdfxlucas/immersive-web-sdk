@@ -11,7 +11,6 @@ import { Signal, signal } from '@preact/signals-core';
 import { AnyComponent, World as ElicsWorld } from 'elics';
 import { AssetManager } from '../asset/index.js';
 // Environment is driven by components/systems; no world helpers
-import type { MCPRuntime } from '../mcp/index.js';
 import {
   WorldOptions,
   initializeWorld,
@@ -19,6 +18,7 @@ import {
   launchXR,
 } from '../init/index.js';
 import { LevelTag } from '../level/index.js';
+import type { MCPRuntime } from '../mcp/index.js';
 import type { Object3DEventMap } from '../runtime/index.js';
 import {
   Material,

@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import type { Recipe } from '@pmndrs/chef';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   resolveSource,
@@ -13,7 +14,6 @@ import {
   SDK_PACKAGES_DIR,
 } from '../src/source.js';
 import type { BundleManifest } from '../src/source.js';
-import type { Recipe } from '@pmndrs/chef';
 
 describe('resolveSource', () => {
   it('returns NpmSource when no flag given', () => {
@@ -133,7 +133,8 @@ describe('BundleSource', () => {
     sdkVersion: '0.1.0',
     packages: {
       '@iwsdk/core': 'packages/core/iwsdk-core.tgz',
-      '@iwsdk/starter-assets': 'packages/starter-assets/iwsdk-starter-assets.tgz',
+      '@iwsdk/starter-assets':
+        'packages/starter-assets/iwsdk-starter-assets.tgz',
     },
   };
 
@@ -352,7 +353,11 @@ describe('BundleSource.downloadPackages', () => {
     vi.unstubAllGlobals();
   });
 
-  function mockFetchResponse(body: string | ArrayBuffer, ok = true, status = 200) {
+  function mockFetchResponse(
+    body: string | ArrayBuffer,
+    ok = true,
+    status = 200,
+  ) {
     return {
       ok,
       status,
@@ -395,11 +400,17 @@ describe('BundleSource.downloadPackages', () => {
 
     // Verify files were created in the correct subdirectories
     const fs = await import('fs');
-    expect(fs.existsSync(path.join(tmpDir, 'core', 'iwsdk-core.tgz'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'glxf', 'iwsdk-glxf.tgz'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'core', 'iwsdk-core.tgz'))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(tmpDir, 'glxf', 'iwsdk-glxf.tgz'))).toBe(
+      true,
+    );
 
     // Verify content
-    const content = await fsp.readFile(path.join(tmpDir, 'core', 'iwsdk-core.tgz'));
+    const content = await fsp.readFile(
+      path.join(tmpDir, 'core', 'iwsdk-core.tgz'),
+    );
     expect(content).toEqual(Buffer.from(new Uint8Array([1, 2, 3, 4])));
 
     // Cleanup

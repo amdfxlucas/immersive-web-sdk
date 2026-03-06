@@ -64,8 +64,6 @@ entities:
     - components:
         com.iwsdk.components.DistanceGrabbable:
           movementMode: 0
-        com.iwsdk.components.Interactable:
-          {}
         com.iwsdk.components.PhysicsBody:
           {}
         com.iwsdk.components.PhysicsShape:
@@ -74,6 +72,8 @@ entities:
             - 1
             - 1
             - 1
+        com.iwsdk.components.RayInteractable:
+          {}
         com.meta.components.Animatable:
           {}
         com.meta.components.DocumentReference:
@@ -105,13 +105,13 @@ entities:
     - components:
         com.iwsdk.components.DistanceGrabbable:
           movementMode: 0
-        com.iwsdk.components.Interactable:
-          {}
         com.iwsdk.components.PhysicsBody:
           linearDamping: 1
           gravityFactor: 2
         com.iwsdk.components.PhysicsShape:
           restitution: 0
+        com.iwsdk.components.RayInteractable:
+          {}
         com.meta.components.Animatable:
           {}
         com.meta.components.DocumentReference:
@@ -138,7 +138,7 @@ entities:
     - components:
         com.iwsdk.components.DistanceGrabbable:
           movementMode: 0
-        com.iwsdk.components.Interactable:
+        com.iwsdk.components.RayInteractable:
           {}
         com.meta.components.Animatable:
           {}
@@ -169,4 +169,4 @@ entities:
           visible: true
       tag: robot
 metadata:
-  version: 1.34
+  version: 1.35

@@ -29,7 +29,9 @@ let originalUpdate: ((delta: number, time: number) => void) | null = null;
 let hookedWorld: World | null = null;
 
 export function installDebugHook(world: World): void {
-  if (hookedWorld === world) return; // already installed
+  if (hookedWorld === world) {
+    return;
+  } // already installed
 
   originalUpdate = world.update.bind(world);
   hookedWorld = world;
@@ -193,27 +195,39 @@ function safeSerialize(
   depth: number = 0,
   seen: WeakSet<object> = new WeakSet(),
 ): unknown {
-  if (value === null || value === undefined) return value;
+  if (value === null || value === undefined) {
+    return value;
+  }
 
   const type = typeof value;
-  if (type === 'number' || type === 'boolean') return value;
+  if (type === 'number' || type === 'boolean') {
+    return value;
+  }
   if (type === 'string') {
     return (value as string).length > MAX_STRING_LENGTH
       ? (value as string).slice(0, MAX_STRING_LENGTH) + '...'
       : value;
   }
-  if (type === 'function') return '<function>';
+  if (type === 'function') {
+    return '<function>';
+  }
 
-  if (type !== 'object') return String(value);
+  if (type !== 'object') {
+    return String(value);
+  }
 
   const obj = value as Record<string, unknown>;
 
   // Circular reference check
-  if (seen.has(obj)) return '<circular>';
+  if (seen.has(obj)) {
+    return '<circular>';
+  }
   seen.add(obj);
 
   // Depth limit
-  if (depth >= MAX_DEPTH) return '<object>';
+  if (depth >= MAX_DEPTH) {
+    return '<object>';
+  }
 
   // TypedArray
   if (ArrayBuffer.isView(obj) && 'length' in obj) {
@@ -228,16 +242,24 @@ function safeSerialize(
 
   // Array
   if (Array.isArray(obj)) {
-    return obj.slice(0, MAX_TYPED_ARRAY_ELEMENTS).map((item) =>
-      safeSerialize(item, depth + 1, seen),
-    );
+    return obj
+      .slice(0, MAX_TYPED_ARRAY_ELEMENTS)
+      .map((item) => safeSerialize(item, depth + 1, seen));
   }
 
   // Three.js sentinel detection — return type tag instead of full object
-  if ((obj as any).isObject3D) return `<Object3D:${(obj as any).name || (obj as any).type || 'unnamed'}>`;
-  if ((obj as any).isMaterial) return `<Material:${(obj as any).type || 'unknown'}>`;
-  if ((obj as any).isTexture) return `<Texture:${(obj as any).name || 'unnamed'}>`;
-  if ((obj as any).isBufferGeometry) return `<BufferGeometry>`;
+  if ((obj as any).isObject3D) {
+    return `<Object3D:${(obj as any).name || (obj as any).type || 'unnamed'}>`;
+  }
+  if ((obj as any).isMaterial) {
+    return `<Material:${(obj as any).type || 'unknown'}>`;
+  }
+  if ((obj as any).isTexture) {
+    return `<Texture:${(obj as any).name || 'unnamed'}>`;
+  }
+  if ((obj as any).isBufferGeometry) {
+    return `<BufferGeometry>`;
+  }
 
   // Plain object
   const result: Record<string, unknown> = {};
@@ -268,7 +290,9 @@ function serializeComponentValue(
   const raw = (entity as any).getValue(component, key);
 
   if (type === 'Entity') {
-    if (raw === null) return null;
+    if (raw === null) {
+      return null;
+    }
     const ref = raw as import('elics').Entity;
     return {
       entityIndex: ref.index,
@@ -443,7 +467,9 @@ export function ecsFindEntities(
 
   for (let i = 0; i < lookup.length; i++) {
     const entity = lookup[i];
-    if (!entity || !entity.active) continue;
+    if (!entity || !entity.active) {
+      continue;
+    }
 
     // Check required components
     let match = true;
@@ -453,7 +479,9 @@ export function ecsFindEntities(
         break;
       }
     }
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     // Check excluded components
     for (const comp of excludedComponents) {
@@ -462,12 +490,16 @@ export function ecsFindEntities(
         break;
       }
     }
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     // Check name pattern
     if (nameRegex) {
       const name = entity.object3D?.name;
-      if (!name || !nameRegex.test(name)) continue;
+      if (!name || !nameRegex.test(name)) {
+        continue;
+      }
     }
 
     totalMatches++;
@@ -747,7 +779,9 @@ export function ecsSnapshot(
 
   for (let i = 0; i < lookup.length; i++) {
     const entity = lookup[i];
-    if (!entity || !entity.active) continue;
+    if (!entity || !entity.active) {
+      continue;
+    }
 
     const comps = entity.getComponents();
     const components: Record<string, Record<string, unknown>> = {};

@@ -39,9 +39,7 @@ import { installDependenciesFromBundle } from '../src/installer.js';
 import crossSpawn from 'cross-spawn';
 
 /** Create a fake ResolvedSource that maps known packages to file: paths */
-function makeFakeSource(
-  packageMap: Record<string, string>,
-): ResolvedSource {
+function makeFakeSource(packageMap: Record<string, string>): ResolvedSource {
   return {
     isBundleMode: true,
     prepare: async () => {},
@@ -165,9 +163,9 @@ describe('installDependenciesFromBundle', () => {
       '@iwsdk/core': 'file:.sdk-packages/core/iwsdk-core.tgz',
     });
 
-    await expect(
-      installDependenciesFromBundle(tmpDir, source),
-    ).rejects.toThrow('Install failed');
+    await expect(installDependenciesFromBundle(tmpDir, source)).rejects.toThrow(
+      'Install failed',
+    );
 
     // file: path should still be in package.json (no restore)
     const pkg = JSON.parse(await fsp.readFile(pkgPath, 'utf-8'));

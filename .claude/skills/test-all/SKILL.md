@@ -1,7 +1,7 @@
 ---
 name: test-all
-description: "Parallel test orchestrator. Runs all 9 test suites concurrently via Task sub-agents and mcp-call.mjs. Handles build, example setup, dev servers, agent launch, polling, retries, and result aggregation."
-argument-hint: "[--skip <test-name>] [--only <test-name>]"
+description: 'Parallel test orchestrator. Runs all 9 test suites concurrently via Task sub-agents and mcp-call.mjs. Handles build, example setup, dev servers, agent launch, polling, retries, and result aggregation.'
+argument-hint: '[--skip <test-name>] [--only <test-name>]'
 ---
 
 # Test All — Parallel Orchestrator
@@ -14,17 +14,17 @@ Each test gets its own example directory and dev server. Sub-agents read the ski
 
 ## Test Map
 
-| Agent | Example Dir | Suites | Skill File |
-|-------|------------|--------|------------|
-| test-interactions | examples/poke | 12 | test-interactions/SKILL.md |
-| test-ecs-core | examples/poke-ecs | 8 | test-ecs-core/SKILL.md |
-| test-environment | examples/poke-environment | 6 | test-environment/SKILL.md |
-| test-level | examples/poke-level | 5 | test-level/SKILL.md |
-| test-ui | examples/poke-ui | 5 | test-ui/SKILL.md |
-| test-audio | examples/audio | 6 | test-audio/SKILL.md |
-| test-grab | examples/grab | 5 | test-grab/SKILL.md |
-| test-locomotion | examples/locomotion | 6 | test-locomotion/SKILL.md |
-| test-physics | examples/physics | 5 | test-physics/SKILL.md |
+| Agent             | Example Dir               | Suites | Skill File                 |
+| ----------------- | ------------------------- | ------ | -------------------------- |
+| test-interactions | examples/poke             | 12     | test-interactions/SKILL.md |
+| test-ecs-core     | examples/poke-ecs         | 8      | test-ecs-core/SKILL.md     |
+| test-environment  | examples/poke-environment | 6      | test-environment/SKILL.md  |
+| test-level        | examples/poke-level       | 5      | test-level/SKILL.md        |
+| test-ui           | examples/poke-ui          | 5      | test-ui/SKILL.md           |
+| test-audio        | examples/audio            | 6      | test-audio/SKILL.md        |
+| test-grab         | examples/grab             | 5      | test-grab/SKILL.md         |
+| test-locomotion   | examples/locomotion       | 6      | test-locomotion/SKILL.md   |
+| test-physics      | examples/physics          | 5      | test-physics/SKILL.md      |
 
 Ports are **not** pre-assigned. Each dev server picks its own port dynamically. The orchestrator discovers each port from the server's log output.
 
@@ -89,6 +89,7 @@ The output is JSON with the port map: `{"poke": 8084, "poke-ecs": 8082, ...}`. P
 If any server fails to start within 60 seconds, the script reports which ones are missing and exits with code 1. Check `/tmp/iwsdk-dev-<name>.log` for errors.
 
 To re-check ports later without restarting:
+
 ```bash
 node scripts/test-servers.mjs ports
 ```
@@ -205,18 +206,23 @@ If any test failed, include the failure details from that agent's output.
 ## Key Design Decisions
 
 ### Orchestrator manages dev servers, sub-agents run tests
+
 Sub-agents (Task tool) cannot run background processes. The orchestrator starts all 9 dev servers, discovers their dynamically-assigned ports from the log output, then launches sub-agents that only execute the test steps. Each sub-agent reads its skill file and starts from Step 3 (Verify Connectivity).
 
 ### Dynamic port discovery via `.mcp.json`
+
 Ports are NOT pre-assigned. Each dev server is started with `npm run dev` and Vite picks an available port automatically. The `iwsdkDev` vite plugin writes the actual port into each example's `.mcp.json` file. The orchestrator reads these files to discover ports — this is machine-generated JSON, more robust than parsing log output.
 
 ### Sub-agents read skill files directly
+
 Each sub-agent reads its SKILL.md at runtime. No extraction or text munging needed — the sub-agent is told to skip Steps 1-2 (already done) and start from Step 3. The port is passed explicitly in the prompt.
 
 ### TaskOutput vs file-based polling
+
 Background Task agents write output to a file. Use `Read` tool on the output_file to check progress. This is more reliable than parsing process stdout.
 
 ### Boolean values must be JSON booleans
+
 When setting boolean fields via `ecs_set_component`, the `value` must be a JSON boolean (`true`), not a string (`"true"`). Strings silently fail to coerce.
 
 ---
@@ -224,19 +230,25 @@ When setting boolean fields via `ecs_set_component`, the `value` must be a JSON 
 ## Troubleshooting
 
 ### Agent finishes but no summary table
+
 The sub-agent may have hit its turn limit. Check the end of its output for truncation. Relaunch with the same prompt.
 
 ### Port already in use
+
 Run `lsof -i :<PORT>` to find the process. Kill it before relaunching.
 
 ### fresh:install fails
+
 Check that `pnpm build:tgz` succeeded and the tarballs exist in the package directories.
 
 ### All agents stuck at "Verify Connectivity"
+
 The dev servers may not have started. Check `/tmp/iwsdk-dev-*.log` for errors.
 
 ### Clone directory already exists
+
 The rsync command will overwrite existing files. If you need a clean slate, delete the clone directories first.
 
 ### Sub-agent can't start dev server
+
 This is expected — sub-agents cannot run background processes. The orchestrator must start all dev servers before launching sub-agents.

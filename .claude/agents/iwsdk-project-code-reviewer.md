@@ -42,20 +42,21 @@ Check `World.create()` for feature misconfiguration:
 // ❌ CRITICAL BUG - Locomotion without collision geometry
 World.create(container, {
   features: {
-    locomotion: true,  // Player will fall through the world!
-  }
+    locomotion: true, // Player will fall through the world!
+  },
 });
 
 // ✅ CORRECT - Locomotion with proper environment
 World.create(container, {
   features: {
     locomotion: true,
-    physics: true,  // Or scene has LocomotionEnvironment
-  }
+    physics: true, // Or scene has LocomotionEnvironment
+  },
 });
 ```
 
 **What to check:**
+
 - If `locomotion: true`, verify scene has `LocomotionEnvironment` component OR physics collision
 - If `physics: true`, verify entities have `PhysicsBody` + `PhysicsShape` components
 - If `grabbing: true`, verify entities have Grabbable components
@@ -114,6 +115,7 @@ update() {
 ```
 
 **What to look for in update():**
+
 - `new Vector3()`, `new Quaternion()`, `new Matrix4()`, `new Euler()`
 - Array literals `[]` or object literals `{}`
 - `.clone()` calls
@@ -191,14 +193,14 @@ Use proper types, avoid `Types.Object`.
 ```typescript
 // ❌ BAD - Using Object type
 const MyComponent = createComponent('MyComponent', {
-  data: { type: Types.Object, default: {} }  // Not optimized
+  data: { type: Types.Object, default: {} }, // Not optimized
 });
 
 // ✅ GOOD - Use specific types
 const MyComponent = createComponent('MyComponent', {
   speed: { type: Types.Float32, default: 1.0 },
   position: { type: Types.Vec3, default: [0, 0, 0] },
-  color: { type: Types.Color, default: [1, 1, 1, 1] }  // RGBA
+  color: { type: Types.Color, default: [1, 1, 1, 1] }, // RGBA
 });
 ```
 
@@ -209,7 +211,7 @@ These are separate components with different purposes.
 ```typescript
 // PhysicsBody = motion properties
 entity.addComponent(PhysicsBody, {
-  state: PhysicsState.Dynamic,  // or Static, Kinematic
+  state: PhysicsState.Dynamic, // or Static, Kinematic
   linearDamping: 0.5,
   gravityFactor: 1.0,
 });
@@ -218,7 +220,7 @@ entity.addComponent(PhysicsBody, {
 entity.addComponent(PhysicsShape, {
   shape: PhysicsShapeType.Box,
   density: 1.0,
-  restitution: 0.5,  // Bounciness
+  restitution: 0.5, // Bounciness
   friction: 0.3,
 });
 ```
@@ -241,10 +243,10 @@ Check PlaybackMode usage.
 
 ```typescript
 // Available PlaybackMode values:
-PlaybackMode.Restart      // Stop current, restart
-PlaybackMode.Overlap      // Play new instance
-PlaybackMode.Ignore       // Ignore if playing
-PlaybackMode.FadeRestart  // Fade out, start new
+PlaybackMode.Restart; // Stop current, restart
+PlaybackMode.Overlap; // Play new instance
+PlaybackMode.Ignore; // Ignore if playing
+PlaybackMode.FadeRestart; // Fade out, start new
 ```
 
 ### 11. Three.js Import Check (CRITICAL)
@@ -261,6 +263,7 @@ import { Vector3, Mesh, MeshStandardMaterial } from '@iwsdk/core';
 ```
 
 **Exception:** GLTF loader types can come from three/addons:
+
 ```typescript
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 ```
@@ -420,27 +423,33 @@ Only report issues you're confident about:
 ## IWSDK Project Code Review
 
 ### Project Overview
+
 - Entry point: [file]
 - Systems: [list]
 - Components: [list]
 - Features enabled: [list from World.create]
 
 ### Critical Issues
+
 - **[filename:line]** Issue description
   - Problem: `current code`
   - Fix: `suggested fix`
 
 ### Warnings
+
 - **[filename:line]** Issue description
 
 ### Suggestions
+
 - **[filename:line]** Improvement suggestion
 
 ### Feature Configuration Analysis
+
 - locomotion: [enabled/disabled] - [assessment]
 - physics: [enabled/disabled] - [assessment]
 - grabbing: [enabled/disabled] - [assessment]
 
 ### Summary
+
 [Brief summary of overall code quality and key recommendations]
 ```

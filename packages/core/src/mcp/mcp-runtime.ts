@@ -6,7 +6,6 @@
  */
 
 import type { World } from '../ecs/world.js';
-import { getSceneHierarchy, getObjectTransform } from './scene-tools.js';
 import {
   installDebugHook,
   ecsPause,
@@ -21,6 +20,7 @@ import {
   ecsSnapshot,
   ecsDiff,
 } from './ecs-debug-tools.js';
+import { getSceneHierarchy, getObjectTransform } from './scene-tools.js';
 
 const SUPPORTED_METHODS = [
   'get_scene_hierarchy',

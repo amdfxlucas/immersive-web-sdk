@@ -24,7 +24,11 @@ describe('createRelayHandler', () => {
     const clientB = createMockWs();
     const clients = new Set<RelayWebSocket>([sender, clientA, clientB]);
 
-    const request = JSON.stringify({ id: '1', method: 'get_transform', params: {} });
+    const request = JSON.stringify({
+      id: '1',
+      method: 'get_transform',
+      params: {},
+    });
     relay.onMessage(sender, request, clients);
 
     // Sender should NOT receive its own request
@@ -42,7 +46,11 @@ describe('createRelayHandler', () => {
     const clients = new Set<RelayWebSocket>([mcpServer, tab1, tab2]);
 
     // MCP server sends request
-    const request = JSON.stringify({ id: '42', method: 'get_session_status', params: {} });
+    const request = JSON.stringify({
+      id: '42',
+      method: 'get_session_status',
+      params: {},
+    });
     relay.onMessage(mcpServer, request, clients);
     expect(relay.pendingCount()).toBe(1);
 

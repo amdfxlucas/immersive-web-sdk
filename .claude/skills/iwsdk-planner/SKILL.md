@@ -10,6 +10,7 @@ You are an expert IWSDK (Immersive Web SDK) architect. Apply these patterns and 
 ## Core Architecture
 
 IWSDK is built on three pillars:
+
 1. **ECS (Entity Component System)** via `elics` library
 2. **Reactive Signals** via `@preact/signals-core`
 3. **Three.js Integration** with zero-copy transform binding (super-three v0.181.0)
@@ -22,18 +23,22 @@ Systems should NOT store arrays of entities or maintain entity references. Use q
 
 ```typescript
 // ❌ BAD - Storing entity references
-export class BadSystem extends createSystem({ items: { required: [MyComponent] } }) {
-  private myEntities: Entity[] = [];  // DON'T DO THIS
+export class BadSystem extends createSystem({
+  items: { required: [MyComponent] },
+}) {
+  private myEntities: Entity[] = []; // DON'T DO THIS
 
   init() {
     this.queries.items.subscribe('qualify', (entity) => {
-      this.myEntities.push(entity);  // BAD: manually tracking entities
+      this.myEntities.push(entity); // BAD: manually tracking entities
     });
   }
 }
 
 // ✅ GOOD - Use queries for entity access
-export class GoodSystem extends createSystem({ items: { required: [MyComponent] } }) {
+export class GoodSystem extends createSystem({
+  items: { required: [MyComponent] },
+}) {
   update() {
     // Query always gives current matching entities
     for (const entity of this.queries.items.entities) {
@@ -51,7 +56,7 @@ Instead of polling or storing state, react to entity lifecycle events:
 
 ```typescript
 export class ReactiveSystem extends createSystem({
-  interactables: { required: [Interactable, Transform] }
+  interactables: { required: [Interactable, Transform] },
 }) {
   init() {
     // React when entities enter the query
@@ -77,15 +82,15 @@ export class MySystem extends createSystem(
   {},
   {
     speed: { type: Types.Float32, default: 5.0 },
-    jumpHeight: { type: Types.Float32, default: 2.0 }
-  }
+    jumpHeight: { type: Types.Float32, default: 2.0 },
+  },
 ) {
   init() {
     // Subscribe to config changes reactively
     this.cleanupFuncs.push(
       this.config.speed.subscribe((newSpeed) => {
         console.log('Speed changed:', newSpeed);
-      })
+      }),
     );
   }
 
@@ -120,20 +125,20 @@ gamePausedSignal.value = !gamePausedSignal.value;
 ```typescript
 import { Types } from '@iwsdk/core';
 
-Types.Float32   // 32-bit float
-Types.Float64   // 64-bit float (for physics engine refs)
-Types.Int8      // 8-bit signed integer
-Types.Int16     // 16-bit signed integer
-Types.Int32     // 32-bit signed integer
-Types.Uint32    // 32-bit unsigned integer
-Types.Boolean   // true/false
-Types.String    // text
-Types.Vec3      // [x, y, z] - 3 floats
-Types.Vec4      // [x, y, z, w] - 4 floats (quaternions)
-Types.Color     // [r, g, b, a] - 4 floats (RGBA)
-Types.Entity    // Reference to another entity
-Types.Enum      // Enumerated value
-Types.Object    // Any JS object (avoid if possible - not optimized)
+Types.Float32; // 32-bit float
+Types.Float64; // 64-bit float (for physics engine refs)
+Types.Int8; // 8-bit signed integer
+Types.Int16; // 16-bit signed integer
+Types.Int32; // 32-bit signed integer
+Types.Uint32; // 32-bit unsigned integer
+Types.Boolean; // true/false
+Types.String; // text
+Types.Vec3; // [x, y, z] - 3 floats
+Types.Vec4; // [x, y, z, w] - 4 floats (quaternions)
+Types.Color; // [r, g, b, a] - 4 floats (RGBA)
+Types.Entity; // Reference to another entity
+Types.Enum; // Enumerated value
+Types.Object; // Any JS object (avoid if possible - not optimized)
 ```
 
 ### 5. Component Design Patterns
@@ -147,7 +152,7 @@ export const Interactable = createComponent('Interactable', {}, '');
 // Data component with proper types
 export const Health = createComponent('Health', {
   current: { type: Types.Float32, default: 100 },
-  max: { type: Types.Float32, default: 100 }
+  max: { type: Types.Float32, default: 100 },
 });
 
 // With enums
@@ -155,19 +160,19 @@ export const State = createComponent('State', {
   mode: {
     type: Types.Enum,
     enum: { Idle: 'idle', Moving: 'moving', Attacking: 'attacking' },
-    default: 'idle'
-  }
+    default: 'idle',
+  },
 });
 
 // With vectors (stored as TypedArrays for performance)
 export const Velocity = createComponent('Velocity', {
   linear: { type: Types.Vec3, default: [0, 0, 0] },
-  angular: { type: Types.Vec3, default: [0, 0, 0] }
+  angular: { type: Types.Vec3, default: [0, 0, 0] },
 });
 
 // With colors (RGBA, 4 components)
 export const Tint = createComponent('Tint', {
-  color: { type: Types.Color, default: [1, 1, 1, 1] }
+  color: { type: Types.Color, default: [1, 1, 1, 1] },
 });
 ```
 
@@ -181,23 +186,20 @@ export class DamageSystem extends createSystem({
   // With exclusions
   vulnerableEnemies: {
     required: [Enemy, Health],
-    excluded: [Invulnerable, Shield]
+    excluded: [Invulnerable, Shield],
   },
 
   // With value filters
   lowHealth: {
     required: [Health],
-    where: [lt(Health, 'current', 20)]
+    where: [lt(Health, 'current', 20)],
   },
 
   // Complex filters
   activeBosses: {
     required: [Boss, Health],
-    where: [
-      gt(Health, 'current', 0),
-      eq(State, 'mode', 'attacking')
-    ]
-  }
+    where: [gt(Health, 'current', 0), eq(State, 'mode', 'attacking')],
+  },
 }) {}
 
 // Available filter operators: eq, ne, lt, le, gt, ge, isin, nin
@@ -280,35 +282,36 @@ update() {
 ```
 
 **InputComponent Enum:**
+
 ```typescript
 import { InputComponent } from '@iwsdk/core';
 
-InputComponent.Trigger     // 'xr-standard-trigger'
-InputComponent.Squeeze     // 'xr-standard-squeeze'
-InputComponent.Touchpad    // 'xr-standard-touchpad'
-InputComponent.Thumbstick  // 'xr-standard-thumbstick'
-InputComponent.A_Button    // 'a-button'
-InputComponent.B_Button    // 'b-button'
-InputComponent.X_Button    // 'x-button'
-InputComponent.Y_Button    // 'y-button'
-InputComponent.Thumbrest   // 'thumbrest'
-InputComponent.Menu        // 'menu'
+InputComponent.Trigger; // 'xr-standard-trigger'
+InputComponent.Squeeze; // 'xr-standard-squeeze'
+InputComponent.Touchpad; // 'xr-standard-touchpad'
+InputComponent.Thumbstick; // 'xr-standard-thumbstick'
+InputComponent.A_Button; // 'a-button'
+InputComponent.B_Button; // 'b-button'
+InputComponent.X_Button; // 'x-button'
+InputComponent.Y_Button; // 'y-button'
+InputComponent.Thumbrest; // 'thumbrest'
+InputComponent.Menu; // 'menu'
 ```
 
 ### 9. Player/XROrigin Access (Critical)
 
 ```typescript
 // Accessing player spatial hierarchy in a system
-this.player              // XROrigin (Group) - VR rig root
-this.player.head         // Head tracking (viewer pose)
-this.player.raySpaces.left   // Left controller ray origin
-this.player.raySpaces.right  // Right controller ray origin
-this.player.gripSpaces.left  // Left controller grip position
-this.player.gripSpaces.right // Right controller grip position
-this.player.secondaryRaySpaces.left   // Secondary left ray
-this.player.secondaryRaySpaces.right  // Secondary right ray
-this.player.secondaryGripSpaces.left  // Secondary left grip
-this.player.secondaryGripSpaces.right // Secondary right grip
+this.player; // XROrigin (Group) - VR rig root
+this.player.head; // Head tracking (viewer pose)
+this.player.raySpaces.left; // Left controller ray origin
+this.player.raySpaces.right; // Right controller ray origin
+this.player.gripSpaces.left; // Left controller grip position
+this.player.gripSpaces.right; // Right controller grip position
+this.player.secondaryRaySpaces.left; // Secondary left ray
+this.player.secondaryRaySpaces.right; // Secondary right ray
+this.player.secondaryGripSpaces.left; // Secondary left grip
+this.player.secondaryGripSpaces.right; // Secondary right grip
 
 // Getting world positions
 const headPos = new Vector3();
@@ -321,12 +324,18 @@ this.player.gripSpaces.right.getWorldPosition(rightHandPos);
 ### 10. Audio System
 
 ```typescript
-import { AudioSource, PlaybackMode, AudioUtils, InstanceStealPolicy, DistanceModel } from '@iwsdk/core';
+import {
+  AudioSource,
+  PlaybackMode,
+  AudioUtils,
+  InstanceStealPolicy,
+  DistanceModel,
+} from '@iwsdk/core';
 
 // Adding audio to an entity
 entity.addComponent(AudioSource, {
   src: 'audio/click.mp3',
-  positional: true,          // 3D spatial audio
+  positional: true, // 3D spatial audio
   loop: false,
   autoplay: false,
   volume: 0.5,
@@ -342,35 +351,39 @@ AudioUtils.play(entity);
 ```
 
 **PlaybackMode:**
+
 ```typescript
-PlaybackMode.Restart      // Stop current and restart
-PlaybackMode.Overlap      // Always start new instance
-PlaybackMode.Ignore       // Ignore if already playing
-PlaybackMode.FadeRestart  // Fade out current, start new
+PlaybackMode.Restart; // Stop current and restart
+PlaybackMode.Overlap; // Always start new instance
+PlaybackMode.Ignore; // Ignore if already playing
+PlaybackMode.FadeRestart; // Fade out current, start new
 ```
 
 **InstanceStealPolicy:**
+
 ```typescript
-InstanceStealPolicy.Oldest    // Steal oldest instance
-InstanceStealPolicy.Quietest  // Steal quietest instance
-InstanceStealPolicy.Furthest  // Steal furthest instance
+InstanceStealPolicy.Oldest; // Steal oldest instance
+InstanceStealPolicy.Quietest; // Steal quietest instance
+InstanceStealPolicy.Furthest; // Steal furthest instance
 ```
 
 **DistanceModel:**
+
 ```typescript
-DistanceModel.Linear       // Linear falloff
-DistanceModel.Inverse      // Inverse falloff
-DistanceModel.Exponential  // Exponential falloff
+DistanceModel.Linear; // Linear falloff
+DistanceModel.Inverse; // Inverse falloff
+DistanceModel.Exponential; // Exponential falloff
 ```
 
 ### 11. Physics System
 
 **PhysicsBody - motion properties:**
+
 ```typescript
 import { PhysicsBody, PhysicsState } from '@iwsdk/core';
 
 entity.addComponent(PhysicsBody, {
-  state: PhysicsState.Dynamic,  // Static, Dynamic, Kinematic
+  state: PhysicsState.Dynamic, // Static, Dynamic, Kinematic
   linearDamping: 0.0,
   angularDamping: 0.0,
   gravityFactor: 1.0,
@@ -379,40 +392,48 @@ entity.addComponent(PhysicsBody, {
 ```
 
 **PhysicsState:**
+
 ```typescript
-PhysicsState.Static    // Immovable (walls, floors)
-PhysicsState.Dynamic   // Affected by physics
-PhysicsState.Kinematic // Moved by code, affects others
+PhysicsState.Static; // Immovable (walls, floors)
+PhysicsState.Dynamic; // Affected by physics
+PhysicsState.Kinematic; // Moved by code, affects others
 ```
 
 **PhysicsShape - collision shape AND material properties:**
+
 ```typescript
 import { PhysicsShape, PhysicsShapeType } from '@iwsdk/core';
 
 entity.addComponent(PhysicsShape, {
-  shape: PhysicsShapeType.Auto,  // Auto-detect from geometry
-  dimensions: [0, 0, 0],         // Shape-specific dimensions
-  density: 1.0,                  // Affects mass
-  restitution: 0.0,              // Bounciness (0-1)
-  friction: 0.5,                 // Sliding behavior
+  shape: PhysicsShapeType.Auto, // Auto-detect from geometry
+  dimensions: [0, 0, 0], // Shape-specific dimensions
+  density: 1.0, // Affects mass
+  restitution: 0.0, // Bounciness (0-1)
+  friction: 0.5, // Sliding behavior
 });
 ```
 
 **PhysicsShapeType:**
+
 ```typescript
-PhysicsShapeType.Sphere     // dimensions[0] = radius
-PhysicsShapeType.Box        // dimensions = [width, height, depth]
-PhysicsShapeType.Cylinder   // dimensions[0] = radius, dimensions[1] = height
-PhysicsShapeType.Capsules   // dimensions[0] = radius, dimensions[1] = height
-PhysicsShapeType.ConvexHull // Convex wrapper around mesh
-PhysicsShapeType.TriMesh    // Exact mesh geometry (expensive)
-PhysicsShapeType.Auto       // Auto-detect from Three.js geometry
+PhysicsShapeType.Sphere; // dimensions[0] = radius
+PhysicsShapeType.Box; // dimensions = [width, height, depth]
+PhysicsShapeType.Cylinder; // dimensions[0] = radius, dimensions[1] = height
+PhysicsShapeType.Capsules; // dimensions[0] = radius, dimensions[1] = height
+PhysicsShapeType.ConvexHull; // Convex wrapper around mesh
+PhysicsShapeType.TriMesh; // Exact mesh geometry (expensive)
+PhysicsShapeType.Auto; // Auto-detect from Three.js geometry
 ```
 
 ### 12. Grabbable Components
 
 ```typescript
-import { OneHandGrabbable, TwoHandsGrabbable, DistanceGrabbable, MovementMode } from '@iwsdk/core';
+import {
+  OneHandGrabbable,
+  TwoHandsGrabbable,
+  DistanceGrabbable,
+  MovementMode,
+} from '@iwsdk/core';
 
 // Basic single-hand grab
 entity.addComponent(OneHandGrabbable, {});
@@ -442,40 +463,45 @@ entity.addComponent(DistanceGrabbable, {
   translate: true,
   scale: true,
   movementMode: MovementMode.MoveTowardsTarget, // MoveTowardsTarget | MoveAtSource | RotateAtSource | MoveFromTarget
-  returnToOrigin: false,  // Snap back when released
-  moveSpeed: 0.1,         // Speed for MoveTowardsTarget mode
+  returnToOrigin: false, // Snap back when released
+  moveSpeed: 0.1, // Speed for MoveTowardsTarget mode
 });
 ```
 
 ### 13. Environment/Lighting
 
 ```typescript
-import { DomeGradient, DomeTexture, IBLGradient, IBLTexture } from '@iwsdk/core';
+import {
+  DomeGradient,
+  DomeTexture,
+  IBLGradient,
+  IBLTexture,
+} from '@iwsdk/core';
 
 // Gradient sky dome (RGBA colors - 4 components)
 entity.addComponent(DomeGradient, {
-  sky: [0.2423, 0.6172, 0.8308, 1.0],      // RGBA
-  equator: [0.6584, 0.7084, 0.7913, 1.0],  // RGBA
-  ground: [0.807, 0.7758, 0.7454, 1.0],    // RGBA
+  sky: [0.2423, 0.6172, 0.8308, 1.0], // RGBA
+  equator: [0.6584, 0.7084, 0.7913, 1.0], // RGBA
+  ground: [0.807, 0.7758, 0.7454, 1.0], // RGBA
   intensity: 1.0,
 });
 
 // HDR texture sky
 entity.addComponent(DomeTexture, {
-  url: '/textures/sky.hdr'
+  url: '/textures/sky.hdr',
 });
 
 // Image-based lighting from gradient
 entity.addComponent(IBLGradient, {
-  sky: [0.6902, 0.749, 0.7843, 1.0],       // RGBA
-  equator: [0.6584, 0.7084, 0.7913, 1.0],  // RGBA
-  ground: [0.807, 0.7758, 0.7454, 1.0],    // RGBA
+  sky: [0.6902, 0.749, 0.7843, 1.0], // RGBA
+  equator: [0.6584, 0.7084, 0.7913, 1.0], // RGBA
+  ground: [0.807, 0.7758, 0.7454, 1.0], // RGBA
   intensity: 1.0,
 });
 
 // IBL from texture
 entity.addComponent(IBLTexture, {
-  src: 'room',  // or URL to HDR
+  src: 'room', // or URL to HDR
   intensity: 1.0,
   rotation: [0, 0, 0],
 });
@@ -484,6 +510,7 @@ entity.addComponent(IBLTexture, {
 **Critical Environment Usage Notes:**
 
 1. **Environment components MUST be added to the level root entity**, not arbitrary entities. The `EnvironmentSystem` queries require `LevelRoot`:
+
    ```typescript
    // ❌ BAD - Added to a random entity (silently ignored)
    someEntity.addComponent(DomeGradient, { ... });
@@ -494,15 +521,17 @@ entity.addComponent(IBLTexture, {
    ```
 
 2. **After changing environment properties, MUST set `_needsUpdate: true`** — changes are silently ignored without it:
+
    ```typescript
    root.setValue(DomeGradient, 'sky', [0.1, 0.2, 0.8, 1.0]);
-   root.setValue(DomeGradient, '_needsUpdate', true);  // Required!
+   root.setValue(DomeGradient, '_needsUpdate', true); // Required!
    ```
 
 3. **Background vs IBL are separate**: `DomeTexture`/`DomeGradient` controls the visible sky. `IBLTexture`/`IBLGradient` controls scene lighting (reflections, ambient). You can mix them:
+
    ```typescript
    root.addComponent(DomeTexture, { src: '/envs/sky.hdr', intensity: 0.9 });
-   root.addComponent(IBLTexture, { src: 'room', intensity: 1.2 });  // Lighting only
+   root.addComponent(IBLTexture, { src: 'room', intensity: 1.2 }); // Lighting only
    ```
 
 4. **In AR sessions**, backgrounds (dome) are automatically hidden but IBL remains active for realistic lighting on virtual objects.
@@ -514,11 +543,19 @@ import { AssetManager, AssetType } from '@iwsdk/core';
 
 const world = await World.create(container, {
   assets: {
-    myModel: { url: '/models/scene.glb', type: AssetType.GLTF, priority: 'critical' },
-    mySound: { url: '/audio/click.mp3', type: AssetType.Audio, priority: 'background' },
+    myModel: {
+      url: '/models/scene.glb',
+      type: AssetType.GLTF,
+      priority: 'critical',
+    },
+    mySound: {
+      url: '/audio/click.mp3',
+      type: AssetType.Audio,
+      priority: 'background',
+    },
     myTexture: { url: '/textures/wood.jpg', type: AssetType.Texture },
     myHDR: { url: '/textures/env.hdr', type: AssetType.HDRTexture },
-  }
+  },
 });
 
 // Access preloaded assets
@@ -528,11 +565,12 @@ const audio = AssetManager.getAudio('mySound');
 ```
 
 **AssetType Enum:**
+
 ```typescript
-AssetType.GLTF        // 3D models
-AssetType.Audio       // Sound files
-AssetType.Texture     // Images
-AssetType.HDRTexture  // HDR environment maps
+AssetType.GLTF; // 3D models
+AssetType.Audio; // Sound files
+AssetType.Texture; // Images
+AssetType.HDRTexture; // HDR environment maps
 ```
 
 ### 15. VisibilityState
@@ -540,10 +578,10 @@ AssetType.HDRTexture  // HDR environment maps
 ```typescript
 import { VisibilityState } from '@iwsdk/core';
 
-VisibilityState.NonImmersive   // Browser mode (no XR)
-VisibilityState.Hidden         // XR but not rendering
-VisibilityState.Visible        // Full XR experience
-VisibilityState.VisibleBlurred // XR but focus lost
+VisibilityState.NonImmersive; // Browser mode (no XR)
+VisibilityState.Hidden; // XR but not rendering
+VisibilityState.Visible; // Full XR experience
+VisibilityState.VisibleBlurred; // XR but focus lost
 
 this.world.visibilityState.subscribe((state) => {
   switch (state) {
@@ -567,8 +605,8 @@ Configure frame rate and foveation when the XR session becomes visible:
 ```typescript
 this.world.visibilityState.subscribe((state) => {
   if (state === VisibilityState.Visible) {
-    this.world.session?.updateTargetFrameRate(72);  // Request 72 FPS
-    this.world.renderer.xr.setFoveation(1);          // Max foveation for performance
+    this.world.session?.updateTargetFrameRate(72); // Request 72 FPS
+    this.world.renderer.xr.setFoveation(1); // Max foveation for performance
   }
 });
 ```
@@ -591,17 +629,18 @@ locomotion.config.jumpHeight.value = 1.5;
 locomotion.config.jumpCooldown.value = 0.1;
 locomotion.config.maxDropDistance.value = 5.0;
 locomotion.config.useWorker.value = true;
-locomotion.config.jumpButton.value = InputComponent.A_Button;  // Button that triggers jump
-locomotion.config.enableJumping.value = true;   // Enable/disable jumping entirely
-locomotion.config.initialPlayerPosition.value = [0, 0, 0];  // Starting position
+locomotion.config.jumpButton.value = InputComponent.A_Button; // Button that triggers jump
+locomotion.config.enableJumping.value = true; // Enable/disable jumping entirely
+locomotion.config.initialPlayerPosition.value = [0, 0, 0]; // Starting position
 ```
 
 **EnvironmentType** (used with `LocomotionEnvironment` component):
+
 ```typescript
 import { EnvironmentType } from '@iwsdk/core';
 
-EnvironmentType.STATIC     // Fixed geometry (walls, floors) — default
-EnvironmentType.KINEMATIC  // Moving platforms (elevators, conveyors)
+EnvironmentType.STATIC; // Fixed geometry (walls, floors) — default
+EnvironmentType.KINEMATIC; // Moving platforms (elevators, conveyors)
 ```
 
 ### 17. Scene Understanding (AR)
@@ -613,18 +652,18 @@ import { XRPlane, XRMesh, XRAnchor } from '@iwsdk/core';
 World.create(container, {
   xr: {
     sessionMode: SessionMode.ImmersiveAR,
-    features: { planeDetection: true, meshDetection: true }
+    features: { planeDetection: true, meshDetection: true },
   },
   features: {
-    sceneUnderstanding: true
-  }
+    sceneUnderstanding: true,
+  },
 });
 
 // Query detected planes/meshes
 export class MyARSystem extends createSystem({
   planes: { required: [XRPlane] },
   meshes: { required: [XRMesh] },
-  anchors: { required: [XRAnchor] }
+  anchors: { required: [XRAnchor] },
 }) {
   init() {
     this.queries.planes.subscribe('qualify', (entity) => {
@@ -641,14 +680,14 @@ export class MyARSystem extends createSystem({
 
 #### Feature Decision Matrix
 
-| Feature | Enable When | Prerequisites | If Missing |
-|---------|-------------|---------------|------------|
-| `locomotion` | Player needs to move (teleport/slide) | Collision geometry in scene (floor, walls) | **Player falls through world** |
-| `physics` | Objects need dynamic simulation | PhysicsShape + PhysicsBody components | Wasted overhead |
-| `grabbing` | Objects are grabbable | Grabbable components on entities | Wasted overhead |
-| `sceneUnderstanding` | AR with real-world surfaces | AR session mode | Feature won't work |
-| `environmentRaycast` | AR object placement | AR session + hit-test support | Feature won't work |
-| `spatialUI` | Using PanelUI components | UI config files | No UI renders |
+| Feature              | Enable When                           | Prerequisites                              | If Missing                     |
+| -------------------- | ------------------------------------- | ------------------------------------------ | ------------------------------ |
+| `locomotion`         | Player needs to move (teleport/slide) | Collision geometry in scene (floor, walls) | **Player falls through world** |
+| `physics`            | Objects need dynamic simulation       | PhysicsShape + PhysicsBody components      | Wasted overhead                |
+| `grabbing`           | Objects are grabbable                 | Grabbable components on entities           | Wasted overhead                |
+| `sceneUnderstanding` | AR with real-world surfaces           | AR session mode                            | Feature won't work             |
+| `environmentRaycast` | AR object placement                   | AR session + hit-test support              | Feature won't work             |
+| `spatialUI`          | Using PanelUI components              | UI config files                            | No UI renders                  |
 
 #### Locomotion Requires Environment Setup
 
@@ -656,25 +695,25 @@ export class MyARSystem extends createSystem({
 // ❌ BAD - Locomotion enabled but no collision geometry
 const world = await World.create(container, {
   features: {
-    locomotion: true,  // Player will fall through the floor!
-  }
+    locomotion: true, // Player will fall through the floor!
+  },
 });
 
 // ✅ GOOD - Locomotion with proper environment
 const world = await World.create(container, {
-  level: '/glxf/SceneWithFloor.glxf',  // Scene has collision meshes
+  level: '/glxf/SceneWithFloor.glxf', // Scene has collision meshes
   features: {
     locomotion: true,
-    physics: true,  // Physics provides collision detection
-  }
+    physics: true, // Physics provides collision detection
+  },
 });
 
 // ✅ GOOD - Static experience, no locomotion needed
 const world = await World.create(container, {
   features: {
-    locomotion: false,  // Player stays at origin
-    grabbing: true,     // Can still interact with objects
-  }
+    locomotion: false, // Player stays at origin
+    grabbing: true, // Can still interact with objects
+  },
 });
 ```
 
@@ -685,24 +724,24 @@ const world = await World.create(container, {
 const vrWorld = await World.create(container, {
   xr: { sessionMode: SessionMode.ImmersiveVR },
   features: {
-    locomotion: true,   // Move around virtual space
+    locomotion: true, // Move around virtual space
     grabbing: true,
     physics: true,
-  }
+  },
 });
 
 // AR Experience - player moves physically, no virtual locomotion
 const arWorld = await World.create(container, {
   xr: {
     sessionMode: SessionMode.ImmersiveAR,
-    features: { planeDetection: true, hitTest: true }
+    features: { planeDetection: true, hitTest: true },
   },
   features: {
-    locomotion: false,        // Player walks in real world
+    locomotion: false, // Player walks in real world
     sceneUnderstanding: true, // Detect real surfaces
     environmentRaycast: true, // Place objects on surfaces
     grabbing: true,
-  }
+  },
 });
 ```
 
@@ -716,8 +755,8 @@ const world = await World.create(container, {
     fov: 50,
     near: 0.1,
     far: 200,
-    defaultLighting: true,  // Auto-creates DomeGradient + IBLGradient on level roots
-    stencil: false,         // Enable stencil buffer if needed
+    defaultLighting: true, // Auto-creates DomeGradient + IBLGradient on level roots
+    stencil: false, // Enable stencil buffer if needed
   },
 
   assets: {
@@ -731,12 +770,12 @@ const world = await World.create(container, {
     referenceSpaceType: 'local-floor',
     requiredFeatures: ['hand-tracking'],
     optionalFeatures: ['plane-detection'],
-    offer: 'once',  // 'none' | 'once' | 'always' (default: 'always')
+    offer: 'once', // 'none' | 'once' | 'always' (default: 'always')
   },
 
   // Enable feature systems - ONLY what you need!
   features: {
-    locomotion: true,  // Only if scene has collision geometry
+    locomotion: true, // Only if scene has collision geometry
     // OR object form:
     // locomotion: {
     //   useWorker: true,
@@ -745,17 +784,17 @@ const world = await World.create(container, {
     //   turningMethod: TurningMethod.SnapTurn,
     //   enableJumping: true,
     // },
-    grabbing: true,    // Only if objects are grabbable
+    grabbing: true, // Only if objects are grabbable
     // OR object form: grabbing: { useHandPinchForGrab: true },
-    physics: true,     // Only if using dynamic physics
-    sceneUnderstanding: true,  // OR: { showWireFrame: true }
-    environmentRaycast: true,  // AR hit-test against real-world surfaces
-    camera: true,      // Camera video access (requires XR session)
+    physics: true, // Only if using dynamic physics
+    sceneUnderstanding: true, // OR: { showWireFrame: true }
+    environmentRaycast: true, // AR hit-test against real-world surfaces
+    camera: true, // Camera video access (requires XR session)
     spatialUI: {
       forwardHtmlEvents: true,
-      preferredColorScheme: 'dark'
-    }
-  }
+      preferredColorScheme: 'dark',
+    },
+  },
 });
 
 // Register custom systems
@@ -798,8 +837,8 @@ world
 ```typescript
 // Create entity with Object3D binding
 const entity = world.createTransformEntity(mesh, {
-  parent: parentEntity,      // Optional parent
-  persistent: false          // false = destroyed with level
+  parent: parentEntity, // Optional parent
+  persistent: false, // false = destroyed with level
 });
 
 // Transform component automatically syncs with Object3D (zero-copy)
@@ -810,7 +849,7 @@ entity.setValue(Transform, 'position', [0, 1, 0]);
 
 // Get vector view for efficient updates
 const posView = entity.getVectorView(Transform, 'position');
-posView[0] += delta;  // Direct array write
+posView[0] += delta; // Direct array write
 ```
 
 ### 21. Panel UI Pattern
@@ -819,8 +858,8 @@ posView[0] += delta;  // Direct array write
 export class SettingsSystem extends createSystem({
   settingsPanel: {
     required: [PanelUI, PanelDocument],
-    where: [eq(PanelUI, 'config', './ui/settings.json')]
-  }
+    where: [eq(PanelUI, 'config', './ui/settings.json')],
+  },
 }) {
   init() {
     this.queries.settingsPanel.subscribe('qualify', (entity) => {
@@ -828,7 +867,7 @@ export class SettingsSystem extends createSystem({
       const button = doc.getElementById('my-button');
 
       button.addEventListener('click', () => {
-        AudioUtils.play(entity);  // Audio feedback
+        AudioUtils.play(entity); // Audio feedback
       });
     });
 
@@ -851,14 +890,14 @@ import { EnvironmentRaycastTarget, RaycastSpace } from '@iwsdk/core';
 // Reticle that follows right controller ray
 const reticle = world.createTransformEntity(reticleMesh);
 reticle.addComponent(EnvironmentRaycastTarget, {
-  space: RaycastSpace.Right,  // Ray source
-  maxDistance: 100,            // Max raycast distance in meters
+  space: RaycastSpace.Right, // Ray source
+  maxDistance: 100, // Max raycast distance in meters
 });
 
 // For phone AR: tap-to-place (uses screen touch)
 const marker = world.createTransformEntity(markerMesh);
 marker.addComponent(EnvironmentRaycastTarget, {
-  space: RaycastSpace.Screen,  // Tracks screen touch
+  space: RaycastSpace.Screen, // Tracks screen touch
 });
 
 // Read hit-test result (e.g., to spawn an object on trigger press)
@@ -869,11 +908,12 @@ if (xrResult && gamepad?.getSelectStart()) {
 ```
 
 **RaycastSpace:**
+
 ```typescript
-RaycastSpace.Left    // Left controller's target ray
-RaycastSpace.Right   // Right controller's target ray (default)
-RaycastSpace.Viewer  // Head/gaze direction
-RaycastSpace.Screen  // Phone AR screen touch (tap-to-place)
+RaycastSpace.Left; // Left controller's target ray
+RaycastSpace.Right; // Right controller's target ray (default)
+RaycastSpace.Viewer; // Head/gaze direction
+RaycastSpace.Screen; // Phone AR screen touch (tap-to-place)
 ```
 
 **Prerequisites:** `features: { environmentRaycast: true }` and `xr.features: { hitTest: true }` in AR session mode.
@@ -886,20 +926,21 @@ Makes an entity follow another Object3D (typically the player's head for head-lo
 import { Follower, FollowBehavior } from '@iwsdk/core';
 
 entity.addComponent(Follower, {
-  target: world.player.head,         // Must be an Object3D
-  offsetPosition: [0, -0.2, -0.8],  // Offset in target's local space
-  behavior: FollowBehavior.PivotY,   // Rotation behavior
-  maxAngle: 30,                      // Degrees before snapping forward
-  tolerance: 0.4,                    // Meters of positional slack
-  speed: 1,                          // Lerp speed
+  target: world.player.head, // Must be an Object3D
+  offsetPosition: [0, -0.2, -0.8], // Offset in target's local space
+  behavior: FollowBehavior.PivotY, // Rotation behavior
+  maxAngle: 30, // Degrees before snapping forward
+  tolerance: 0.4, // Meters of positional slack
+  speed: 1, // Lerp speed
 });
 ```
 
 **FollowBehavior:**
+
 ```typescript
-FollowBehavior.FaceTarget   // Fully face the target
-FollowBehavior.PivotY       // Only rotate around Y axis (default)
-FollowBehavior.NoRotation   // Follow position only, no rotation
+FollowBehavior.FaceTarget; // Fully face the target
+FollowBehavior.PivotY; // Only rotate around Y axis (default)
+FollowBehavior.NoRotation; // Follow position only, no rotation
 ```
 
 **Note:** `target` must be an `Object3D` instance (e.g., `world.player.head`), not an entity.
@@ -909,14 +950,19 @@ FollowBehavior.NoRotation   // Follow position only, no rotation
 Access device camera video as a texture. Useful for mixed reality effects or photo capture.
 
 ```typescript
-import { CameraSource, CameraFacing, CameraState, CameraUtils } from '@iwsdk/core';
+import {
+  CameraSource,
+  CameraFacing,
+  CameraState,
+  CameraUtils,
+} from '@iwsdk/core';
 
 // Add camera to an entity
 entity.addComponent(CameraSource, {
   // Input fields (user-configurable)
-  deviceId: '',                      // Empty = auto-select based on facing
-  facing: CameraFacing.Back,         // Preferred camera direction
-  width: 1920,                       // Requested resolution
+  deviceId: '', // Empty = auto-select based on facing
+  facing: CameraFacing.Back, // Preferred camera direction
+  width: 1920, // Requested resolution
   height: 1080,
   frameRate: 30,
 });
@@ -928,21 +974,24 @@ entity.addComponent(CameraSource, {
 ```
 
 **CameraFacing:**
+
 ```typescript
-CameraFacing.Back     // Rear-facing camera
-CameraFacing.Front    // Front-facing (selfie) camera
-CameraFacing.Unknown  // Any available camera (default)
+CameraFacing.Back; // Rear-facing camera
+CameraFacing.Front; // Front-facing (selfie) camera
+CameraFacing.Unknown; // Any available camera (default)
 ```
 
 **CameraState:**
+
 ```typescript
-CameraState.Inactive  // Not started
-CameraState.Starting  // Async initialization in progress
-CameraState.Active    // Stream running
-CameraState.Error     // Failed to start
+CameraState.Inactive; // Not started
+CameraState.Starting; // Async initialization in progress
+CameraState.Active; // Stream running
+CameraState.Error; // Failed to start
 ```
 
 **CameraUtils** static class:
+
 ```typescript
 // List available cameras (requests permission on first call)
 const devices = await CameraUtils.getDevices();
@@ -985,17 +1034,18 @@ update() {
 `ScreenSpace` positions a `PanelUI` entity relative to the screen in non-XR (browser) mode.
 
 **All position/size values are CSS strings**, not numbers:
+
 ```typescript
 import { ScreenSpace } from '@iwsdk/core';
 
 entity.addComponent(ScreenSpace, {
-  width: '400px',       // CSS size: '400px', '50vw', 'auto'
-  height: '300px',      // CSS size: '300px', '40vh', 'auto'
-  top: '20px',          // CSS position or 'auto'
-  left: '20px',         // CSS position or 'auto'
+  width: '400px', // CSS size: '400px', '50vw', 'auto'
+  height: '300px', // CSS size: '300px', '40vh', 'auto'
+  top: '20px', // CSS position or 'auto'
+  left: '20px', // CSS position or 'auto'
   bottom: 'auto',
   right: 'auto',
-  zOffset: 0.2,         // Distance in meters from camera near plane (NOT CSS)
+  zOffset: 0.2, // Distance in meters from camera near plane (NOT CSS)
 });
 ```
 
@@ -1035,68 +1085,68 @@ These are useful when you need to position an object in world space but it's nes
 
 ```typescript
 // Level root helpers on World:
-world.getActiveRoot()       // Returns active level's Object3D (or scene)
-world.getPersistentRoot()   // Returns the scene Object3D
+world.getActiveRoot(); // Returns active level's Object3D (or scene)
+world.getPersistentRoot(); // Returns the scene Object3D
 ```
 
 ## Core Components Reference (30 Total)
 
-| Component | Purpose |
-|-----------|---------|
-| Transform | Position, rotation, scale |
-| Visibility | Show/hide objects |
-| LevelTag | Marks level membership |
-| LevelRoot | Level root marker |
-| Interactable | Marks interactive objects |
-| Hovered | Currently hovered |
-| Pressed | Currently pressed/grabbed |
-| OneHandGrabbable | Single-hand manipulation |
-| TwoHandsGrabbable | Two-hand manipulation |
-| DistanceGrabbable | Grab from distance |
-| Handle | Manipulation handle |
-| PhysicsBody | Physics motion properties |
-| PhysicsShape | Collision shape + material |
-| PhysicsManipulation | Force/velocity application |
-| DomeGradient | Gradient sky |
-| DomeTexture | Textured sky |
-| IBLGradient | Gradient IBL lighting |
-| IBLTexture | Texture IBL lighting |
-| PanelUI | UI panel configuration |
-| PanelDocument | Loaded UI document |
-| ScreenSpace | Screen-attached UI |
-| Follower | Object following |
-| XRPlane | Detected AR planes |
-| XRMesh | Detected AR meshes |
-| XRAnchor | Spatial anchors |
-| AudioSource | Audio configuration |
-| CameraSource | Camera device |
-| DepthOccludable | Depth-based occlusion for AR |
-| LocomotionEnvironment | Locomotion settings |
+| Component                | Purpose                        |
+| ------------------------ | ------------------------------ |
+| Transform                | Position, rotation, scale      |
+| Visibility               | Show/hide objects              |
+| LevelTag                 | Marks level membership         |
+| LevelRoot                | Level root marker              |
+| Interactable             | Marks interactive objects      |
+| Hovered                  | Currently hovered              |
+| Pressed                  | Currently pressed/grabbed      |
+| OneHandGrabbable         | Single-hand manipulation       |
+| TwoHandsGrabbable        | Two-hand manipulation          |
+| DistanceGrabbable        | Grab from distance             |
+| Handle                   | Manipulation handle            |
+| PhysicsBody              | Physics motion properties      |
+| PhysicsShape             | Collision shape + material     |
+| PhysicsManipulation      | Force/velocity application     |
+| DomeGradient             | Gradient sky                   |
+| DomeTexture              | Textured sky                   |
+| IBLGradient              | Gradient IBL lighting          |
+| IBLTexture               | Texture IBL lighting           |
+| PanelUI                  | UI panel configuration         |
+| PanelDocument            | Loaded UI document             |
+| ScreenSpace              | Screen-attached UI             |
+| Follower                 | Object following               |
+| XRPlane                  | Detected AR planes             |
+| XRMesh                   | Detected AR meshes             |
+| XRAnchor                 | Spatial anchors                |
+| AudioSource              | Audio configuration            |
+| CameraSource             | Camera device                  |
+| DepthOccludable          | Depth-based occlusion for AR   |
+| LocomotionEnvironment    | Locomotion settings            |
 | EnvironmentRaycastTarget | AR environment hit-test target |
 
 ## Core Systems Reference (19 Total)
 
-| System | Priority | Purpose |
-|--------|----------|---------|
-| LocomotionSystem | -5 | Movement (teleport/slide/turn) |
-| InputSystem | -4 | Interactable state management |
-| GrabSystem | -3 | Grab handling |
-| PhysicsSystem | -2 | Physics simulation |
-| SceneUnderstandingSystem | -1 | AR plane/mesh detection |
-| EnvironmentRaycastSystem | -1 | AR environment raycasting |
-| CameraSystem | default | Camera access |
-| LevelSystem | default | Level loading |
-| EnvironmentSystem | default | Lighting/sky |
-| AudioSystem | default | Spatial audio |
-| TransformSystem | default | Transform sync |
-| VisibilitySystem | default | Visibility sync |
-| PanelUISystem | default | UI panels |
-| ScreenSpaceUISystem | default | Screen UI |
-| FollowSystem | default | Object following |
-| TurnSystem | default | Rotation |
-| TeleportSystem | default | Teleportation |
-| SlideSystem | default | Smooth movement |
-| DepthSensingSystem | default | Depth occlusion for AR |
+| System                   | Priority | Purpose                        |
+| ------------------------ | -------- | ------------------------------ |
+| LocomotionSystem         | -5       | Movement (teleport/slide/turn) |
+| InputSystem              | -4       | Interactable state management  |
+| GrabSystem               | -3       | Grab handling                  |
+| PhysicsSystem            | -2       | Physics simulation             |
+| SceneUnderstandingSystem | -1       | AR plane/mesh detection        |
+| EnvironmentRaycastSystem | -1       | AR environment raycasting      |
+| CameraSystem             | default  | Camera access                  |
+| LevelSystem              | default  | Level loading                  |
+| EnvironmentSystem        | default  | Lighting/sky                   |
+| AudioSystem              | default  | Spatial audio                  |
+| TransformSystem          | default  | Transform sync                 |
+| VisibilitySystem         | default  | Visibility sync                |
+| PanelUISystem            | default  | UI panels                      |
+| ScreenSpaceUISystem      | default  | Screen UI                      |
+| FollowSystem             | default  | Object following               |
+| TurnSystem               | default  | Rotation                       |
+| TeleportSystem           | default  | Teleportation                  |
+| SlideSystem              | default  | Smooth movement                |
+| DepthSensingSystem       | default  | Depth occlusion for AR         |
 
 ### Custom System Priority Guidelines
 
@@ -1110,6 +1160,7 @@ Priority 30+:    Low-priority updates (UI, HUD, ambient effects)
 ```
 
 Example:
+
 ```typescript
 world
   .registerSystem(PlayerInputSystem, { priority: 0 })
@@ -1148,44 +1199,53 @@ Before writing custom code, check if IWSDK already provides the functionality. R
 
 ### Reinvention Risk Table
 
-| What you might build from scratch | What IWSDK already provides |
-|---|---|
-| GLTF loading with GLTFLoader | `AssetManager.loadGLTF()` or `AssetManifest` in `World.create()` |
-| Ray/line mesh for controller pointing | `RayPointer` — cylinder + gradient shader + cursor circle (auto) |
-| Hover/click detection with Raycaster | `Interactable` + `Hovered` + `Pressed` components |
-| Custom skybox sphere | `DomeGradient` or `DomeTexture` component |
-| PBR environment lighting | `IBLGradient` or `IBLTexture` component |
-| Teleport arc + landing marker | `LocomotionSystem` — full visuals included |
-| Comfort vignette for motion | `LocomotionSystem` — `comfortAssist` config |
-| Controller 3D models | Auto-loaded from WebXR Input Profiles |
-| Hand tracking meshes | `AnimatedHand` with skeletal mesh + outline |
-| Object grab + manipulation | `OneHandGrabbable` / `TwoHandsGrabbable` / `DistanceGrabbable` |
-| Hit-test against real world | `EnvironmentRaycastTarget` component |
-| Spatial audio | `AudioSource` component with pooling |
-| Camera feed texture | `CameraSource` component |
-| Depth occlusion shader | `DepthOccludable` component |
-| HUD / screen-space UI | `ScreenSpace` component with CSS units |
-| Follow-head billboard | `Follower` component |
-| Scene cleanup on level change | `LevelSystem` + `LevelTag` (automatic) |
-| Gamepad button debouncing | `StatefulGamepad` — `getButtonDown()` / `getButtonUp()` |
-| Manual GPU cleanup with traverse | `entity.dispose()` — destroys entity + cleans up geometry/materials/textures |
-| Manual world-space positioning | `setWorldPosition()` / `setWorldQuaternion()` utilities |
-| Manual XR hit-test setup | `EnvironmentRaycastTarget` component + `EnvironmentRaycastSystem` |
-| Manual camera video feed | `CameraSource` component + `CameraUtils` static class |
+| What you might build from scratch     | What IWSDK already provides                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| GLTF loading with GLTFLoader          | `AssetManager.loadGLTF()` or `AssetManifest` in `World.create()`             |
+| Ray/line mesh for controller pointing | `RayPointer` — cylinder + gradient shader + cursor circle (auto)             |
+| Hover/click detection with Raycaster  | `Interactable` + `Hovered` + `Pressed` components                            |
+| Custom skybox sphere                  | `DomeGradient` or `DomeTexture` component                                    |
+| PBR environment lighting              | `IBLGradient` or `IBLTexture` component                                      |
+| Teleport arc + landing marker         | `LocomotionSystem` — full visuals included                                   |
+| Comfort vignette for motion           | `LocomotionSystem` — `comfortAssist` config                                  |
+| Controller 3D models                  | Auto-loaded from WebXR Input Profiles                                        |
+| Hand tracking meshes                  | `AnimatedHand` with skeletal mesh + outline                                  |
+| Object grab + manipulation            | `OneHandGrabbable` / `TwoHandsGrabbable` / `DistanceGrabbable`               |
+| Hit-test against real world           | `EnvironmentRaycastTarget` component                                         |
+| Spatial audio                         | `AudioSource` component with pooling                                         |
+| Camera feed texture                   | `CameraSource` component                                                     |
+| Depth occlusion shader                | `DepthOccludable` component                                                  |
+| HUD / screen-space UI                 | `ScreenSpace` component with CSS units                                       |
+| Follow-head billboard                 | `Follower` component                                                         |
+| Scene cleanup on level change         | `LevelSystem` + `LevelTag` (automatic)                                       |
+| Gamepad button debouncing             | `StatefulGamepad` — `getButtonDown()` / `getButtonUp()`                      |
+| Manual GPU cleanup with traverse      | `entity.dispose()` — destroys entity + cleans up geometry/materials/textures |
+| Manual world-space positioning        | `setWorldPosition()` / `setWorldQuaternion()` utilities                      |
+| Manual XR hit-test setup              | `EnvironmentRaycastTarget` component + `EnvironmentRaycastSystem`            |
+| Manual camera video feed              | `CameraSource` component + `CameraUtils` static class                        |
 
 ### Asset Loading (AssetManager)
 
 **Always use AssetManager** — never use raw `GLTFLoader`, `TextureLoader`, etc. AssetManager handles DRACO/KTX2 decoder setup, caching, and de-duplication automatically.
 
 **Manifest pattern (preload at startup):**
+
 ```typescript
 const world = await World.create(container, {
   assets: {
-    myModel: { url: '/models/scene.glb', type: AssetType.GLTF, priority: 'critical' },
-    mySound: { url: '/audio/click.mp3', type: AssetType.Audio, priority: 'background' },
+    myModel: {
+      url: '/models/scene.glb',
+      type: AssetType.GLTF,
+      priority: 'critical',
+    },
+    mySound: {
+      url: '/audio/click.mp3',
+      type: AssetType.Audio,
+      priority: 'background',
+    },
     myTexture: { url: '/textures/wood.jpg', type: AssetType.Texture },
     myHDR: { url: '/textures/env.hdr', type: AssetType.HDRTexture },
-  }
+  },
 });
 
 // Retrieve preloaded assets (synchronous — already loaded)
@@ -1195,10 +1255,14 @@ const audio = AssetManager.getAudio('mySound');
 ```
 
 **Runtime loading (on-demand):**
+
 ```typescript
 // Load at runtime when not known at startup
 const gltf = await AssetManager.loadGLTF('/models/dynamic.glb', 'dynamicModel');
-const texture = await AssetManager.loadTexture('/textures/new.jpg', 'newTexture');
+const texture = await AssetManager.loadTexture(
+  '/textures/new.jpg',
+  'newTexture',
+);
 ```
 
 **Supported AssetTypes:** `GLTF`, `Audio`, `Texture`, `HDRTexture`
@@ -1214,7 +1278,7 @@ const entity = world.createTransformEntity(mesh, parentEntity);
 // With options object
 const entity = world.createTransformEntity(mesh, {
   parent: parentEntity,
-  persistent: false,  // false (default) = destroyed when level changes
+  persistent: false, // false (default) = destroyed when level changes
 });
 
 // Persistent entity — survives level changes
@@ -1225,6 +1289,7 @@ const hud = world.createTransformEntity(hudMesh, {
 ```
 
 **Level lifecycle:**
+
 - Entities with `LevelTag` are automatically destroyed when `world.loadLevel()` is called
 - Non-persistent entities created via `createTransformEntity` automatically get `LevelTag`
 - Use `persistent: true` for entities that should survive level transitions (HUDs, audio managers, etc.)
@@ -1260,6 +1325,7 @@ export class MyInteractionSystem extends createSystem({
 ```
 
 **StatefulGamepad API** (accessed via `this.input.gamepads.left` / `.right`):
+
 - `getButtonDown(InputComponent.Trigger)` — true on the frame the button was pressed
 - `getButtonUp(InputComponent.Trigger)` — true on the frame the button was released
 - `getButtonPressed(InputComponent.Trigger)` — true while held
@@ -1331,6 +1397,7 @@ This project includes the **Kenney Prototype Kit** at `public/kenney_prototype-k
 When planning a feature that needs 3D models, consult the asset catalog:
 
 1. **Read the catalog index** to find relevant models:
+
    ```
    Read: public/kenney_prototype-kit/catalog/README.md
    ```
@@ -1346,6 +1413,7 @@ When planning a feature that needs 3D models, consult the asset catalog:
    - And more...
 
 3. **Preview models visually** using the `/preview-model` skill:
+
    ```
    /preview-model wall-corner
    /preview-model door-rotate b
@@ -1360,31 +1428,34 @@ When planning a feature that needs 3D models, consult the asset catalog:
 
 When your plan involves 3D objects, answer these:
 
-| Question | Example Answer |
-|----------|----------------|
-| What models are needed? | `wall-corner`, `door-rotate`, `indicator-arrow` |
+| Question                | Example Answer                                    |
+| ----------------------- | ------------------------------------------------- |
+| What models are needed? | `wall-corner`, `door-rotate`, `indicator-arrow`   |
 | What texture variation? | Variation A (purple/lavender with orange accents) |
-| What scale factor? | 0.5x for desk-scale, 1.0x for room-scale |
-| Where positioned? | `(0, 0.85, -1.5)` on desk, `(0, 0, -3)` on floor |
-| Any interactions? | Grabbable, physics-enabled, trigger zones |
+| What scale factor?      | 0.5x for desk-scale, 1.0x for room-scale          |
+| Where positioned?       | `(0, 0.85, -1.5)` on desk, `(0, 0, -3)` on floor  |
+| Any interactions?       | Grabbable, physics-enabled, trigger zones         |
 
 ### Example: Planning a Simple Puzzle Room
 
 **Feature:** Player solves a button puzzle to open a door
 
 **Asset Selection:**
+
 1. Read `catalog/walls.md` → select `wall-corner`, `wall-doorway`
 2. Read `catalog/doors.md` → select `door-rotate` (animated swing door)
 3. Read `catalog/buttons-levers.md` → select `button-round` (pressable)
 4. Read `catalog/indicators.md` → select `indicator-arrow` (shows where to go)
 
 **Preview with `/preview-model`:**
+
 ```
 /preview-model door-rotate a
 /preview-model button-round a
 ```
 
 **Document in plan:**
+
 ```
 Assets:
 - door-rotate.glb at (0, 0, -3), scale 1.0, variation-a texture

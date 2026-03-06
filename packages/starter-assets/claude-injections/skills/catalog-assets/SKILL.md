@@ -7,6 +7,7 @@ argument-hint: [asset-folder-path]
 # Asset Cataloging with Parallel Subagents
 
 Create a searchable catalog of 3D models, images, or other assets by:
+
 1. Examining preview images or asset files
 2. Writing detailed descriptions
 3. Organizing into category-based markdown files
@@ -37,6 +38,7 @@ mkdir -p [asset-folder]/catalog
 ### Step 3: Spawn Parallel Subagents
 
 Launch one subagent per category. Each subagent:
+
 - Reads preview images (PNG) or examines assets
 - Writes descriptions to a category markdown file
 - Includes: visual description, proportions, suggested use cases
@@ -44,6 +46,7 @@ Launch one subagent per category. Each subagent:
 **CRITICAL: Launch ALL agents in a single message with multiple Task tool calls.**
 
 Example agent prompt template:
+
 ```
 Look at these preview images and write detailed descriptions for a model catalog.
 
@@ -67,6 +70,7 @@ Format as markdown with each model as a section. Include the GLB filename.
 ### Step 4: Write Master Index
 
 After all agents complete, create `catalog/README.md` with:
+
 - Summary statistics (total models, categories)
 - Table linking to each category file
 - Quick reference by use case
@@ -95,6 +99,7 @@ This pattern was used to catalog the Kenney Prototype Kit (143 models):
 | walls | 25 | Room construction |
 
 **Output structure:**
+
 ```
 kenney_prototype-kit/catalog/
 ├── README.md              (Master index)

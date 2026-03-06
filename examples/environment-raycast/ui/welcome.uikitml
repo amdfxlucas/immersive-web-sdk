@@ -41,7 +41,7 @@
   }
 </style>
 <div class="panel-container">
-  <span class="heading"> Hello, Immersive Web! </span>
-  <span class="sub-heading"> Explore locomotion, grab interactions, spatial UI panel and more - start building for the immersive web with Immersive Web SDK today.</span>
+  <span class="heading"> Environment Raycast </span>
+  <span class="sub-heading"> Cast rays against the environment mesh to detect surfaces and place objects in the scene.</span>
   <button id="xr-button">Enter XR</button>
 </div>

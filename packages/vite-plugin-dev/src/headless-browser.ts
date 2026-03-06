@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { chromium } from 'playwright';
 import * as os from 'os';
+import { chromium } from 'playwright';
 
 /**
  * Log types for the server-side console capture.
@@ -123,16 +123,18 @@ export async function launchManagedBrowser(
 ): Promise<ManagedBrowser> {
   // Select GPU backend based on platform
   const angleBackend =
-    os.platform() === 'darwin' ? 'metal' :
-    os.platform() === 'win32' ? 'd3d11' :
-    'gl';
+    os.platform() === 'darwin'
+      ? 'metal'
+      : os.platform() === 'win32'
+        ? 'd3d11'
+        : 'gl';
 
   const browser = await chromium.launch({
     headless,
     args: [
-      '--enable-webgl',                        // Ensure WebGL is available
-      '--use-gl=angle',                        // Use ANGLE for WebGL
-      `--use-angle=${angleBackend}`,           // Platform-specific GPU backend
+      '--enable-webgl', // Ensure WebGL is available
+      '--use-gl=angle', // Use ANGLE for WebGL
+      `--use-angle=${angleBackend}`, // Platform-specific GPU backend
       '--disable-background-timer-throttling', // No rAF throttling
       '--disable-renderer-backgrounding',
     ],
@@ -168,7 +170,8 @@ export async function launchManagedBrowser(
   // Capture uncaught page errors (with full stack traces)
   page.on('pageerror', (err: any) => {
     // err.stack already includes "ErrorName: message" as its first line
-    const text = err.stack || (err.name ? `${err.name}: ${err.message}` : err.message);
+    const text =
+      err.stack || (err.name ? `${err.name}: ${err.message}` : err.message);
     consoleCapture.add('error', `[uncaught] ${text}`);
     console.error('[browser:pageerror]', text);
   });
@@ -181,7 +184,7 @@ export async function launchManagedBrowser(
       // reason.stack already includes "ErrorName: message" as its first line
       const text =
         reason instanceof Error
-          ? (reason.stack || `${reason.name}: ${reason.message}`)
+          ? reason.stack || `${reason.name}: ${reason.message}`
           : String(reason);
       console.error(`[unhandledrejection] ${text}`);
     });
@@ -197,10 +200,9 @@ export async function launchManagedBrowser(
   await page.goto(url, { waitUntil: 'networkidle' });
 
   // Wait for IWER to inject and XR device to be available
-  await page.waitForFunction(
-    () => (window as any).IWER_DEVICE !== undefined,
-    { timeout: 15000 },
-  );
+  await page.waitForFunction(() => (window as any).IWER_DEVICE !== undefined, {
+    timeout: 15000,
+  });
 
   if (verbose) {
     console.log(

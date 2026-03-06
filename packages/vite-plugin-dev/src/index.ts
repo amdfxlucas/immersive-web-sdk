@@ -12,12 +12,12 @@ import * as path from 'path';
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite';
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
-import { buildInjectionBundle } from './injection-bundler.js';
-import { createRelayHandler } from './mcp-relay.js';
 import {
   launchManagedBrowser,
   type ManagedBrowser,
 } from './headless-browser.js';
+import { buildInjectionBundle } from './injection-bundler.js';
+import { createRelayHandler } from './mcp-relay.js';
 import type {
   DevPluginOptions,
   ProcessedDevOptions,
@@ -420,7 +420,9 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
             browser.onClose(() => {
               managedBrowser = null;
               if (!serverShuttingDown) {
-                console.log('🔄 IWSDK: Browser closed unexpectedly, re-launching...');
+                console.log(
+                  '🔄 IWSDK: Browser closed unexpectedly, re-launching...',
+                );
                 launchBrowser();
               }
             });
@@ -430,7 +432,7 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
             if (consecutiveFailures >= MAX_LAUNCH_FAILURES) {
               console.error(
                 `❌ IWSDK: ${MAX_LAUNCH_FAILURES} consecutive launch failures, giving up. ` +
-                'Restart the dev server to retry.',
+                  'Restart the dev server to retry.',
               );
             }
           } finally {
@@ -514,21 +516,30 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
                 if (browser) {
                   const buffer = await browser.screenshot();
                   const base64 = buffer.toString('base64');
-                  ws.send(JSON.stringify({
-                    id: parsed.id,
-                    result: { imageData: base64, mimeType: 'image/png' },
-                  }));
+                  ws.send(
+                    JSON.stringify({
+                      id: parsed.id,
+                      result: { imageData: base64, mimeType: 'image/png' },
+                    }),
+                  );
                 } else {
-                  ws.send(JSON.stringify({
-                    id: parsed.id,
-                    error: { code: -32000, message: 'Browser not ready' },
-                  }));
+                  ws.send(
+                    JSON.stringify({
+                      id: parsed.id,
+                      error: { code: -32000, message: 'Browser not ready' },
+                    }),
+                  );
                 }
               } catch (err) {
-                ws.send(JSON.stringify({
-                  id: parsed.id,
-                  error: { code: -32000, message: err instanceof Error ? err.message : String(err) },
-                }));
+                ws.send(
+                  JSON.stringify({
+                    id: parsed.id,
+                    error: {
+                      code: -32000,
+                      message: err instanceof Error ? err.message : String(err),
+                    },
+                  }),
+                );
               }
             }
           } catch {
@@ -607,7 +618,10 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
       let configWritePromise: Promise<void> | null = null;
 
       const writeMcpConfigs = async (actualPort: number) => {
-        const serverEntries: Record<string, { command: string; args: string[] }> = {
+        const serverEntries: Record<
+          string,
+          { command: string; args: string[] }
+        > = {
           'iwsdk-dev-mcp': {
             command: 'node',
             args: [mcpServerPath, '--port', String(actualPort)],
@@ -637,14 +651,18 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
             writes.push(
               mergeJsonConfig(filePath, serverEntries, target.jsonKey!).then(
                 (created) => {
-                  if (created) filesWeCreated.add(filePath);
+                  if (created) {
+                    filesWeCreated.add(filePath);
+                  }
                 },
               ),
             );
           } else {
             writes.push(
               mergeTomlConfig(filePath, serverEntries).then((created) => {
-                if (created) filesWeCreated.add(filePath);
+                if (created) {
+                  filesWeCreated.add(filePath);
+                }
               }),
             );
           }
@@ -683,7 +701,10 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
         const protocol = server.config.server.https ? 'https' : 'http';
         browserUrl = `${protocol}://localhost:${actualPort}`;
         browserHeadless = pluginOptions.ai?.headless ?? false;
-        browserViewport = pluginOptions.ai?.viewport ?? { width: 800, height: 800 };
+        browserViewport = pluginOptions.ai?.viewport ?? {
+          width: 800,
+          height: 800,
+        };
         launchBrowser();
       });
 
@@ -774,9 +795,7 @@ export function iwsdkDev(options: DevPluginOptions = {}): Plugin {
 
       try {
         if (pluginOptions.verbose) {
-          console.log(
-            '🚀 IWSDK Dev: Starting injection bundle generation...',
-          );
+          console.log('🚀 IWSDK Dev: Starting injection bundle generation...');
         }
 
         injectionBundle = await buildInjectionBundle(pluginOptions);

@@ -1,5 +1,5 @@
 {
-  "name": "@iwsdk/physics",
+  "name": "physics",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@iwsdk/core": "file:../../packages/core/iwsdk-core.tgz",
+    "@pmndrs/uikit-horizon": "^1.0.60",
+    "@pmndrs/uikit-lucide": "^1.0.60",
     "three": "npm:super-three@0.181.0"
   },
   "devDependencies": {
@@ -21,7 +23,12 @@
     "@iwsdk/vite-plugin-dev": "file:../../packages/vite-plugin-dev/iwsdk-vite-plugin-dev.tgz",
     "@iwsdk/vite-plugin-metaspatial": "file:../../packages/vite-plugin-metaspatial/iwsdk-vite-plugin-metaspatial.tgz",
     "@iwsdk/vite-plugin-uikitml": "file:../../packages/vite-plugin-uikitml/iwsdk-vite-plugin-uikitml.tgz",
+    "@types/three": "^0.178.1",
+    "typescript": "^5.5.0",
     "vite": "^7.1.4",
     "vite-plugin-mkcert": "^1.17.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

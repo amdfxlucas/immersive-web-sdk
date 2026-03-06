@@ -162,7 +162,10 @@ world.createTransformEntity(mesh, parentEntity);
 world.createTransformEntity(mesh, { parent: parentEntity });
 
 // ✅ GOOD - persistent entity (survives level changes)
-world.createTransformEntity(mesh, { parent: world.sceneEntity, persistent: true });
+world.createTransformEntity(mesh, {
+  parent: world.sceneEntity,
+  persistent: true,
+});
 ```
 
 #### DON'T use manual Raycaster — use Interactable component
@@ -294,18 +297,18 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 ```typescript
 Types.Float32; // 32-bit float
 Types.Float64; // 64-bit float
-Types.Int8;    // 8-bit integer
-Types.Int16;   // 16-bit integer
-Types.Int32;   // 32-bit integer
-Types.Uint32;  // 32-bit unsigned
+Types.Int8; // 8-bit integer
+Types.Int16; // 16-bit integer
+Types.Int32; // 32-bit integer
+Types.Uint32; // 32-bit unsigned
 Types.Boolean; // true/false
-Types.String;  // text
-Types.Vec3;    // [x, y, z]
-Types.Vec4;    // [x, y, z, w]
-Types.Color;   // [r, g, b, a] - RGBA!
-Types.Entity;  // Entity reference
-Types.Enum;    // Enumerated value
-Types.Object;  // Any JS object (AVOID - not optimized)
+Types.String; // text
+Types.Vec3; // [x, y, z]
+Types.Vec4; // [x, y, z, w]
+Types.Color; // [r, g, b, a] - RGBA!
+Types.Entity; // Entity reference
+Types.Enum; // Enumerated value
+Types.Object; // Any JS object (AVOID - not optimized)
 ```
 
 ### Component Template

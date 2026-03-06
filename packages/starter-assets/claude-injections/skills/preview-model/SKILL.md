@@ -47,6 +47,7 @@ cp "kenney_prototype-kit/Models/Textures/variation-[a|b|c].png" public/kenney/Te
 Edit `src/index.ts` to add the model:
 
 1. Add to asset manifest:
+
 ```typescript
 kenneyPreview: {
   url: "/kenney/[model-name].glb",
@@ -56,12 +57,14 @@ kenneyPreview: {
 ```
 
 2. Add to scene after world creation:
+
 ```typescript
 // Preview Kenney model
-const { scene: previewMesh } = AssetManager.getGLTF("kenneyPreview")!;
-previewMesh.position.set(0, 0.85, -1.5);  // On desk, center
-previewMesh.scale.setScalar(0.5);  // Adjust as needed
-world.createTransformEntity(previewMesh)
+const { scene: previewMesh } = AssetManager.getGLTF('kenneyPreview')!;
+previewMesh.position.set(0, 0.85, -1.5); // On desk, center
+previewMesh.scale.setScalar(0.5); // Adjust as needed
+world
+  .createTransformEntity(previewMesh)
   .addComponent(Interactable)
   .addComponent(DistanceGrabbable, {
     movementMode: MovementMode.MoveFromTarget,
@@ -75,6 +78,7 @@ world.createTransformEntity(previewMesh)
 3. Wait for reload: `sleep 3`
 4. Accept XR session: `mcp__iwsdk-dev-mcp__xr_accept_session`
 5. Position headset to look at model:
+
 ```
 mcp__iwsdk-dev-mcp__xr_look_at({
   device: "headset",
@@ -82,11 +86,13 @@ mcp__iwsdk-dev-mcp__xr_look_at({
   moveToDistance: 0.8
 })
 ```
+
 6. Take screenshot: `mcp__iwsdk-dev-mcp__browser_screenshot`
 
 ### Step 5: Report Results
 
 Summarize:
+
 - Model name and category
 - Catalog description
 - Texture variation used
@@ -95,11 +101,11 @@ Summarize:
 
 ## Texture Variations
 
-| Variation | File | Color Scheme |
-|-----------|------|--------------|
-| a | variation-a.png | Purple/lavender base, orange/coral accents |
-| b | variation-b.png | Alternative color scheme |
-| c | variation-c.png | Alternative color scheme |
+| Variation | File            | Color Scheme                               |
+| --------- | --------------- | ------------------------------------------ |
+| a         | variation-a.png | Purple/lavender base, orange/coral accents |
+| b         | variation-b.png | Alternative color scheme                   |
+| c         | variation-c.png | Alternative color scheme                   |
 
 ## Example Usage
 
@@ -113,17 +119,18 @@ Summarize:
 
 Default position `(0, 0.85, -1.5)` places the model on the desk. Adjust based on model type:
 
-| Model Type | Position | Scale | Notes |
-|------------|----------|-------|-------|
-| Small props (coins, buttons) | (0, 0.9, -1.5) | 1.0 | On desk surface |
-| Figurines, shapes | (0, 0.85, -1.5) | 0.5 | On desk, half scale |
-| Walls, floors | (0, 0, -3) | 1.0 | On ground, further away |
-| Doors | (0, 0, -2.5) | 1.0 | On ground, room scale |
-| Vehicles | (2, 0, -3) | 1.0 | On ground, to the side |
+| Model Type                   | Position        | Scale | Notes                   |
+| ---------------------------- | --------------- | ----- | ----------------------- |
+| Small props (coins, buttons) | (0, 0.9, -1.5)  | 1.0   | On desk surface         |
+| Figurines, shapes            | (0, 0.85, -1.5) | 0.5   | On desk, half scale     |
+| Walls, floors                | (0, 0, -3)      | 1.0   | On ground, further away |
+| Doors                        | (0, 0, -2.5)    | 1.0   | On ground, room scale   |
+| Vehicles                     | (2, 0, -3)      | 1.0   | On ground, to the side  |
 
 ## Cleanup
 
 After previewing, remember to:
+
 1. Remove or comment out the preview code from `src/index.ts`
 2. Delete files from `public/kenney/` if not needed
 3. Or keep them if you want to use the model permanently

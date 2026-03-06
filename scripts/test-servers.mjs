@@ -127,7 +127,9 @@ if (command === 'start') {
   // Timeout — report what's missing
   const ports = readAllPorts();
   const missing = ALL_DIRS.filter((d) => !ports[d]);
-  console.error(`TIMEOUT: ${missing.length} server(s) not ready: ${missing.join(', ')}`);
+  console.error(
+    `TIMEOUT: ${missing.length} server(s) not ready: ${missing.join(', ')}`,
+  );
   console.error('Check logs: /tmp/iwsdk-dev-<name>.log');
   // Still output whatever ports we have
   console.log(JSON.stringify(ports, null, 2));
@@ -140,7 +142,9 @@ if (command === 'stop') {
 
   for (const [dir, port] of Object.entries(ports)) {
     try {
-      const pids = execSync(`lsof -t -i :${port} 2>/dev/null`, { encoding: 'utf8' })
+      const pids = execSync(`lsof -t -i :${port} 2>/dev/null`, {
+        encoding: 'utf8',
+      })
         .trim()
         .split('\n')
         .filter(Boolean);

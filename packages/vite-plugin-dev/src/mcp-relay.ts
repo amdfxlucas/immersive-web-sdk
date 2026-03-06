@@ -27,7 +27,11 @@ export interface RelayHandler {
    * Routes requests to all other clients and deduplicates responses
    * using first-response-wins semantics.
    */
-  onMessage(senderWs: RelayWebSocket, data: string, clients: Set<RelayWebSocket>): void;
+  onMessage(
+    senderWs: RelayWebSocket,
+    data: string,
+    clients: Set<RelayWebSocket>,
+  ): void;
 
   /** Number of pending (unresolved) relay requests. */
   pendingCount(): number;
@@ -105,9 +109,7 @@ export function createRelayHandler(options?: RelayOptions): RelayHandler {
             );
           }
         } else if (verbose) {
-          console.log(
-            `[MCP-IWER] Duplicate response for ${parsed.id} dropped`,
-          );
+          console.log(`[MCP-IWER] Duplicate response for ${parsed.id} dropped`);
         }
         return;
       }

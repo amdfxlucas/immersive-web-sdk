@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import {
   FloatType,
   RGBAFormat,
@@ -14,7 +15,6 @@ import {
   WebGLRenderer,
   WebGLRenderTarget,
 } from '../../runtime/three.js';
-import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { DepthPreprocessingShader } from './preprocessing-shader.glsl.js';
 
 /**

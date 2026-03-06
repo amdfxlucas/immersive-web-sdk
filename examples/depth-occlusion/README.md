@@ -110,12 +110,12 @@ The `DepthSensingSystem` automatically injects occlusion shader code into the en
 
 ### Depth Sensing Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | boolean | `true` | Enable/disable the depth sensing system |
-| `enableDepthTexture` | boolean | `true` | Enable depth texture generation |
-| `enableOcclusion` | boolean | `true` | Enable occlusion rendering |
-| `useFloat32` | boolean | `true` | Use float32 depth values (vs luminance-alpha) |
+| Option               | Type    | Default | Description                                   |
+| -------------------- | ------- | ------- | --------------------------------------------- |
+| `enabled`            | boolean | `true`  | Enable/disable the depth sensing system       |
+| `enableDepthTexture` | boolean | `true`  | Enable depth texture generation               |
+| `enableOcclusion`    | boolean | `true`  | Enable occlusion rendering                    |
+| `useFloat32`         | boolean | `true`  | Use float32 depth values (vs luminance-alpha) |
 
 ### Depth Sensing Modes
 

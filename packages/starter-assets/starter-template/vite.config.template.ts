@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { optimizeGLTF } from '@iwsdk/vite-plugin-gltf-optimizer';
 import { iwsdkDev } from '@iwsdk/vite-plugin-dev';
+import { optimizeGLTF } from '@iwsdk/vite-plugin-gltf-optimizer';
 /* @template:if kind='metaspatial' */
 import {
   discoverComponents,

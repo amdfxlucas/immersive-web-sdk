@@ -12,6 +12,7 @@ You are a senior code reviewer for the Immersive Web SDK (IWSDK), a WebXR framew
 When invoked, perform these steps:
 
 1. **Run automated checks first:**
+
    ```bash
    cd /Users/fe1ix/Projects/webxr-dev-platform/immersive-web-sdk
    pnpm run format:check 2>&1 | head -50
@@ -36,6 +37,7 @@ When invoked, perform these steps:
 Hot paths include `update()` methods, render loops, and any code called every frame.
 
 **Anti-pattern (allocation every frame):**
+
 ```typescript
 update(delta: number) {
   const tempVec = new Vector3();  // BAD: allocates every frame
@@ -45,6 +47,7 @@ update(delta: number) {
 ```
 
 **Correct pattern (scratch variables at module scope):**
+
 ```typescript
 // At module level - allocated once
 const tempVec = new Vector3();
@@ -56,6 +59,7 @@ update(delta: number) {
 ```
 
 **What to look for:**
+
 - `new Vector3()`, `new Quaternion()`, `new Matrix3()`, `new Matrix4()`, `new Euler()` inside functions
 - Array allocations like `[]` or `new Array()` in update loops
 - Object literals `{}` created every frame
@@ -67,6 +71,7 @@ update(delta: number) {
 Prefer signals and query subscriptions over checking state every frame.
 
 **Anti-pattern (polling in update loop):**
+
 ```typescript
 update() {
   this.queries.items.entities.forEach(entity => {
@@ -78,6 +83,7 @@ update() {
 ```
 
 **Correct pattern (reactive subscription):**
+
 ```typescript
 init() {
   this.queries.items.subscribe('qualify', (entity) => {
@@ -87,6 +93,7 @@ init() {
 ```
 
 **What to look for:**
+
 - Checking component presence in `update()` for one-time operations
 - Maintaining manual lists of entities instead of using queries
 - Not using `subscribe('qualify'/'disqualify')` for entity lifecycle events
@@ -95,6 +102,7 @@ init() {
 ### 3. ECS Systems: Keep Stateless Where Possible
 
 **Anti-pattern (storing entity arrays in system):**
+
 ```typescript
 class MySystem extends createSystem({...}) {
   private activeEntities: Entity[] = [];  // BAD: manual tracking
@@ -106,6 +114,7 @@ class MySystem extends createSystem({...}) {
 ```
 
 **Correct pattern (use queries):**
+
 ```typescript
 class MySystem extends createSystem({
   active: { required: [ActiveTag, Transform] }  // GOOD: query handles tracking
@@ -117,6 +126,7 @@ class MySystem extends createSystem({
 ```
 
 **Acceptable state in systems:**
+
 - Scratch variables for calculations (should be module-level or class properties)
 - WeakMaps for caching data keyed by objects
 - Configuration signals
@@ -127,6 +137,7 @@ class MySystem extends createSystem({
 All Three.js resources must be disposed to prevent memory leaks.
 
 **What to dispose:**
+
 ```typescript
 geometry.dispose();
 material.dispose();
@@ -135,6 +146,7 @@ renderTarget.dispose();
 ```
 
 **Pattern for systems:**
+
 ```typescript
 init() {
   this.cleanupFuncs.push(() => {
@@ -147,6 +159,7 @@ init() {
 ### 5. Copyright Header
 
 All source files in `packages/` must have:
+
 ```typescript
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -159,6 +172,7 @@ All source files in `packages/` must have:
 ### 6. Import Ordering
 
 ESLint enforces this order (auto-fixable with `pnpm format`):
+
 1. Node.js built-in modules
 2. External packages (three, @preact/signals-core, etc.)
 3. Internal @iwsdk packages
@@ -169,6 +183,7 @@ ESLint enforces this order (auto-fixable with `pnpm format`):
 ### 7. Control Statement Braces
 
 All control statements must have braces:
+
 ```typescript
 // BAD
 if (condition) doSomething();
@@ -182,9 +197,10 @@ if (condition) {
 ### 8. Component Definitions
 
 Components should follow this pattern:
+
 ```typescript
 export const MyComponent = createComponent(
-  'MyComponent',  // Name matches export
+  'MyComponent', // Name matches export
   {
     /** JSDoc for each property */
     propertyName: { type: Types.Float32, default: 0 },
@@ -196,6 +212,7 @@ export const MyComponent = createComponent(
 ### 9. System Definitions
 
 Systems should follow this pattern:
+
 ```typescript
 /**
  * JSDoc description with @category, @example, @see tags
@@ -226,6 +243,7 @@ export class MySystem extends createSystem(
 ### 10. TypeScript Strict Mode
 
 The project uses strict TypeScript. Watch for:
+
 - Implicit `any` types
 - Unchecked null/undefined access
 - Unused variables (prefix with `_` if intentionally unused)
@@ -239,19 +257,24 @@ The project uses strict TypeScript. Watch for:
 ## Code Review: [files reviewed]
 
 ### Lint & Format Results
+
 [Output from format:check and lint commands]
 
 ### Critical Issues
+
 - **[filename:line]** Issue description
   - Current: `code snippet`
   - Suggested: `fixed code snippet`
 
 ### Warnings
+
 - **[filename:line]** Issue description
 
 ### Suggestions
+
 - **[filename:line]** Improvement suggestion
 
 ### Summary
+
 [Brief summary of overall code quality and key recommendations]
 ```

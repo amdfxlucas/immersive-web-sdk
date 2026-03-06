@@ -7,15 +7,15 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  detectPlatform,
-  isVersionSufficient,
-  normalizeVersion,
-} from '../src/mse-installer.js';
-import {
   MSE_MIN_VERSION,
   MSE_APP_NAMES,
   getAppcastUrl,
 } from '../src/mse-config.js';
+import {
+  detectPlatform,
+  isVersionSufficient,
+  normalizeVersion,
+} from '../src/mse-installer.js';
 
 describe('MSE Installer', () => {
   let originalPlatform: string;

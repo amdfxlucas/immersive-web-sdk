@@ -75,9 +75,10 @@ export class MCPWebSocketClient {
     this.verbose = options.verbose ?? false;
 
     // sessionStorage is scoped per tab — survives reloads/HMR but not tab close
-    let id = typeof sessionStorage !== 'undefined'
-      ? sessionStorage.getItem('iwer-mcp-tab-id')
-      : null;
+    let id =
+      typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('iwer-mcp-tab-id')
+        : null;
     if (!id) {
       id = `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
       if (typeof sessionStorage !== 'undefined') {
@@ -87,9 +88,10 @@ export class MCPWebSocketClient {
     this.tabId = id;
 
     // Generation increments on every page load / HMR within the same tab
-    const gen = typeof sessionStorage !== 'undefined'
-      ? parseInt(sessionStorage.getItem('iwer-mcp-gen') || '0', 10) + 1
-      : 1;
+    const gen =
+      typeof sessionStorage !== 'undefined'
+        ? parseInt(sessionStorage.getItem('iwer-mcp-gen') || '0', 10) + 1
+        : 1;
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('iwer-mcp-gen', String(gen));
     }
@@ -195,7 +197,10 @@ export class MCPWebSocketClient {
 
     // Validate request structure
     if (typeof request.id !== 'string' || typeof request.method !== 'string') {
-      console.error('[IWSDK-MCP] Malformed request (missing id or method):', request);
+      console.error(
+        '[IWSDK-MCP] Malformed request (missing id or method):',
+        request,
+      );
       return;
     }
 

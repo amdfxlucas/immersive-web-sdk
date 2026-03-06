@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Object3D, Quaternion, Vector3 } from '../runtime/index.js';
 import type { World } from '../ecs/world.js';
+import { Object3D, Quaternion, Vector3 } from '../runtime/index.js';
 
 /**
  * Hierarchy node returned by get_scene_hierarchy

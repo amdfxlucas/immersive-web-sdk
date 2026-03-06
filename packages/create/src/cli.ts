@@ -21,16 +21,22 @@ import {
   printNextSteps,
   printPrerequisites,
 } from './installer.js';
-import { promptFlow } from './prompts.js';
+import { MSE_MIN_VERSION } from './mse-config.js';
 import {
   detectMSEVersion,
   detectPlatform,
   isVersionSufficient,
 } from './mse-installer.js';
-import { MSE_MIN_VERSION } from './mse-config.js';
+import { promptFlow } from './prompts.js';
 import { scaffoldProject } from './scaffold.js';
 import { resolveSource, SDK_PACKAGES_DIR } from './source.js';
-import { MSEInstallResult, PromptResult, TriState, VariantId, AiTool } from './types.js';
+import {
+  MSEInstallResult,
+  PromptResult,
+  TriState,
+  VariantId,
+  AiTool,
+} from './types.js';
 import { VERSION, NODE_ENGINE } from './version.js';
 
 type CliOptions = {
@@ -109,11 +115,23 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
     .option('--no-grabbing', 'Disable grabbing feature')
     .option('--physics', 'Enable physics feature', false)
     .option('--no-physics', 'Disable physics feature (default)')
-    .option('--scene-understanding', 'Enable scene understanding (AR mode)', true)
+    .option(
+      '--scene-understanding',
+      'Enable scene understanding (AR mode)',
+      true,
+    )
     .option('--no-scene-understanding', 'Disable scene understanding')
-    .option('--environment-raycast', 'Enable environment raycast (AR mode)', true)
+    .option(
+      '--environment-raycast',
+      'Enable environment raycast (AR mode)',
+      true,
+    )
     .option('--no-environment-raycast', 'Disable environment raycast')
-    .option('--ai-tools <tools>', 'AI tools to configure (comma-separated: claude,cursor,copilot,codex; or "none")', 'claude,cursor,copilot,codex')
+    .option(
+      '--ai-tools <tools>',
+      'AI tools to configure (comma-separated: claude,cursor,copilot,codex; or "none")',
+      'claude,cursor,copilot,codex',
+    )
     .action((n: string | undefined, opts: CliOptions) => {
       nameArg = n;
       cliOpts = opts;
@@ -128,9 +146,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       cliOpts.mode !== 'ar'
     ) {
       console.error(
-        chalk.red(
-          `Invalid --mode "${cliOpts.mode}". Must be "vr" or "ar".`,
-        ),
+        chalk.red(`Invalid --mode "${cliOpts.mode}". Must be "vr" or "ar".`),
       );
       process.exit(1);
     }
@@ -162,15 +178,24 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
 
     // Warn if flags are provided without --yes (they only take effect in non-interactive mode)
     const explicitFlags = [
-      '--mode', '--language',
-      '--metaspatial', '--no-metaspatial',
-      '--install', '--no-install',
-      '--git', '--no-git',
-      '--locomotion', '--no-locomotion',
-      '--grabbing', '--no-grabbing',
-      '--physics', '--no-physics',
-      '--scene-understanding', '--no-scene-understanding',
-      '--environment-raycast', '--no-environment-raycast',
+      '--mode',
+      '--language',
+      '--metaspatial',
+      '--no-metaspatial',
+      '--install',
+      '--no-install',
+      '--git',
+      '--no-git',
+      '--locomotion',
+      '--no-locomotion',
+      '--grabbing',
+      '--no-grabbing',
+      '--physics',
+      '--no-physics',
+      '--scene-understanding',
+      '--no-scene-understanding',
+      '--environment-raycast',
+      '--no-environment-raycast',
       '--ai-tools',
     ];
     const hasExplicitFlags = process.argv.some((arg) =>
@@ -206,10 +231,14 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       const variantId = `${mode}-${workflow}-${language}` as VariantId;
 
       const validAiTools = ['claude', 'cursor', 'copilot', 'codex'] as const;
-      const rawAiTools = (cliOpts.aiTools || 'claude,cursor,copilot,codex').split(',').map((t) => t.trim());
+      const rawAiTools = (cliOpts.aiTools || 'claude,cursor,copilot,codex')
+        .split(',')
+        .map((t) => t.trim());
       const aiTools = rawAiTools.includes('none')
         ? []
-        : rawAiTools.filter((t): t is AiTool => validAiTools.includes(t as AiTool));
+        : rawAiTools.filter((t): t is AiTool =>
+            validAiTools.includes(t as AiTool),
+          );
 
       const locomotionEnabled =
         mode === 'vr' ? (cliOpts.locomotion ?? true) : false;
@@ -255,13 +284,9 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
           grabbingEnabled: cliOpts.grabbing ?? true,
           physicsEnabled: cliOpts.physics ?? false,
           sceneUnderstandingEnabled:
-            mode === 'ar'
-              ? (cliOpts.sceneUnderstanding ?? true)
-              : false,
+            mode === 'ar' ? (cliOpts.sceneUnderstanding ?? true) : false,
           environmentRaycastEnabled:
-            mode === 'ar'
-              ? (cliOpts.environmentRaycast ?? true)
-              : false,
+            mode === 'ar' ? (cliOpts.environmentRaycast ?? true) : false,
         },
         gitInit: cliOpts.git ?? true,
         aiTools,
@@ -368,18 +393,16 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       resolvedRecipe.edits['@xrFeaturesStr'] = xrLiteral;
 
       // MCP tool selection for vite.config.ts
-      const mcpToolsLiteral = res.aiTools.length > 0
-        ? `[${res.aiTools.map((t) => `'${t}'`).join(', ')}]`
-        : `['claude', 'cursor', 'copilot', 'codex']`;
+      const mcpToolsLiteral =
+        res.aiTools.length > 0
+          ? `[${res.aiTools.map((t) => `'${t}'`).join(', ')}]`
+          : `['claude', 'cursor', 'copilot', 'codex']`;
       resolvedRecipe.edits['@mcpToolsStr'] = mcpToolsLiteral;
 
       const outDir = join(process.cwd(), res.name);
 
       // Check if target directory already exists and is non-empty
-      if (
-        fs.existsSync(outDir) &&
-        fs.readdirSync(outDir).length > 0
-      ) {
+      if (fs.existsSync(outDir) && fs.readdirSync(outDir).length > 0) {
         throw new Error(
           `Directory "${res.name}" already exists and is not empty. ` +
             'Please choose a different name or remove the existing directory.',

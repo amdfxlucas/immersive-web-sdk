@@ -33,7 +33,9 @@ interface AppcastRelease {
 /** Normalize version to major.minor.patch for comparison */
 export function normalizeVersion(v: string): string {
   const parts = v.split('.');
-  while (parts.length < 3) parts.push('0');
+  while (parts.length < 3) {
+    parts.push('0');
+  }
   return parts.slice(0, 3).join('.');
 }
 
@@ -42,14 +44,20 @@ export function detectPlatform(): Platform {
   return p === 'darwin' || p === 'win32' ? p : 'linux';
 }
 
-async function fetchAppcastRelease(platform: Platform): Promise<AppcastRelease | null> {
+async function fetchAppcastRelease(
+  platform: Platform,
+): Promise<AppcastRelease | null> {
   try {
     const response = await fetch(getAppcastUrl(platform), {
       signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      console.warn(chalk.yellow(`Warning: Failed to fetch appcast: HTTP ${response.status}`));
+      console.warn(
+        chalk.yellow(
+          `Warning: Failed to fetch appcast: HTTP ${response.status}`,
+        ),
+      );
       return null;
     }
 
@@ -65,7 +73,9 @@ async function fetchAppcastRelease(platform: Platform): Promise<AppcastRelease |
     // Navigate to enclosure element: rss > channel > item > enclosure
     const channel = parsed?.rss?.channel;
     if (!channel) {
-      console.warn(chalk.yellow('Warning: Invalid appcast format - missing channel'));
+      console.warn(
+        chalk.yellow('Warning: Invalid appcast format - missing channel'),
+      );
       return null;
     }
 
@@ -73,7 +83,9 @@ async function fetchAppcastRelease(platform: Platform): Promise<AppcastRelease |
     const items = Array.isArray(channel.item) ? channel.item : [channel.item];
     const item = items[0];
     if (!item?.enclosure) {
-      console.warn(chalk.yellow('Warning: No enclosure element found in appcast'));
+      console.warn(
+        chalk.yellow('Warning: No enclosure element found in appcast'),
+      );
       return null;
     }
 
@@ -93,7 +105,11 @@ async function fetchAppcastRelease(platform: Platform): Promise<AppcastRelease |
       buildNumber: typeof buildNumber === 'string' ? buildNumber : null,
     };
   } catch (error) {
-    console.warn(chalk.yellow(`Warning: Failed to fetch appcast: ${(error as Error).message}`));
+    console.warn(
+      chalk.yellow(
+        `Warning: Failed to fetch appcast: ${(error as Error).message}`,
+      ),
+    );
     return null;
   }
 }
@@ -126,7 +142,9 @@ function getMacOSAppVersion(appPath: string): string | null {
 
 function getWindowsAppVersion(basePath: string): string | null {
   const highestVersion = getHighestVersion(basePath);
-  if (!highestVersion) return null;
+  if (!highestVersion) {
+    return null;
+  }
   const vNum = parseInt(highestVersion.substring(1), 10);
   return `${vNum}.0.0`;
 }
@@ -136,13 +154,18 @@ function parseVersionFromOutput(output: string): string | null {
   return match ? match[1] : null;
 }
 
-export async function detectMSEVersion(platform: Platform): Promise<string | null> {
+export async function detectMSEVersion(
+  platform: Platform,
+): Promise<string | null> {
   if (platform === 'linux') {
     const cliPath = path.join(MSE_INSTALL_PATHS.linux, MSE_LINUX_CLI_NAME);
 
     if (fs.existsSync(cliPath)) {
       try {
-        const output = execSync(`"${cliPath}" --version`, { encoding: 'utf-8', timeout: 5000 });
+        const output = execSync(`"${cliPath}" --version`, {
+          encoding: 'utf-8',
+          timeout: 5000,
+        });
         return parseVersionFromOutput(output);
       } catch {
         return null;
@@ -150,7 +173,10 @@ export async function detectMSEVersion(platform: Platform): Promise<string | nul
     }
 
     try {
-      const output = execSync('MetaSpatialEditorCLI --version', { encoding: 'utf-8', timeout: 5000 });
+      const output = execSync('MetaSpatialEditorCLI --version', {
+        encoding: 'utf-8',
+        timeout: 5000,
+      });
       return parseVersionFromOutput(output);
     } catch {
       return null;
@@ -158,12 +184,19 @@ export async function detectMSEVersion(platform: Platform): Promise<string | nul
   }
 
   const installPath = MSE_INSTALL_PATHS[platform];
-  if (!installPath || !fs.existsSync(installPath)) return null;
+  if (!installPath || !fs.existsSync(installPath)) {
+    return null;
+  }
 
-  return platform === 'darwin' ? getMacOSAppVersion(installPath) : getWindowsAppVersion(installPath);
+  return platform === 'darwin'
+    ? getMacOSAppVersion(installPath)
+    : getWindowsAppVersion(installPath);
 }
 
-export function isVersionSufficient(installed: string, required: string = MSE_MIN_VERSION): boolean {
+export function isVersionSufficient(
+  installed: string,
+  required: string = MSE_MIN_VERSION,
+): boolean {
   try {
     return semver.gte(installed, required);
   } catch {
@@ -172,7 +205,9 @@ export function isVersionSufficient(installed: string, required: string = MSE_MI
 }
 
 export async function showAndAcceptTOS(): Promise<boolean> {
-  console.log('\n' + chalk.bold.underline('Meta Spatial Editor Terms and Privacy Policy'));
+  console.log(
+    '\n' + chalk.bold.underline('Meta Spatial Editor Terms and Privacy Policy'),
+  );
   console.log(chalk.gray('─'.repeat(60)));
   console.log(MSE_TOS_CONTENT);
   console.log(chalk.gray('─'.repeat(60)));
@@ -206,7 +241,9 @@ async function downloadInstaller(
   }
 
   if (!releaseInfo) {
-    throw new Error('Could not fetch release information. Please try again or download manually.');
+    throw new Error(
+      'Could not fetch release information. Please try again or download manually.',
+    );
   }
 
   spinner.text = releaseInfo.version
@@ -214,7 +251,9 @@ async function downloadInstaller(
     : 'Downloading Meta Spatial Editor installer...';
 
   const downloadUrl = releaseInfo.downloadUrl.replace(/&amp;/g, '&');
-  const response = await fetch(downloadUrl, { signal: AbortSignal.timeout(300000) });
+  const response = await fetch(downloadUrl, {
+    signal: AbortSignal.timeout(300000),
+  });
 
   if (!response.ok) {
     throw new Error(`Download failed: HTTP ${response.status}`);
@@ -235,9 +274,12 @@ function silentInstallMacOS(dmgPath: string, spinner: Ora): void {
     }
 
     spinner.text = 'Mounting installer...';
-    execSync(`hdiutil attach "${dmgPath}" -nobrowse -quiet -mountpoint "${mountPoint}"`, {
-      timeout: 60000,
-    });
+    execSync(
+      `hdiutil attach "${dmgPath}" -nobrowse -quiet -mountpoint "${mountPoint}"`,
+      {
+        timeout: 60000,
+      },
+    );
 
     let appPath = path.join(mountPoint, 'Meta Spatial Editor.app');
     let appName = 'Meta Spatial Editor.app';
@@ -245,7 +287,9 @@ function silentInstallMacOS(dmgPath: string, spinner: Ora): void {
     if (!fs.existsSync(appPath)) {
       const files = fs.readdirSync(mountPoint);
       const appFile = files.find((f) => f.endsWith('.app'));
-      if (!appFile) throw new Error('Could not find application in mounted DMG');
+      if (!appFile) {
+        throw new Error('Could not find application in mounted DMG');
+      }
       appPath = path.join(mountPoint, appFile);
       appName = appFile;
     }
@@ -265,7 +309,9 @@ function silentInstallWindows(msiPath: string, spinner: Ora): void {
   const logPath = path.join(os.tmpdir(), 'mse-install.log');
 
   spinner.info('Administrator privileges required - a UAC prompt will appear.');
-  console.log(chalk.gray('  Please approve the prompt to continue installation.\n'));
+  console.log(
+    chalk.gray('  Please approve the prompt to continue installation.\n'),
+  );
 
   const psCommand = `Start-Process -FilePath 'msiexec' -ArgumentList '/i', '${msiPath.replace(/'/g, "''")}', '/quiet', '/norestart', '/log', '${logPath.replace(/'/g, "''")}' -Verb RunAs -Wait`;
 
@@ -276,12 +322,16 @@ function silentInstallWindows(msiPath: string, spinner: Ora): void {
   } catch (error) {
     const errorMsg = (error as Error).message || '';
     if (errorMsg.includes('canceled') || errorMsg.includes('cancelled')) {
-      throw new Error('Installation cancelled - administrator privileges are required to install.');
+      throw new Error(
+        'Installation cancelled - administrator privileges are required to install.',
+      );
     }
     try {
       const logContent = fs.readFileSync(logPath, 'utf16le');
       if (logContent.includes('1925')) {
-        throw new Error('Installation requires administrator privileges. Please run the terminal as Administrator or install manually.');
+        throw new Error(
+          'Installation requires administrator privileges. Please run the terminal as Administrator or install manually.',
+        );
       }
     } catch {
       // Log file not readable, continue with original error
@@ -298,7 +348,10 @@ function silentInstallLinux(archivePath: string, spinner: Ora): void {
     fs.mkdirSync(installPath, { recursive: true });
   }
 
-  execSync(`tar -xzf "${archivePath}" -C "${installPath}" --strip-components=1`, { timeout: 120000 });
+  execSync(
+    `tar -xzf "${archivePath}" -C "${installPath}" --strip-components=1`,
+    { timeout: 120000 },
+  );
 
   const cliPath = path.join(installPath, MSE_LINUX_CLI_NAME);
   if (fs.existsSync(cliPath)) {
@@ -311,16 +364,25 @@ function silentInstallLinux(archivePath: string, spinner: Ora): void {
   }
 }
 
-function silentInstall(installerPath: string, platform: Platform, spinner: Ora): void {
-  if (platform === 'darwin') silentInstallMacOS(installerPath, spinner);
-  else if (platform === 'win32') silentInstallWindows(installerPath, spinner);
-  else silentInstallLinux(installerPath, spinner);
+function silentInstall(
+  installerPath: string,
+  platform: Platform,
+  spinner: Ora,
+): void {
+  if (platform === 'darwin') {
+    silentInstallMacOS(installerPath, spinner);
+  } else if (platform === 'win32') {
+    silentInstallWindows(installerPath, spinner);
+  } else {
+    silentInstallLinux(installerPath, spinner);
+  }
 }
 
 export async function installMSE(): Promise<MSEInstallResult> {
   const platform = detectPlatform();
   const downloadUrl = MSE_DOWNLOAD_URLS[platform] || MSE_DOWNLOAD_URLS.default;
-  const productName = platform === 'linux' ? 'Meta Spatial Editor CLI' : 'Meta Spatial Editor';
+  const productName =
+    platform === 'linux' ? 'Meta Spatial Editor CLI' : 'Meta Spatial Editor';
 
   console.log(chalk.gray('\nChecking for latest version...'));
   const latestRelease = await fetchAppcastRelease(platform);
@@ -330,18 +392,28 @@ export async function installMSE(): Promise<MSEInstallResult> {
 
   if (existingVersion) {
     const installedNormalized = normalizeVersion(existingVersion);
-    const latestNormalized = latestVersion ? normalizeVersion(latestVersion) : null;
+    const latestNormalized = latestVersion
+      ? normalizeVersion(latestVersion)
+      : null;
     const belowMinimum = !isVersionSufficient(installedNormalized);
 
     if (latestNormalized && installedNormalized === latestNormalized) {
-      console.log(chalk.green(`\n✓ ${productName} ${existingVersion} is already installed (latest version).`));
+      console.log(
+        chalk.green(
+          `\n✓ ${productName} ${existingVersion} is already installed (latest version).`,
+        ),
+      );
       return { installed: true, version: existingVersion, manual: false };
     }
 
     if (latestNormalized) {
       try {
         if (semver.gte(installedNormalized, latestNormalized)) {
-          console.log(chalk.green(`\n✓ ${productName} ${existingVersion} is already installed (up to date).`));
+          console.log(
+            chalk.green(
+              `\n✓ ${productName} ${existingVersion} is already installed (up to date).`,
+            ),
+          );
           return { installed: true, version: existingVersion, manual: false };
         }
       } catch {}
@@ -367,8 +439,14 @@ export async function installMSE(): Promise<MSEInstallResult> {
         };
       }
     } else if (isVersionSufficient(existingVersion)) {
-      console.log(chalk.green(`\n✓ ${productName} ${existingVersion} is already installed.`));
-      console.log(chalk.gray('(Could not check for updates - using installed version)'));
+      console.log(
+        chalk.green(
+          `\n✓ ${productName} ${existingVersion} is already installed.`,
+        ),
+      );
+      console.log(
+        chalk.gray('(Could not check for updates - using installed version)'),
+      );
       return { installed: true, version: existingVersion, manual: false };
     } else {
       const { shouldUpgrade } = await prompts({
@@ -379,11 +457,18 @@ export async function installMSE(): Promise<MSEInstallResult> {
       });
 
       if (!shouldUpgrade) {
-        return { installed: true, version: existingVersion, manual: false, outdated: true };
+        return {
+          installed: true,
+          version: existingVersion,
+          manual: false,
+          outdated: true,
+        };
       }
     }
   } else if (!latestRelease) {
-    console.log(chalk.yellow(`\nCould not fetch ${productName} release information.`));
+    console.log(
+      chalk.yellow(`\nCould not fetch ${productName} release information.`),
+    );
     console.log('Please install manually:');
     console.log(chalk.cyan(`  ${downloadUrl}`));
     return { installed: false, version: null, manual: true };
@@ -397,10 +482,17 @@ export async function installMSE(): Promise<MSEInstallResult> {
     return { installed: false, version: null, manual: true };
   }
 
-  const spinner = ora({ text: 'Preparing installation...', stream: process.stderr }).start();
+  const spinner = ora({
+    text: 'Preparing installation...',
+    stream: process.stderr,
+  }).start();
 
   try {
-    const installerPath = await downloadInstaller(platform, spinner, latestRelease);
+    const installerPath = await downloadInstaller(
+      platform,
+      spinner,
+      latestRelease,
+    );
     silentInstall(installerPath, platform, spinner);
 
     try {
@@ -421,12 +513,18 @@ export async function installMSE(): Promise<MSEInstallResult> {
       if (platform === 'linux') {
         const cliPath = path.join(MSE_INSTALL_PATHS.linux, MSE_LINUX_CLI_NAME);
         console.log(chalk.cyan(`\nCLI installed to: ${cliPath}`));
-        console.log(chalk.gray(`Set environment variable: META_SPATIAL_EDITOR_CLI_PATH=${cliPath}`));
+        console.log(
+          chalk.gray(
+            `Set environment variable: META_SPATIAL_EDITOR_CLI_PATH=${cliPath}`,
+          ),
+        );
       }
 
       return { installed: true, version, manual: false };
     } else if (version) {
-      spinner.succeed(`${productName} ${version} installed (version above ${MSE_MIN_VERSION} recommended)`);
+      spinner.succeed(
+        `${productName} ${version} installed (version above ${MSE_MIN_VERSION} recommended)`,
+      );
       return { installed: true, version, manual: false, outdated: true };
     } else {
       spinner.warn('Installation completed but version verification failed');
@@ -437,6 +535,11 @@ export async function installMSE(): Promise<MSEInstallResult> {
     console.error(chalk.red(`Error: ${(error as Error).message}`));
     console.log('\nYou can install Meta Spatial Editor manually:');
     console.log(chalk.cyan(`  ${downloadUrl}`));
-    return { installed: false, version: null, manual: true, error: error as Error };
+    return {
+      installed: false,
+      version: null,
+      manual: true,
+      error: error as Error,
+    };
   }
 }

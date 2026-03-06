@@ -6,7 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getSceneHierarchy, type HierarchyNode } from '../../src/mcp/scene-tools.js';
+import {
+  getSceneHierarchy,
+  type HierarchyNode,
+} from '../../src/mcp/scene-tools.js';
 
 // ---------------------------------------------------------------------------
 // Minimal Object3D mock (only the properties scene-tools uses)
@@ -14,19 +17,20 @@ import { getSceneHierarchy, type HierarchyNode } from '../../src/mcp/scene-tools
 
 let uuidCounter = 0;
 
-function createMockObject3D(
-  name: string,
-  children: any[] = [],
-): any {
+function createMockObject3D(name: string, children: any[] = []): any {
   return {
     name,
     uuid: `uuid-${++uuidCounter}`,
     children,
     getObjectByProperty: function (prop: string, value: string): any {
-      if ((this as any)[prop] === value) return this;
+      if ((this as any)[prop] === value) {
+        return this;
+      }
       for (const child of this.children) {
         const found = child.getObjectByProperty(prop, value);
-        if (found) return found;
+        if (found) {
+          return found;
+        }
       }
       return undefined;
     },

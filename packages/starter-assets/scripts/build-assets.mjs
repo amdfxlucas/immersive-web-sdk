@@ -119,11 +119,7 @@ function toJsObjectLiteral(value) {
   return recur(value);
 }
 
-async function generateRecipeForStarter(
-  starterDir,
-  casRoot,
-  casVersion,
-) {
+async function generateRecipeForStarter(starterDir, casRoot, casVersion) {
   const starterName = path.basename(starterDir);
   const id = toVariantId(starterName);
   const title = titleFromId(id);
@@ -148,7 +144,11 @@ async function generateRecipeForStarter(
       const bytes = await fsp.readFile(srcFile);
       const relPath = path.join('metaspatial', rel).replaceAll('\\', '/');
       const casRel = await writeCasObject(casRoot, bytes, path.basename(rel));
-      remotes.push({ path: relPath, url: `assets/${casRel}`, bytes: bytes.length });
+      remotes.push({
+        path: relPath,
+        url: `assets/${casRel}`,
+        bytes: bytes.length,
+      });
       edits[relPath] = { url: `assets/${casRel}` };
     }
   }
@@ -159,7 +159,11 @@ async function generateRecipeForStarter(
       const bytes = await fsp.readFile(srcFile);
       const relPath = path.join('public', rel).replaceAll('\\', '/');
       const casRel = await writeCasObject(casRoot, bytes, path.basename(rel));
-      remotes.push({ path: relPath, url: `assets/${casRel}`, bytes: bytes.length });
+      remotes.push({
+        path: relPath,
+        url: `assets/${casRel}`,
+        bytes: bytes.length,
+      });
       edits[relPath] = { url: `assets/${casRel}` };
     }
   }
@@ -522,7 +526,9 @@ async function generateClaudeConfigRecipe(version) {
         const outputPath = path.join('.claude', rel).replaceAll('\\', '/');
         edits[outputPath] = { lines: content.split(/\r?\n/) };
       } catch (err) {
-        console.warn(`Warning: Could not read claude-injections/${rel}: ${err.message}`);
+        console.warn(
+          `Warning: Could not read claude-injections/${rel}: ${err.message}`,
+        );
       }
     }
   }
@@ -586,7 +592,9 @@ async function generateCopilotConfigRecipe(version) {
 
   if (fs.existsSync(projectAgentsPath)) {
     const content = await fsp.readFile(projectAgentsPath, 'utf8');
-    edits['.github/copilot-instructions.md'] = { lines: content.split(/\r?\n/) };
+    edits['.github/copilot-instructions.md'] = {
+      lines: content.split(/\r?\n/),
+    };
   }
 
   return { name: 'base-copilot-config', version, edits };

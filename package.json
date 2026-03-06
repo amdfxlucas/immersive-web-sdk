@@ -15,6 +15,7 @@
     "docs:preview": "vitepress preview docs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck:examples": "for dir in examples/*/; do if [ -f \"$dir/tsconfig.json\" ]; then echo \"Type-checking $dir...\" && (cd \"$dir\" && npx tsc --noEmit) || exit 1; fi; done && echo 'All examples pass type checks.'",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint-staged": "lint-staged",

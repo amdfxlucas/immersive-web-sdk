@@ -15,10 +15,7 @@ import ora from 'ora';
 import { Ora } from 'ora';
 import prettier from 'prettier';
 
-async function applyRecipe(
-  recipes: Recipe | Recipe[],
-  outDir: string,
-) {
+async function applyRecipe(recipes: Recipe | Recipe[], outDir: string) {
   const recipeArray = Array.isArray(recipes) ? recipes : [recipes];
   const result = await buildProject(recipeArray, undefined, { allowUrl: true });
   const decoder = new TextDecoder('utf-8');

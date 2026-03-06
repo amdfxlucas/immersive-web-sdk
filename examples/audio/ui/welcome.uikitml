@@ -50,10 +50,10 @@
 </style>
 <Panel class="panel-root">
   <div class="panel-content">
-    <div class="heading"> Hello, Immersive Web! </div>
+    <div class="heading"> Spatial Audio </div>
     <divider></divider>
-    <div class="sub-heading"> Explore locomotion, grab interactions, spatial UI panel and more -
-      start building for the immersive web with Immersive Web SDK today.</div>
+    <div class="sub-heading"> Play positional 3D audio sources that respond to user interactions
+      with the Immersive Web SDK.</div>
   </div>
   <Button id="xr-button" class="button">
     <ButtonIcon>

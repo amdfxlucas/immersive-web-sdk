@@ -5,11 +5,11 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { existsSync } from 'fs';
+import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   mergeJsonConfig,
   unmergeJsonConfig,
@@ -20,7 +20,10 @@ import {
 let tmpDir: string;
 
 beforeEach(async () => {
-  tmpDir = path.join(os.tmpdir(), `mcp-merge-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  tmpDir = path.join(
+    os.tmpdir(),
+    `mcp-merge-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   await mkdir(tmpDir, { recursive: true });
 });
 
@@ -32,7 +35,10 @@ describe('mergeJsonConfig', () => {
   test('creates file with our entries when it does not exist', async () => {
     const filePath = path.join(tmpDir, '.mcp.json');
     const entries = {
-      'iwsdk-dev-mcp': { command: 'node', args: ['server.js', '--port', '8081'] },
+      'iwsdk-dev-mcp': {
+        command: 'node',
+        args: ['server.js', '--port', '8081'],
+      },
     };
 
     const created = await mergeJsonConfig(filePath, entries, 'mcpServers');
@@ -40,7 +46,9 @@ describe('mergeJsonConfig', () => {
     expect(created).toBe(true);
     const raw = await readFile(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
-    expect(parsed.mcpServers['iwsdk-dev-mcp']).toEqual(entries['iwsdk-dev-mcp']);
+    expect(parsed.mcpServers['iwsdk-dev-mcp']).toEqual(
+      entries['iwsdk-dev-mcp'],
+    );
   });
 
   test('preserves user entries when file already exists', async () => {
@@ -64,7 +72,9 @@ describe('mergeJsonConfig', () => {
     expect(parsed.mcpServers['my-custom-server']).toEqual(
       userConfig.mcpServers['my-custom-server'],
     );
-    expect(parsed.mcpServers['iwsdk-dev-mcp']).toEqual(entries['iwsdk-dev-mcp']);
+    expect(parsed.mcpServers['iwsdk-dev-mcp']).toEqual(
+      entries['iwsdk-dev-mcp'],
+    );
   });
 
   test('updates existing managed entries in place', async () => {
@@ -77,7 +87,10 @@ describe('mergeJsonConfig', () => {
     await writeFile(filePath, JSON.stringify(initial, null, 2));
 
     const entries = {
-      'iwsdk-dev-mcp': { command: 'node', args: ['new-server.js', '--port', '9999'] },
+      'iwsdk-dev-mcp': {
+        command: 'node',
+        args: ['new-server.js', '--port', '9999'],
+      },
     };
 
     const created = await mergeJsonConfig(filePath, entries, 'mcpServers');
@@ -118,7 +131,10 @@ describe('mergeJsonConfig', () => {
 
     // Re-merge with updated iwsdk-dev-mcp entry
     const entries = {
-      'iwsdk-dev-mcp': { command: 'node', args: ['new-server.js', '--port', '9999'] },
+      'iwsdk-dev-mcp': {
+        command: 'node',
+        args: ['new-server.js', '--port', '9999'],
+      },
     };
 
     await mergeJsonConfig(filePath, entries, 'mcpServers');
@@ -126,7 +142,11 @@ describe('mergeJsonConfig', () => {
     const raw = await readFile(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
     // Our entry is updated
-    expect(parsed.mcpServers['iwsdk-dev-mcp'].args).toEqual(['new-server.js', '--port', '9999']);
+    expect(parsed.mcpServers['iwsdk-dev-mcp'].args).toEqual([
+      'new-server.js',
+      '--port',
+      '9999',
+    ]);
     // User's sibling key survives
     expect(parsed.mcpServers['my-custom-server']).toEqual(
       initial.mcpServers['my-custom-server'],
@@ -226,7 +246,10 @@ describe('mergeTomlConfig', () => {
   test('creates file with managed block when it does not exist', async () => {
     const filePath = path.join(tmpDir, '.codex', 'config.toml');
     const entries = {
-      'iwsdk-dev-mcp': { command: 'node', args: ['server.js', '--port', '8081'] },
+      'iwsdk-dev-mcp': {
+        command: 'node',
+        args: ['server.js', '--port', '8081'],
+      },
     };
 
     const created = await mergeTomlConfig(filePath, entries);
@@ -242,11 +265,7 @@ describe('mergeTomlConfig', () => {
 
   test('preserves user content when file already exists', async () => {
     const filePath = path.join(tmpDir, 'config.toml');
-    const userContent = [
-      '[settings]',
-      'model = "gpt-4"',
-      '',
-    ].join('\n');
+    const userContent = ['[settings]', 'model = "gpt-4"', ''].join('\n');
     await writeFile(filePath, userContent);
 
     const entries = {
@@ -278,7 +297,10 @@ describe('mergeTomlConfig', () => {
     await writeFile(filePath, existingContent);
 
     const entries = {
-      'iwsdk-dev-mcp': { command: 'node', args: ['new-server.js', '--port', '9999'] },
+      'iwsdk-dev-mcp': {
+        command: 'node',
+        args: ['new-server.js', '--port', '9999'],
+      },
     };
 
     await mergeTomlConfig(filePath, entries);
@@ -365,9 +387,7 @@ describe('unmergeTomlConfig', () => {
   test('does not throw when file does not exist', async () => {
     const filePath = path.join(tmpDir, 'nonexistent.toml');
 
-    await expect(
-      unmergeTomlConfig(filePath, false),
-    ).resolves.toBeUndefined();
+    await expect(unmergeTomlConfig(filePath, false)).resolves.toBeUndefined();
   });
 
   test('does not delete file when we did not create it, even if empty after removal', async () => {
@@ -390,11 +410,7 @@ describe('unmergeTomlConfig', () => {
 
   test('preserves file with user content but no managed block, even if weCreatedFile=true', async () => {
     const filePath = path.join(tmpDir, 'config.toml');
-    const userContent = [
-      '[settings]',
-      'model = "gpt-4"',
-      '',
-    ].join('\n');
+    const userContent = ['[settings]', 'model = "gpt-4"', ''].join('\n');
     await writeFile(filePath, userContent);
 
     await unmergeTomlConfig(filePath, true);

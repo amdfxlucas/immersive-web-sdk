@@ -162,7 +162,10 @@ world.createTransformEntity(mesh, parentEntity);
 world.createTransformEntity(mesh, { parent: parentEntity });
 
 // ✅ GOOD - persistent entity (survives level changes)
-world.createTransformEntity(mesh, { parent: world.sceneEntity, persistent: true });
+world.createTransformEntity(mesh, {
+  parent: world.sceneEntity,
+  persistent: true,
+});
 ```
 
 #### DON'T use manual Raycaster — use Interactable component
@@ -267,6 +270,7 @@ Use when:
 - Spawns parallel subagents to examine preview images and write descriptions
 
 Example:
+
 ```
 /catalog-assets public/kenney_prototype-kit
 ```
@@ -282,6 +286,7 @@ Use when:
 - Comparing models visually
 
 Example:
+
 ```
 /preview-model figurine
 /preview-model door-rotate b
@@ -316,58 +321,58 @@ WebXR emulator control for testing without a headset. All tools are prefixed `mc
 
 **Session**
 
-| Tool                       | Purpose                                 |
-| -------------------------- | --------------------------------------- |
-| `xr_get_session_status`    | Check IWER connection (**call first!**) |
-| `xr_accept_session`        | Enter XR mode                           |
-| `xr_end_session`           | Exit XR mode                            |
-| `browser_reload_page`      | Reload browser to reset state           |
+| Tool                    | Purpose                                 |
+| ----------------------- | --------------------------------------- |
+| `xr_get_session_status` | Check IWER connection (**call first!**) |
+| `xr_accept_session`     | Enter XR mode                           |
+| `xr_end_session`        | Exit XR mode                            |
+| `browser_reload_page`   | Reload browser to reset state           |
 
 **Device Control**
 
-| Tool                  | Purpose                                                                    |
-| --------------------- | -------------------------------------------------------------------------- |
-| `xr_set_transform`    | Set position/orientation of headset, controller, or hand                   |
-| `xr_get_transform`    | Read current position/orientation of a device                              |
-| `xr_look_at`          | Orient a device toward a world position (optional move-to)                 |
-| `xr_animate_to`       | Smoothly animate a device to a new transform over time                     |
-| `xr_set_input_mode`   | Switch between `controller` and `hand` tracking                            |
-| `xr_set_connected`    | Connect/disconnect an input device                                         |
-| `xr_select`           | Full select action (press+release) — fires selectstart/select/selectend    |
-| `xr_set_select_value` | Set trigger/pinch value (0-1) for grab-move-release patterns               |
-| `xr_set_gamepad_state`| Set button values and thumbstick axes by index                             |
-| `xr_get_device_state` | Read full device state (headset + controllers + hands)                     |
-| `xr_set_device_state` | Batch-set device state; call with no args to reset defaults                |
+| Tool                   | Purpose                                                                 |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `xr_set_transform`     | Set position/orientation of headset, controller, or hand                |
+| `xr_get_transform`     | Read current position/orientation of a device                           |
+| `xr_look_at`           | Orient a device toward a world position (optional move-to)              |
+| `xr_animate_to`        | Smoothly animate a device to a new transform over time                  |
+| `xr_set_input_mode`    | Switch between `controller` and `hand` tracking                         |
+| `xr_set_connected`     | Connect/disconnect an input device                                      |
+| `xr_select`            | Full select action (press+release) — fires selectstart/select/selectend |
+| `xr_set_select_value`  | Set trigger/pinch value (0-1) for grab-move-release patterns            |
+| `xr_set_gamepad_state` | Set button values and thumbstick axes by index                          |
+| `xr_get_device_state`  | Read full device state (headset + controllers + hands)                  |
+| `xr_set_device_state`  | Batch-set device state; call with no args to reset defaults             |
 
 **Observation**
 
-| Tool                      | Purpose                                                 |
-| ------------------------- | ------------------------------------------------------- |
-| `browser_screenshot`      | Screenshot the browser (returns image inline)           |
-| `browser_get_console_logs`| Browser console logs with level/pattern/count filtering |
+| Tool                       | Purpose                                                 |
+| -------------------------- | ------------------------------------------------------- |
+| `browser_screenshot`       | Screenshot the browser (returns image inline)           |
+| `browser_get_console_logs` | Browser console logs with level/pattern/count filtering |
 
 **Scene Inspection** (requires IWSDK / FRAMEWORK_MCP_RUNTIME)
 
-| Tool                         | Purpose                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------- |
-| `scene_get_hierarchy`        | Three.js scene tree with names, UUIDs, and entity indices                                     |
+| Tool                         | Purpose                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `scene_get_hierarchy`        | Three.js scene tree with names, UUIDs, and entity indices                                  |
 | `scene_get_object_transform` | Local + global transforms; includes position relative to XR origin (use with `xr_look_at`) |
 
 **ECS Debugging** (requires IWSDK / FRAMEWORK_MCP_RUNTIME)
 
-| Tool               | Purpose                                                    |
-| ------------------ | ---------------------------------------------------------- |
-| `ecs_find_entities`  | Search entities by component composition and/or name regex |
-| `ecs_query_entity`   | Read all component field values for an entity by index     |
-| `ecs_list_components`| List all registered components with field schemas          |
-| `ecs_list_systems`   | List all systems with priority, pause state, entity counts |
-| `ecs_set_component`  | Write a component field value on a live entity             |
-| `ecs_toggle_system`  | Pause/resume a specific system by name                     |
-| `ecs_pause`          | Freeze all ECS updates (render loop continues)             |
-| `ecs_resume`         | Resume ECS updates after pause                             |
-| `ecs_step`           | Advance N frames with fixed timestep while paused          |
-| `ecs_snapshot`       | Capture full ECS state (stores up to 2 snapshots)          |
-| `ecs_diff`           | Compare two snapshots — shows field-level diffs            |
+| Tool                  | Purpose                                                    |
+| --------------------- | ---------------------------------------------------------- |
+| `ecs_find_entities`   | Search entities by component composition and/or name regex |
+| `ecs_query_entity`    | Read all component field values for an entity by index     |
+| `ecs_list_components` | List all registered components with field schemas          |
+| `ecs_list_systems`    | List all systems with priority, pause state, entity counts |
+| `ecs_set_component`   | Write a component field value on a live entity             |
+| `ecs_toggle_system`   | Pause/resume a specific system by name                     |
+| `ecs_pause`           | Freeze all ECS updates (render loop continues)             |
+| `ecs_resume`          | Resume ECS updates after pause                             |
+| `ecs_step`            | Advance N frames with fixed timestep while paused          |
+| `ecs_snapshot`        | Capture full ECS state (stores up to 2 snapshots)          |
+| `ecs_diff`            | Compare two snapshots — shows field-level diffs            |
 
 **Key workflows:**
 

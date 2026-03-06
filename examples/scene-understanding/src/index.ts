@@ -1,0 +1,150 @@
+import {
+  AssetManifest,
+  AssetType,
+  Color,
+  createSystem,
+  DistanceGrabbable,
+  DomeTexture,
+  eq,
+  FrontSide,
+  IBLTexture,
+  Interactable,
+  Mesh,
+  MeshStandardMaterial,
+  MovementMode,
+  PanelUI,
+  PokeInteractable,
+  RayInteractable,
+  ReferenceSpaceType,
+  ScreenSpace,
+  SessionMode,
+  SphereGeometry,
+  Vector3,
+  World,
+  XRAnchor,
+  XRMesh,
+  XRPlane,
+} from '@iwsdk/core';
+import * as horizonKit from '@pmndrs/uikit-horizon';
+import { LogInIcon, RectangleGogglesIcon } from '@pmndrs/uikit-lucide';
+import { SettingsSystem } from './panel.js';
+
+export class SceneShowSystem extends createSystem({
+  planeEntities: { required: [XRPlane] },
+  meshEntities: {
+    required: [XRMesh],
+    where: [eq(XRMesh, 'isBounded3D', true)],
+  },
+}) {
+  private worldRotation!: Vector3;
+  private anchoredMesh!: Mesh;
+
+  init() {
+    this.worldRotation = new Vector3();
+    this.anchoredMesh = new Mesh(
+      new SphereGeometry(0.2),
+      new MeshStandardMaterial({
+        side: FrontSide,
+        color: new Color(Math.random(), Math.random(), Math.random()),
+      }),
+    );
+    this.anchoredMesh.position.set(0, 1, -1);
+    this.scene.add(this.anchoredMesh);
+    const anchoredEntity = this.world.createTransformEntity(this.anchoredMesh);
+    anchoredEntity.addComponent(Interactable);
+    anchoredEntity.addComponent(DistanceGrabbable, {
+      movementMode: MovementMode.MoveFromTarget,
+    });
+    anchoredEntity.addComponent(XRAnchor);
+
+    this.queries.planeEntities.subscribe('qualify', (planeEntity) => {
+      if (!planeEntity.hasComponent(Interactable)) {
+        console.log(
+          'SceneShowSystem configure + planeEntity ' + planeEntity.index,
+        );
+        planeEntity.object3D!.visible = false;
+        planeEntity.addComponent(Interactable);
+        planeEntity.object3D!.addEventListener('pointerenter', () => {
+          if (planeEntity.object3D) {
+            planeEntity.object3D.visible = true;
+          }
+        });
+        planeEntity.object3D!.addEventListener('pointerleave', () => {
+          if (planeEntity.object3D) {
+            planeEntity.object3D.visible = false;
+          }
+        });
+      }
+    });
+
+    this.queries.meshEntities.subscribe('qualify', (meshEntity) => {
+      if (!meshEntity.hasComponent(Interactable)) {
+        meshEntity.addComponent(Interactable);
+        meshEntity.object3D!.visible = false;
+        meshEntity.object3D!.addEventListener('pointerenter', () => {
+          if (meshEntity.object3D) {
+            meshEntity.object3D.visible = true;
+          }
+        });
+        meshEntity.object3D!.addEventListener('pointerleave', () => {
+          if (meshEntity.object3D) {
+            meshEntity.object3D.visible = false;
+          }
+        });
+      }
+    });
+  }
+}
+
+World.create(document.getElementById('scene-container') as HTMLDivElement, {
+  assets: {
+    veniceSunset: {
+      url: './textures/venice_sunset_1k.exr',
+      type: AssetType.HDRTexture,
+      priority: 'critical',
+    },
+  } as AssetManifest,
+  xr: {
+    sessionMode: SessionMode.ImmersiveAR,
+    referenceSpace: ReferenceSpaceType.Unbounded,
+    features: {
+      hitTest: { required: true },
+      planeDetection: { required: true },
+      meshDetection: { required: true },
+      anchors: { required: true },
+      unbounded: { required: true },
+    },
+  },
+  features: {
+    grabbing: true,
+    sceneUnderstanding: true,
+    spatialUI: { kits: [horizonKit, { LogInIcon, RectangleGogglesIcon }] },
+  },
+}).then((world) => {
+  const { scene } = world;
+
+  scene.background = new Color(0x808080);
+
+  const root = world.activeLevel.value;
+  root.addComponent(IBLTexture, { src: 'veniceSunset' });
+  root.addComponent(DomeTexture, { src: 'veniceSunset' });
+
+  const panelEntity = world
+    .createTransformEntity()
+    .addComponent(PanelUI, {
+      config: './ui/welcome.json',
+      maxHeight: 0.4,
+      maxWidth: 0.5,
+    })
+    .addComponent(RayInteractable)
+    .addComponent(PokeInteractable)
+    .addComponent(ScreenSpace, {
+      top: '20px',
+      left: '20px',
+      height: '50%',
+    });
+  panelEntity.object3D!.position.set(0, 1.5, -1.4);
+
+  world.registerSystem(SceneShowSystem);
+  world.registerSystem(SettingsSystem);
+});

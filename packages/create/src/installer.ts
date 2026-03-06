@@ -5,10 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { spawn } from 'cross-spawn';
 import fs from 'fs';
 import path from 'path';
 import { Chalk } from 'chalk';
+import { spawn } from 'cross-spawn';
 import ora, { Ora } from 'ora';
 import type { ResolvedSource } from './source.js';
 import type { ActionItem } from './types.js';
@@ -75,7 +75,9 @@ export async function installDependenciesFromBundle(
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     for (const depsKey of ['dependencies', 'devDependencies'] as const) {
       const deps = pkg[depsKey];
-      if (!deps) continue;
+      if (!deps) {
+        continue;
+      }
       for (const name of Object.keys(deps)) {
         if (name.startsWith('@iwsdk/')) {
           const spec = source.getPackageInstallSpec(name);

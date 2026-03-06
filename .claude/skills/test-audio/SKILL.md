@@ -1,7 +1,7 @@
 ---
 name: test-audio
-description: "Test audio system (AudioSource loading, playback state, stop, spatial audio) against the audio example using mcp-call.mjs WebSocket CLI."
-argument-hint: "[--suite loading|playback|stop|all]"
+description: 'Test audio system (AudioSource loading, playback state, stop, spatial audio) against the audio example using mcp-call.mjs WebSocket CLI.'
+argument-hint: '[--suite loading|playback|stop|all]'
 ---
 
 # Audio System Test
@@ -11,16 +11,20 @@ Run 6 test suites covering audio loading, playback trigger, stop, system registr
 All tool calls go through `scripts/mcp-call.mjs` via WebSocket — no MCP server, no permission prompts.
 
 **Configuration:**
+
 - EXAMPLE_DIR: /Users/felixz/Projects/immersive-web-sdk/examples/audio
 - ROOT: /Users/felixz/Projects/immersive-web-sdk
 
 **SHORTHAND**: Throughout this document, `MCPCALL` means:
+
 ```
 node /Users/felixz/Projects/immersive-web-sdk/scripts/mcp-call.mjs --port <PORT>
 ```
+
 where `<PORT>` is the port number discovered in Step 2.
 
 **Tool calling pattern**: Every tool call is a Bash command using the MCPCALL shorthand:
+
 ```
 MCPCALL --tool <TOOL_NAME> --args '<JSON_ARGS>' 2>/dev/null
 ```
@@ -72,6 +76,7 @@ MCPCALL --tool ecs_list_systems 2>/dev/null
 ```
 
 This must return JSON with a list of systems. If it fails:
+
 1. Check the dev server output for errors
 2. Try killing and restarting the server (Step 2)
 3. If it still fails, report FAIL for all suites and skip to Step 5
@@ -98,18 +103,23 @@ Run these commands in order:
 ### Suite 1: Audio Loading
 
 **Test 1.1: Find Audio Entity**
+
 ```bash
 MCPCALL --tool ecs_find_entities --args '{"withComponents":["AudioSource"]}' 2>/dev/null
 ```
+
 Assert: At least 1 entity. Save the first as `<audio>`.
 
 The audio example uses a GLXF level that creates entities via composition. The Spinner entity has an AudioSource.
 
 **Test 1.2: Verify Loaded State**
+
 ```bash
 MCPCALL --tool ecs_query_entity --args '{"entityIndex":<audio>,"components":["AudioSource"]}' 2>/dev/null
 ```
+
 Assert:
+
 - `src` contains an audio file path (e.g., `.mp3`)
 - `_loaded` = `true` (buffer loaded)
 - `_loading` = `false` (not currently loading)
@@ -125,25 +135,31 @@ Assert: `_pool` exists with `available` array matching `maxInstances`.
 ### Suite 2: Playback Trigger
 
 **Test 2.1: Request Play**
+
 ```bash
 MCPCALL --tool ecs_set_component --args '{"entityIndex":<audio>,"componentId":"AudioSource","field":"_playRequested","value":true}' 2>/dev/null
 ```
+
 Assert: `_playRequested` was consumed (response shows `newValue: false` — the AudioSystem processed it within the same frame).
 
 **Test 2.2: Play with Loop for Observable State**
 
 Set `loop: true` first, then request play:
+
 ```bash
 MCPCALL --tool ecs_set_component --args '{"entityIndex":<audio>,"componentId":"AudioSource","field":"loop","value":true}' 2>/dev/null
 ```
+
 ```bash
 MCPCALL --tool ecs_set_component --args '{"entityIndex":<audio>,"componentId":"AudioSource","field":"_playRequested","value":true}' 2>/dev/null
 ```
 
 Then query:
+
 ```bash
 MCPCALL --tool ecs_query_entity --args '{"entityIndex":<audio>,"components":["AudioSource"]}' 2>/dev/null
 ```
+
 Assert: `_isPlaying` = `true` (looping sound keeps playing).
 
 ---
@@ -151,9 +167,11 @@ Assert: `_isPlaying` = `true` (looping sound keeps playing).
 ### Suite 3: Stop
 
 **Test 3.1: Request Stop**
+
 ```bash
 MCPCALL --tool ecs_set_component --args '{"entityIndex":<audio>,"componentId":"AudioSource","field":"_stopRequested","value":true}' 2>/dev/null
 ```
+
 Assert: `_stopRequested` consumed, `_isPlaying` becomes `false`.
 
 ---
@@ -163,7 +181,9 @@ Assert: `_stopRequested` consumed, `_isPlaying` becomes `false`.
 ```bash
 MCPCALL --tool ecs_list_systems 2>/dev/null
 ```
+
 Assert:
+
 - AudioSystem at priority 0
 - Config keys: `enableDistanceCulling`, `cullingDistanceMultiplier`
 - `audioEntities` >= 1
@@ -175,7 +195,9 @@ Assert:
 ```bash
 MCPCALL --tool ecs_list_components 2>/dev/null
 ```
+
 Assert AudioSource fields:
+
 - Core: `src` (FilePath), `volume` (Float32), `loop` (Boolean), `autoplay` (Boolean)
 - Spatial: `positional` (Boolean), `refDistance`, `rolloffFactor`, `maxDistance`, `distanceModel`, `coneInnerAngle`, `coneOuterAngle`, `coneOuterGain`
 - Behavior: `playbackMode` (Enum), `maxInstances` (Int8), `crossfadeDuration` (Float32), `instanceStealPolicy` (Enum)
@@ -189,6 +211,7 @@ Assert AudioSource fields:
 ```bash
 MCPCALL --tool browser_get_console_logs --args '{"count":30,"level":["error","warn"]}' 2>/dev/null
 ```
+
 Assert: No application-level errors. Audio autoplay warnings and pre-existing 404 resource errors from page load are acceptable.
 
 ---
@@ -196,6 +219,7 @@ Assert: No application-level errors. Audio autoplay warnings and pre-existing 40
 ## Step 5: Cleanup & Results
 
 Kill the dev server:
+
 ```bash
 kill $(lsof -t -i :<PORT>) 2>/dev/null
 ```
@@ -220,6 +244,7 @@ If any suite fails, include which assertion failed and actual vs expected values
 ## Recovery
 
 If at any point a transient error occurs (server crash, WebSocket timeout, connection refused, etc.) that is NOT caused by a source code bug:
+
 1. Kill the dev server: `kill $(lsof -t -i :<PORT>) 2>/dev/null`
 2. Restart: re-run Step 2 to start a fresh dev server (port may change)
 3. Re-run the Pre-test Setup (reload, accept session)
@@ -232,22 +257,29 @@ Only give up after one retry attempt per suite. If the same suite fails twice, m
 ## Known Issues & Workarounds
 
 ### Request flags are one-shot
+
 `_playRequested`, `_pauseRequested`, and `_stopRequested` are consumed by the AudioSystem within one frame. The `ecs_set_component` response may already show `newValue: false`.
 
 ### Short sounds finish before query
+
 Non-looping sounds may finish playing before you can query `_isPlaying`. Set `loop: true` before playing to observe a persistent `_isPlaying: true` state.
 
 ### Stop priority
+
 If `_stopRequested` and `_playRequested` are set simultaneously, stop wins.
 
 ### Audio output not verifiable
+
 IWER runs in a browser context where the AudioContext may be suspended until a user gesture. The MCP tools can verify ECS state transitions but cannot confirm actual audio output.
 
 ### Audio example uses GLXF level
+
 The audio example loads entities from `./glxf/Composition.glxf`. Entities are not created in index.js — they come from the GLXF composition. Use `ecs_find_entities` to discover them dynamically.
 
 ### Boolean values must be JSON booleans
+
 When setting boolean fields (like `_playRequested`, `loop`, `_stopRequested`) via `ecs_set_component`, the `value` must be a JSON boolean (`true`), not a string (`"true"`). Strings silently fail.
 
 ### Entity indices change on reload
+
 Never cache entity indices across page reloads. Always re-discover via `ecs_find_entities`.

@@ -136,20 +136,26 @@ export class DepthSensingSystem extends createSystem(
    */
   private attachOcclusionToEntity(entity: Entity): void {
     const object3D = entity.object3D;
-    if (!object3D) return;
+    if (!object3D) {
+      return;
+    }
 
     const entityUniforms = new Set<ShaderUniforms>();
     this.entityShaderMap.set(entity, entityUniforms);
 
     object3D.traverse((child) => {
-      if (!(child instanceof Mesh)) return;
+      if (!(child instanceof Mesh)) {
+        return;
+      }
 
       const materials = Array.isArray(child.material)
         ? child.material
         : [child.material];
 
       for (const material of materials) {
-        if (!material) continue;
+        if (!material) {
+          continue;
+        }
         material.transparent = true;
         const existingCallback = material.onBeforeCompile?.bind(material);
         material.onBeforeCompile = (shader: any, renderer: any) => {
@@ -360,7 +366,9 @@ export class DepthSensingSystem extends createSystem(
    * neighborhood, outputting to per-view 2D render targets.
    */
   private runMinMaxPreprocessing(): void {
-    if (this.minMaxEntityCount === 0) return;
+    if (this.minMaxEntityCount === 0) {
+      return;
+    }
 
     const nativeTexture = this.depthTextures?.getNativeTexture();
     const dataArrayTexture = this.depthTextures?.getDataArrayTexture();
@@ -368,7 +376,9 @@ export class DepthSensingSystem extends createSystem(
     const depthTextureArray = isGPUDepth
       ? (nativeTexture as Texture)
       : (dataArrayTexture as Texture);
-    if (!depthTextureArray) return;
+    if (!depthTextureArray) {
+      return;
+    }
 
     const depthNear =
       (this.gpuDepthData[0] as unknown as { depthNear: number } | undefined)
@@ -480,7 +490,9 @@ export class DepthSensingSystem extends createSystem(
 
     // Select the texture array: ExternalTexture for GPU, DataArrayTexture for CPU
     const depthTextureArray = isGPUDepth ? nativeTexture : dataArrayTexture;
-    if (!depthTextureArray) return;
+    if (!depthTextureArray) {
+      return;
+    }
 
     this.renderer.getDrawingBufferSize(this.viewportSize);
 

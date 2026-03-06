@@ -1,5 +1,5 @@
-import { optimizeGLTF } from '@iwsdk/vite-plugin-gltf-optimizer';
 import { iwsdkDev } from '@iwsdk/vite-plugin-dev';
+import { optimizeGLTF } from '@iwsdk/vite-plugin-gltf-optimizer';
 import { compileUIKit } from '@iwsdk/vite-plugin-uikitml';
 import { defineConfig } from 'vite';
 import mkcert from 'vite-plugin-mkcert';

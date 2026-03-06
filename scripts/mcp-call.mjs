@@ -56,7 +56,9 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (!tool) {
-  console.error('Usage: node mcp-call.mjs --port <port> --tool <method> [--args <json>] [--timeout <ms>]');
+  console.error(
+    'Usage: node mcp-call.mjs --port <port> --tool <method> [--args <json>] [--timeout <ms>]',
+  );
   process.exit(1);
 }
 
@@ -86,7 +88,9 @@ ws.addEventListener('open', () => {
 });
 
 ws.addEventListener('message', (event) => {
-  const parsed = JSON.parse(typeof event.data === 'string' ? event.data : event.data.toString());
+  const parsed = JSON.parse(
+    typeof event.data === 'string' ? event.data : event.data.toString(),
+  );
   if (parsed.id === requestId) {
     clearTimeout(timeout);
 
