@@ -393,10 +393,7 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       resolvedRecipe.edits['@xrFeaturesStr'] = xrLiteral;
 
       // MCP tool selection for vite.config.ts
-      const mcpToolsLiteral =
-        res.aiTools.length > 0
-          ? `[${res.aiTools.map((t) => `'${t}'`).join(', ')}]`
-          : `['claude', 'cursor', 'copilot', 'codex']`;
+      const mcpToolsLiteral = `[${res.aiTools.map((t) => `'${t}'`).join(', ')}]`;
       resolvedRecipe.edits['@mcpToolsStr'] = mcpToolsLiteral;
 
       const outDir = join(process.cwd(), res.name);
@@ -412,8 +409,9 @@ IWSDK Create CLI v${VERSION}\nNode ${process.version}`;
       // Load AI tool configuration recipes based on user selection
       const aiRecipes: Recipe[] = [];
 
-      if (res.aiTools.length > 0) {
-        // AGENTS.md recipe (loaded when any AI tool is selected — universal baseline)
+      if (res.aiTools.includes('codex')) {
+        // AGENTS.md recipe — Codex reads AGENTS.md natively; other tools have
+        // their own config files with equivalent content.
         try {
           const rawAgentsRecipe = await source.fetchRecipe(
             'base-agents-config.recipe.json',
