@@ -626,8 +626,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           }
                 // Get CRS coordinates of the ENU origin for transforming geometry
           const originCRS = this._coordAdapter?.getOrigin()?.crs || { x: 0, y: 0 };
-          const centerLon = (sourceExtent.west + sourceExtent.east) / 2;
-          const centerLat = (sourceExtent.south + sourceExtent.north) / 2;
+          // Use the map's center (from coordinate adapter) as origin, NOT the source extent center.
+          // This ensures GLB coordinates are relative to the same origin used by the map,
+          // which is essential for correct positioning in the scene.
+          const mapOrigin = this._coordAdapter?.getOrigin();
+          const centerLon = mapOrigin?.lon ?? (sourceExtent.west + sourceExtent.east) / 2;
+          const centerLat = mapOrigin?.lat ?? (sourceExtent.south + sourceExtent.north) / 2;
           // TODO add ctor-options field to MapDataSourceComponent
           // where user can provide ctor options for its custom registered datasource impl.
           ds = new t({
