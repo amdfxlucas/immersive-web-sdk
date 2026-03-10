@@ -624,20 +624,32 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           if(! (t.prototype instanceof Object3DSource ) ){
             throw `Invalid user provided data source for layer: ${lname} - No Object3DSource`;
           }
-                // Get CRS coordinates of the ENU origin for transforming geometry
-          const originCRS = this._coordAdapter?.getOrigin()?.crs || { x: 0, y: 0 };
-          // Use the map's center (from coordinate adapter) as origin, NOT the source extent center.
-          // This ensures GLB coordinates are relative to the same origin used by the map,
+                // Use the map's extent center as origin - both in CRS and convert to WGS84.
+          // This ensures GLB coordinates are relative to the actual map center,
           // which is essential for correct positioning in the scene.
-          const mapOrigin = this._coordAdapter?.getOrigin();
-          const centerLon = mapOrigin?.lon ?? (sourceExtent.west + sourceExtent.east) / 2;
-          const centerLat = mapOrigin?.lat ?? (sourceExtent.south + sourceExtent.north) / 2;
+          const sourceExtentCenterCRS = {
+            x: (sourceExtent.west + sourceExtent.east) / 2,
+            y: (sourceExtent.south + sourceExtent.north) / 2
+          };
+          
+          // Convert CRS extent center to WGS84 for the center parameter
+          let centerLon = sourceExtentCenterCRS.x;
+          let centerLat = sourceExtentCenterCRS.y;
+          if (this._coordAdapter?.proj4) {
+            const wgs84 = this._coordAdapter.proj4(this._coordAdapter.crsCode, 'EPSG:4326', [centerLon, centerLat]);
+            centerLon = wgs84[0];
+            centerLat = wgs84[1];
+          }
+          
+          // Use the extent center in CRS as originCRS
+          const originCRS = sourceExtentCenterCRS;
+          
           // TODO add ctor-options field to MapDataSourceComponent
           // where user can provide ctor options for its custom registered datasource impl.
           ds = new t({
             crs: crs,
             config: source_options.config,
-            crs_name: source_options.crs, // this._config.crs?.code, // the CRS of the query's bbox //(src_config.srsname as string),
+            crs_name: source_options.crs,
             extent: sourceExtent,
             center: {lat: centerLat, lon: centerLon},
             featureclass_name: lname,
