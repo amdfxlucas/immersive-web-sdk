@@ -165,12 +165,12 @@ export class OcclusionDemoSystem extends createSystem({
 
 const assets: AssetManifest = {
   robot: {
-    url: '/gltf/robot/robot.gltf',
+    url: './gltf/robot/robot.gltf',
     type: AssetType.GLTF,
     priority: 'critical',
   },
   plantSansevieria: {
-    url: '/gltf/plantSansevieria/plantSansevieria.gltf',
+    url: './gltf/plantSansevieria/plantSansevieria.gltf',
     type: AssetType.GLTF,
     priority: 'critical',
   },
