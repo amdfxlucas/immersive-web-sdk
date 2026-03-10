@@ -18,6 +18,7 @@ export const Visibility = createComponent(
   { hideInEditor: true },
 );
 
+/**TODO add case for batched-mesh instance entities */
 function attachToEntity(entity: Entity): void {
   const object3D = entity.object3D;
   if (object3D) {

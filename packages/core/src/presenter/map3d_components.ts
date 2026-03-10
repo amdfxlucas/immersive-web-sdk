@@ -97,12 +97,12 @@ export const MapDataSourceComponent = createComponent('MapDataSource',
   },
   'Specification of a Giro3D ImageSource for a MapLayer, that tells the Presenter what source to use for the layer');
 
-// TODO BAD IDEA !? REMOVE LATER. TRY NOT TO USE FOR ANYTHING. UNLESS THERE'S GOOD REASON
 export const MapPresenterComponent = createComponent(
 'MapPresenter',
 {
-  // instance: {type: Types.Object, default: null}, // DrawTool UI is going to need this
-  map: {type: Types.Object, default:null}
+  instance: {type: Types.Object, default: null},
+  map: {type: Types.Object, default:null},
+  controls: {type: Types.Object, default: null}
 },
   'Component of MapPresenter entity to expose its Giro3D Map'
 );

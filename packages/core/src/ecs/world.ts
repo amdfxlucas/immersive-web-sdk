@@ -129,8 +129,7 @@ export class World extends ElicsWorld {
   /**
    * Get the active presenter (if any).
    *
-   * When using presenter mode, this returns the current presenter instance.
-   * In legacy XR-only mode, this returns undefined.
+   * returns the current presenter instance.
    */
   get presenter(): IPresenter | undefined {
     return this._presenter;

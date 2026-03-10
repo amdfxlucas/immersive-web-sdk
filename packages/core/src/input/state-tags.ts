@@ -5,7 +5,22 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { createComponent } from '../ecs/index.js';
+import { createComponent, Types } from '../ecs/index.js';
+
+export enum EventButton {
+  Primary = 'primary', /// Left-click/Touch-start
+  Auxiliary = 'auxiliary', /// Middle-click(scroll-wheel)
+  Secondary = 'secondary', /// Right-click
+}
+
+export function fromNativeButton(btn: number): EventButton {
+  switch(btn){
+    case 0: return EventButton.Primary;
+    case 1: return EventButton.Auxiliary;
+    case 2: return EventButton.Secondary;
+    default: throw `Unhandled button: ${btn}`;
+  }
+}
 
 /**
  * Marks an entity as eligible for ray-based pointer interaction.
@@ -85,7 +100,9 @@ export const Hovered = createComponent(
  */
 export const Pressed = createComponent(
   'Pressed',
-  {},
+  {
+    /**Tells you which specific button was pressed or released to trigger the event. */
+    button: {type: Types.Enum, enum: EventButton, default: EventButton.Primary } },
   'A tag added by InputSystem while the entity is actively pressed.',
 );
 

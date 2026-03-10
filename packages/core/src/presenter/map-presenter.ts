@@ -748,7 +748,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   setWorld(world: World){
     this._world = world;
     const me = this._world.createEntity();
-    me.addComponent(MapPresenterComponent, {map: this._map});
+    me.addComponent(MapPresenterComponent, {map: this._map, instance: this._instance, controls: this._controls});
 
     this._world.registerSystem(Giro3DSystem);
     const g3ds = this._world.getSystem(Giro3DSystem);
@@ -1215,10 +1215,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     eventType: PointerEventType,
     event: MouseEvent | PointerEvent,
   ): void {
-    console.log(`Giro3D PointerEvent: ${eventType}`);
+    
     const callbacks = this._pointerCallbacks.get(eventType);
     if (!callbacks || callbacks.size === 0) return;
-
+    console.log(`Giro3D PointerEvent: ${eventType}`);
     // Get pointerId from PointerEvent, default to 0 for MouseEvent
     const pointerId = (event as PointerEvent).pointerId ?? 0;
 
