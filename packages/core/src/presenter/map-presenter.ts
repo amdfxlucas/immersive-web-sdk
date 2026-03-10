@@ -635,10 +635,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           // Convert CRS extent center to WGS84 for the center parameter
           let centerLon = sourceExtentCenterCRS.x;
           let centerLat = sourceExtentCenterCRS.y;
-          if (this._coordAdapter?.proj4) {
-            const wgs84 = this._coordAdapter.proj4(this._coordAdapter.crsCode, 'EPSG:4326', [centerLon, centerLat]);
-            centerLon = wgs84[0];
-            centerLat = wgs84[1];
+          if (this._coordAdapter) {
+            const wgs84 = this._coordAdapter.crsToGeographic(centerLon, centerLat);
+            centerLon = wgs84.lon;
+            centerLat = wgs84.lat;
           }
           
           // Use the extent center in CRS as originCRS
