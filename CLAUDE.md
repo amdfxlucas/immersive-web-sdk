@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Immersive Web SDK (IWSDK)** - A comprehensive JavaScript framework for building WebXR (VR/AR) applications on the web. Built on Three.js with a high-performance Entity Component System (Elics), IWSDK enables developers to create immersive experiences that run identically in VR/AR headsets and desktop browsers with automatic mouse-and-keyboard emulation.
 
 **Key Technologies:**
+
 - Three.js (3D rendering engine)
 - Elics (Entity Component System)
 - WebXR API
@@ -32,10 +33,12 @@ This is a monorepo containing 10 packages:
 ## Development Environment
 
 **Requirements:**
+
 - Node.js >= 20.19.0
 - pnpm (package manager)
 
 **Installation:**
+
 ```bash
 pnpm install
 ```
@@ -43,6 +46,7 @@ pnpm install
 ## Common Development Commands
 
 ### Build Commands
+
 ```bash
 # Install dependencies
 pnpm install
@@ -62,6 +66,7 @@ pnpm --filter @iwsdk/vite-plugin-metaspatial run build
 ```
 
 ### Testing
+
 ```bash
 # Run tests (from package directory, e.g., packages/core/)
 npm run test
@@ -79,6 +84,7 @@ npm run test -- tests/specific.test.ts
 Test framework: **Vitest** (used in @iwsdk/core and @iwsdk/vite-plugin-metaspatial)
 
 ### Code Quality
+
 ```bash
 # Lint all files
 pnpm run lint
@@ -94,11 +100,13 @@ pnpm run format:check
 ```
 
 Configuration:
+
 - ESLint config: `eslint.config.js` (flat config format)
 - Prettier config: `.prettierrc.json`
 - Git hooks run lint-staged automatically on commit
 
 ### Documentation
+
 ```bash
 # Start VitePress dev server
 npm run docs:dev
@@ -111,6 +119,7 @@ npm run docs:api
 ```
 
 ### Example Development Workflow
+
 ```bash
 # 1. Make changes to a package (e.g., @iwsdk/core)
 
@@ -171,22 +180,27 @@ World
 ### Key Design Patterns
 
 **Reactive Configuration via Signals:**
+
 - Uses Preact Signals for reactive state management
 - System configurations are Signals, allowing reactive updates
 
 **Transform Synchronization Without Copies:**
+
 - Transform component fields directly map to Three.js Object3D typed arrays
 - Updates to ECS data automatically reflect in Three.js with zero overhead
 
 **Level Root Parenting:**
+
 - Entities automatically parented under scene root (persistent) or active level root (level content)
 - Enables atomic level unloading by destroying level-tagged entities
 
 **Optional Feature Systems:**
+
 - Configured via `WorldOptions.features` during World creation
 - Features: locomotion, grabbing, physics, sceneUnderstanding, environmentRaycast, camera, spatialUI
 
 **GLXF Component Registry:**
+
 - GLXF metadata maps to ECS components via component registry
 - Supports custom mappers for declarative scene construction
 
@@ -212,6 +226,7 @@ World
 ### Development Pattern: TGZ-Based Local Dependencies
 
 Examples use `.tgz` files for local package dependencies:
+
 1. `npm run build:tgz` creates `.tgz` archives for all packages
 2. Examples reference packages via `file:` dependencies pointing to tgz files
 3. This simulates how end-users consume packages from npm
@@ -219,17 +234,20 @@ Examples use `.tgz` files for local package dependencies:
 ## Contributing Guidelines
 
 ### Pull Request Process
+
 1. Fork repo and create branch from `main`
 2. Add tests for new code
 3. Ensure code lints: `pnpm run lint` and `pnpm run format`
 4. Complete CLA (Contributor License Agreement)
 
 ### Testing Requirements
+
 - Must not break existing tests
 - New features should include relevant tests with Vitest
 - Run tests before submitting PR
 
 ### Code Quality Standards
+
 - ESLint and Prettier enforce coding standards
 - Run `pnpm run format` before committing
 - Git hooks automatically run lint-staged on commit
@@ -238,6 +256,7 @@ Examples use `.tgz` files for local package dependencies:
 ## Versioning and Release Process
 
 ### Changesets Workflow
+
 ```bash
 # 1. Create a changeset describing your changes
 pnpm changeset
@@ -248,32 +267,35 @@ pnpm changeset
 ```
 
 ### Bump Guidelines
+
 - **patch**: Bug fixes, documentation updates, build changes, safe internal refactors
 - **minor**: Backward-compatible new features
 - **major**: Breaking changes
 
 ### Fixed Versioning
+
 All `@iwsdk/*` packages share the same version number. Changesets manages version bumping across the entire monorepo.
 
 ## License
 
 MIT License - All contributions are licensed under the MIT License.
 
-##  Presenter Abstraction for iwsdk/core
+## Presenter Abstraction for iwsdk/core
 
-i imagine a GIS system in the spirit of MVC(Model-view-controller) where the state of an ECS(entity-component-system) world (the datamodel) is presented or rendered in different modes (Views) like i.e. WebXR 3D Threejs scene(what we have now) or Giro3d 2,5D MapView. 
+i imagine a GIS system in the spirit of MVC(Model-view-controller) where the state of an ECS(entity-component-system) world (the datamodel) is presented or rendered in different modes (Views) like i.e. WebXR 3D Threejs scene(what we have now) or Giro3d 2,5D MapView.
 For Giro3D look here: https://gitlab.com/giro3d/giro3d/-/tree/main/src?ref_type=heads
 My most important requirement being that the Presenters(or Views) are subordinate to the ECS world, and populate their scene-graph according to the world's (common /shared-between views) specification/current state. Also its crucial that the identity of individual entities/features from the ECS world is kept. So that i.e. individual parcel remains pickable(by whatever means the presenters implement this ). From the superordinate main-application's point of view, it only has to assume the responsibility of loading features into the ecs world and provide a div-container to the presenter manager, and 'automatically' have them rendererd by the selected presenter. Any user interaction, e.g. 'click's are communicated by the presenter in form of 'Tag'-components such as Hovered or Pressed, which are added to the affected entities(i..e parcel) or transient 'ActionEntities' like 'MouseClick's which are added to the 'world', for other systems to react on.
 
 Core Changes
+
 1. IPresenter Interface (presenter.ts)
-Defines the contract that all presenters implement, including scene/camera/renderer access, coordinate transforms, input handling, and render loop hooks.
+   Defines the contract that all presenters implement, including scene/camera/renderer access, coordinate transforms, input handling, and render loop hooks.
 2. XRPresenter (xr-presenter.ts)
-Implements IPresenter for WebXR modes (AR/VR). This encapsulates the existing IWSDK rendering setup while conforming to the presenter interface.
+   Implements IPresenter for WebXR modes (AR/VR). This encapsulates the existing IWSDK rendering setup while conforming to the presenter interface.
 3. MapPresenter (map-presenter.ts)
-Implements IPresenter for Giro3D-based 2D/2.5D map viewing. Automatically wraps ENU-centered geometry with offset transforms to position it correctly in CRS space.
+   Implements IPresenter for Giro3D-based 2D/2.5D map viewing. Automatically wraps ENU-centered geometry with offset transforms to position it correctly in CRS space.
 4. World (world-with-presenter.ts)
-Modified World class that:
+   Modified World class that:
 
 Delegates rendering to the active presenter
 Provides world.launch(mode) instead of world.launchXR()
@@ -281,7 +303,7 @@ Supports world.switchMode(newMode) for runtime mode changes
 Proxies scene, camera, renderer through the presenter
 
 5. createSystem (system-with-presenter.ts)
-Modified system factory that gives systems:
+   Modified system factory that gives systems:
 
 this.presenter - direct access to IPresenter
 this.scene/camera/renderer - proxied from presenter (backward compatible)
@@ -293,11 +315,11 @@ BeforeAfterworld.launchXR()world.launch(PresentationMode.ImmersiveAR)N/Aworld.la
 Usage Example
 typescript// Create world with Map mode
 const world = await World.create(container, {
-  presentation: {
-    mode: PresentationMode.Map,
-    crs: { code: 'EPSG:25833', proj4: '...' },
-    origin: { lat: 51.05, lon: 13.74 },
-  }
+presentation: {
+mode: PresentationMode.Map,
+crs: { code: 'EPSG:25833', proj4: '...' },
+origin: { lat: 51.05, lon: 13.74 },
+}
 });
 
 // Later, switch to AR
@@ -305,9 +327,9 @@ await world.switchMode(PresentationMode.ImmersiveAR);
 
 // Systems work unchanged - they access scene via presenter
 class MySystem extends createSystem({ ... }) {
-  update(delta) {
-    const pos = this.geographicToScene({ lat: 51, lon: 13 });
-    this.scene.traverse(...); // Works in any mode
-  }
+update(delta) {
+const pos = this.geographicToScene({ lat: 51, lon: 13 });
+this.scene.traverse(...); // Works in any mode
+}
 }
 This iteration moves the presenter into the heart of the system, making mode-switching a first-class capability while maintaining backward compatibility with existing system code.

@@ -50,7 +50,10 @@ import {
   type ProjectCRS,
 } from './gis-presenter.js';
 import { GISRootComponent } from './gis-root-component.js';
-import type { PresenterContext, ContextRequirements } from './presenter-context.js';
+import type {
+  PresenterContext,
+  ContextRequirements,
+} from './presenter-context.js';
 import {
   FlyToOptions,
   IPresenter,
@@ -63,7 +66,14 @@ import {
   PresenterState,
 } from './presenter.js';
 import { getComponent } from '../ecs/helpers.js';
-import { MapDataSourceComponent, MapLayerComponent, MapLayerType, MapPresenterComponent, SourceType, getDataSourceType } from './map3d_components.js';
+import {
+  MapDataSourceComponent,
+  MapLayerComponent,
+  MapLayerType,
+  MapPresenterComponent,
+  SourceType,
+  getDataSourceType,
+} from './map3d_components.js';
 import { Giro3DSystem } from './giro3d_system.js';
 import { Visibility } from '../visibility/visibility.js';
 
@@ -80,7 +90,7 @@ let WCSSource: any;
 let Object3DLayer: any;
 let Object3DSource: any;
 let initializeCRS: any;
-let CoordinateSystem: any; 
+let CoordinateSystem: any;
 /** Giro3D Map class */
 let Giro3DMap: any;
 let ColorLayer: any;
@@ -131,7 +141,6 @@ async function loadGiro3D(): Promise<boolean> {
     return false;
   }
 }
-
 
 // ============================================================================
 // CUSTOM SUBDIVISION STRATEGY
@@ -304,7 +313,6 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   private _map: any = null;
   // center of the Map's extent in Map CRS
   private center!: any;
-  
 
   /** Three.js scene (from Giro3D) */
   private _scene!: Scene;
@@ -322,7 +330,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   private _gisRootEntity: Entity | null = null;
 
   /** Reference to the World for entity creation */
-  private _world!: World ;
+  private _world!: World;
 
   /** CRS configuration */
   private _crs: ProjectCRS | undefined;
@@ -361,7 +369,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   private _animationFrameId: number | null = null;
 
   /** External loop callback (ECS update) */
-  private _externalLoop: ((time: number, frame?: XRFrame) => void) | null = null;
+  private _externalLoop: ((time: number, frame?: XRFrame) => void) | null =
+    null;
 
   // ============================================================================
   // CONSTRUCTOR
@@ -471,11 +480,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     this._context = context;
     const container = context.container;
 
-    if(!container){
-      throw "No target container for Giro3d MapPresenter specified";
+    if (!container) {
+      throw 'No target container for Giro3d MapPresenter specified';
     }
-    if(!config.crs){
-      throw "Not CRS for MapPresenter specified";
+    if (!config.crs) {
+      throw 'Not CRS for MapPresenter specified';
     }
     if (!config.extent) {
       throw `No extent specified for MapPresenter`;
@@ -490,11 +499,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     let crs = null;
     let crs_def = config.crs.proj4;
-     // NOTE: Giro3d requires WKT definition not proj4
-    if(crs_def)
-    { // definition provided by user in project file
-       crs = CoordinateSystem.register(config.crs.code, crs_def);
-    }else{
+    // NOTE: Giro3d requires WKT definition not proj4
+    if (crs_def) {
+      // definition provided by user in project file
+      crs = CoordinateSystem.register(config.crs.code, crs_def);
+    } else {
       // otherwise use giro-epsg-helper to fetch the definition
       crs = initializeCRS(config.crs.code);
     }
@@ -524,11 +533,18 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     // It computes Infinity when the scene is empty, breaking frustum culling
     // The property is on instance.mainLoop, not instance.view
     const mainLoop = (this._instance as any).mainLoop;
-    if (mainLoop && typeof mainLoop.automaticCameraPlaneComputation !== 'undefined') {
+    if (
+      mainLoop &&
+      typeof mainLoop.automaticCameraPlaneComputation !== 'undefined'
+    ) {
       mainLoop.automaticCameraPlaneComputation = false;
-      console.log('[MapPresenter] Disabled automatic near/far plane computation');
+      console.log(
+        '[MapPresenter] Disabled automatic near/far plane computation',
+      );
     } else {
-      console.warn('[MapPresenter] Could not access mainLoop.automaticCameraPlaneComputation');
+      console.warn(
+        '[MapPresenter] Could not access mainLoop.automaticCameraPlaneComputation',
+      );
     }
 
     // Set explicit near/far planes
@@ -546,7 +562,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       const origin = this._coordAdapter.getOrigin();
       const altitude = this._config?.initialAltitude || 500;
       camera.position.set(origin.crs.x, origin.crs.y, altitude);
-      console.log('[MapPresenter] Initial camera position (X=E, Y=N, Z=alt):', origin.crs.x, origin.crs.y, altitude);
+      console.log(
+        '[MapPresenter] Initial camera position (X=E, Y=N, Z=alt):',
+        origin.crs.x,
+        origin.crs.y,
+        altitude,
+      );
     } else {
       // Fallback - will be corrected when map extent is known
       camera.position.set(0, 0, this._config?.initialAltitude || 1000);
@@ -569,9 +590,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     //this._contentRoot = this._map.object3d;
     // Root TileMesh of Giro3D Map
     this._contentRoot = this._map.object3d?.children[0];
-    if(!this._contentRoot && this._map.object3d?.children?.length!=1)
-    {throw "implementation error";}
-    
+    if (!this._contentRoot && this._map.object3d?.children?.length != 1) {
+      throw 'implementation error';
+    }
+
     this._setupControls();
     this._setupInput();
 
@@ -579,171 +601,181 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   }
 
   // successor of setupSources
-  async _addECSLayers(){
+  async _addECSLayers() {
     // TODO  register queries for MapLayerComponents, and search the assigned source (MapDataSourceComponents)
     // then create Giro3D Layers and Sources according to their specifications
     // connect them and finally add layers to this._map
 
-    for ( let layer of this._world.queryManager.registerQuery({required: [MapLayerComponent]}).entities) //.values().find(layer => {});
-    {
+    for (let layer of this._world.queryManager.registerQuery({
+      required: [MapLayerComponent],
+    }).entities) { //.values().find(layer => {});
       this._addECSLayerImpl(layer);
     }
   }
 
   _addECSLayerImpl(layer: Entity) {
-      const lname = layer.getValue(MapLayerComponent, 'name');
-      if(!lname){
-        console.warn(`Invalid Layer with empty name`);
-        return;
-      }
-      let src = this._world.queryManager.registerQuery({required: [MapDataSourceComponent]}).entities.values().find((s)=>{
-        return s.getValue(MapDataSourceComponent, 'layer_name')==lname;
+    const lname = layer.getValue(MapLayerComponent, 'name');
+    if (!lname) {
+      console.warn(`Invalid Layer with empty name`);
+      return;
+    }
+    let src = this._world.queryManager
+      .registerQuery({ required: [MapDataSourceComponent] })
+      .entities.values()
+      .find((s) => {
+        return s.getValue(MapDataSourceComponent, 'layer_name') == lname;
       });
-      if(!src){
-        console.warn(`No datasource for layer: ${lname}`);
-        return;
-      }
-      const layerconfig = getComponent(MapLayerComponent, layer);
-      if(!layerconfig){
-        throw "implementation error";
-      }
-      const source_options = getComponent(MapDataSourceComponent, src);
-      if(!source_options){
-        throw "implementation error";
-      }
+    if (!src) {
+      console.warn(`No datasource for layer: ${lname}`);
+      return;
+    }
+    const layerconfig = getComponent(MapLayerComponent, layer);
+    if (!layerconfig) {
+      throw 'implementation error';
+    }
+    const source_options = getComponent(MapDataSourceComponent, src);
+    if (!source_options) {
+      throw 'implementation error';
+    }
 
-      let crs = null;
-      try{
-        crs = CoordinateSystem.get(source_options.crs);
-      }catch(err){
-        try{
-            crs = initializeCRS(source_options.crs);
-          }catch(e){
-          console.error(`Failed to register MapDataSource ${source_options.name}: Failed to init CRS ${source_options.crs} - ${e}`);
-       }
+    let crs = null;
+    try {
+      crs = CoordinateSystem.get(source_options.crs);
+    } catch (err) {
+      try {
+        crs = initializeCRS(source_options.crs);
+      } catch (e) {
+        console.error(
+          `Failed to register MapDataSource ${source_options.name}: Failed to init CRS ${source_options.crs} - ${e}`,
+        );
       }
+    }
 
-       // Ensure extent is a Giro3D Extent object in CRS coordinates
-      let sourceExtent = this._map.extent; // Default to map extent (already a Giro3D Extent)
-      if(source_options?.extent){
-            let box = (source_options.extent as string).split(',');
-            let bbox = box.slice(0,4).map((n)=>Number(n));
-            if(bbox[4] && source_options.srsname && box[4]!=source_options.srsname){
-                throw "configuration error";
-            }
-            // FIXME actually we had to create CRS from source's bbox[5] EPSG code
-            // const crs = CoordinateSystem.register(bbox[5], <proj4 definition>)
-            if(crs.id != bbox[5]){
-                throw `Implementation Error: datasource ${source_options.name} has CRS ${bbox[5]} which is deviating from project's ${crs.id}`;
-            }
-            sourceExtent = new Extent(crs, bbox[0], bbox[2], bbox[1], bbox[3]);
-        
+    // Ensure extent is a Giro3D Extent object in CRS coordinates
+    let sourceExtent = this._map.extent; // Default to map extent (already a Giro3D Extent)
+    if (source_options?.extent) {
+      let box = (source_options.extent as string).split(',');
+      let bbox = box.slice(0, 4).map((n) => Number(n));
+      if (
+        bbox[4] &&
+        source_options.srsname &&
+        box[4] != source_options.srsname
+      ) {
+        throw 'configuration error';
       }
-      // currently source is always proxied through CEC backend, if layer-type is Object3D.
-      // But this doesnt necessarily hold in general!
-      //const isProxied = layerconfig.type == "object3d"; // TODO add boolean flag to MapDataSourceComponent, and query it here
-      const isProxied = getDataSourceType(lname)!=null;
+      // FIXME actually we had to create CRS from source's bbox[5] EPSG code
+      // const crs = CoordinateSystem.register(bbox[5], <proj4 definition>)
+      if (crs.id != bbox[5]) {
+        throw `Implementation Error: datasource ${source_options.name} has CRS ${bbox[5]} which is deviating from project's ${crs.id}`;
+      }
+      sourceExtent = new Extent(crs, bbox[0], bbox[2], bbox[1], bbox[3]);
+    }
+    // currently source is always proxied through CEC backend, if layer-type is Object3D.
+    // But this doesnt necessarily hold in general!
+    //const isProxied = layerconfig.type == "object3d"; // TODO add boolean flag to MapDataSourceComponent, and query it here
+    const isProxied = getDataSourceType(lname) != null;
 
-      const type = isProxied ? "OBJECT3D" : src?.getValue(MapDataSourceComponent, 'type');
+    const type = isProxied
+      ? 'OBJECT3D'
+      : src?.getValue(MapDataSourceComponent, 'type');
 
-      let ds: any = null; // datasource instance
-      let maplayer: any = null;
-      switch(type)
-      {
-        case SourceType.OBJECT3D:
-          let t = getDataSourceType(lname);
-          if(!t)
-          {
-            throw `No Object3DSource implemetation provided for layer: ${lname}`;
-          }
-          if(! (t.prototype instanceof Object3DSource ) ){
-            throw `Invalid user provided data source for layer: ${lname} - No Object3DSource`;
-          }
-                // Use the map's extent center as origin - both in CRS and convert to WGS84.
-          // This ensures GLB coordinates are relative to the actual map center,
-          // which is essential for correct positioning in the scene.
-          const sourceExtentCenterCRS = {
-            x: (sourceExtent.west + sourceExtent.east) / 2,
-            y: (sourceExtent.south + sourceExtent.north) / 2
-          };
-          
-          // Convert CRS extent center to WGS84 for the center parameter
-          let centerLon = sourceExtentCenterCRS.x;
-          let centerLat = sourceExtentCenterCRS.y;
-          if (this._coordAdapter) {
-            const wgs84 = this._coordAdapter.crsToGeographic(centerLon, centerLat);
-            centerLon = wgs84.lon;
-            centerLat = wgs84.lat;
-          }
-          
-          // Use the extent center in CRS as originCRS
-          const originCRS = sourceExtentCenterCRS;
-          
-          // TODO add ctor-options field to MapDataSourceComponent
-          // where user can provide ctor options for its custom registered datasource impl.
-          ds = new t({
-            crs: crs,
-            config: source_options.config,
-            crs_name: source_options.crs,
-            extent: sourceExtent,
-            center: {lat: centerLat, lon: centerLon},
-            featureclass_name: lname,
-            originCRS: originCRS
-          });
-          
-          break;
-        case SourceType.WMS:
-          ds = new WmsSource({
-            url:source_options.url,
-             projection: source_options.crs,
-             layer: lname, 
-             extent: sourceExtent,
-             imageFormat: source_options.format
-            });
-          break;
-        case SourceType.WCS:
-          ds = new WCSSource({
-            // extent is determined with GetCapabilities request
-            url: source_options.url,
-            coverageId: lname,
-             format: source_options.format,
-              crs: source_options.crs,
-               // For elevation data: use 32-bit floats for better precision
-               is8bit: false
-              });
-          break;
-        // TODO handle other cases
-        default:
-          throw `Unimplemented MapDataSource type: ${type}`;
-          
-      };
-      const lopts = {
-           ...layerconfig,
-        source: ds,
-        name: lname,
-        extent: sourceExtent       
+    let ds: any = null; // datasource instance
+    let maplayer: any = null;
+    switch (type) {
+      case SourceType.OBJECT3D:
+        let t = getDataSourceType(lname);
+        if (!t) {
+          throw `No Object3DSource implemetation provided for layer: ${lname}`;
+        }
+        if (!(t.prototype instanceof Object3DSource)) {
+          throw `Invalid user provided data source for layer: ${lname} - No Object3DSource`;
+        }
+        // Use the map's extent center as origin - both in CRS and convert to WGS84.
+        // This ensures GLB coordinates are relative to the actual map center,
+        // which is essential for correct positioning in the scene.
+        const sourceExtentCenterCRS = {
+          x: (sourceExtent.west + sourceExtent.east) / 2,
+          y: (sourceExtent.south + sourceExtent.north) / 2,
         };
-      const ltype = layer.getValue(MapLayerComponent,'type')?.toLowerCase();
-      switch(ltype)
-      {
-        case MapLayerType.COLOR:
-          maplayer = new ColorLayer({...lopts});
-          break;
-        case MapLayerType.ELEVATION:
-          maplayer = new ElevationLayer({...lopts});
-          break;
-        case MapLayerType.OBJECT3D:
-          maplayer = new Object3DLayer({...lopts});
-          break;
-        // TODO handle other cases
-        default:
-          throw `Unimplemented MapLayerType: ${ltype}`;
-      }
-      this._map.addLayer(maplayer);
-      // make Giro3D Layer Instance available in ECS world i.e. to toggle visibility
-      layer.setValue(MapLayerComponent, 'layer', maplayer);
-      layer.setValue(MapLayerComponent, 'extent', sourceExtent);
-      layer.addComponent(Visibility);
+
+        // Convert CRS extent center to WGS84 for the center parameter
+        let centerLon = sourceExtentCenterCRS.x;
+        let centerLat = sourceExtentCenterCRS.y;
+        if (this._coordAdapter) {
+          const wgs84 = this._coordAdapter.crsToGeographic(
+            centerLon,
+            centerLat,
+          );
+          centerLon = wgs84.lon;
+          centerLat = wgs84.lat;
+        }
+
+        // Use the extent center in CRS as originCRS
+        const originCRS = sourceExtentCenterCRS;
+
+        // TODO add ctor-options field to MapDataSourceComponent
+        // where user can provide ctor options for its custom registered datasource impl.
+        ds = new t({
+          crs: crs,
+          config: source_options.config,
+          crs_name: source_options.crs,
+          extent: sourceExtent,
+          center: { lat: centerLat, lon: centerLon },
+          featureclass_name: lname,
+          originCRS: originCRS,
+        });
+
+        break;
+      case SourceType.WMS:
+        ds = new WmsSource({
+          url: source_options.url,
+          projection: source_options.crs,
+          layer: lname,
+          extent: sourceExtent,
+          imageFormat: source_options.format,
+        });
+        break;
+      case SourceType.WCS:
+        ds = new WCSSource({
+          // extent is determined with GetCapabilities request
+          url: source_options.url,
+          coverageId: lname,
+          format: source_options.format,
+          crs: source_options.crs,
+          // For elevation data: use 32-bit floats for better precision
+          is8bit: false,
+        });
+        break;
+      // TODO handle other cases
+      default:
+        throw `Unimplemented MapDataSource type: ${type}`;
+    }
+    const lopts = {
+      ...layerconfig,
+      source: ds,
+      name: lname,
+      extent: sourceExtent,
+    };
+    const ltype = layer.getValue(MapLayerComponent, 'type')?.toLowerCase();
+    switch (ltype) {
+      case MapLayerType.COLOR:
+        maplayer = new ColorLayer({ ...lopts });
+        break;
+      case MapLayerType.ELEVATION:
+        maplayer = new ElevationLayer({ ...lopts });
+        break;
+      case MapLayerType.OBJECT3D:
+        maplayer = new Object3DLayer({ ...lopts });
+        break;
+      // TODO handle other cases
+      default:
+        throw `Unimplemented MapLayerType: ${ltype}`;
+    }
+    this._map.addLayer(maplayer);
+    // make Giro3D Layer Instance available in ECS world i.e. to toggle visibility
+    layer.setValue(MapLayerComponent, 'layer', maplayer);
+    layer.setValue(MapLayerComponent, 'extent', sourceExtent);
+    layer.addComponent(Visibility);
   }
 
   /**
@@ -796,10 +828,14 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * separately after DataSource entities have been created in the ECS world.
    * Must be called after MapPresenter was initialized.
    */
-  setWorld(world: World){
+  setWorld(world: World) {
     this._world = world;
     const me = this._world.createEntity();
-    me.addComponent(MapPresenterComponent, {map: this._map, instance: this._instance, controls: this._controls});
+    me.addComponent(MapPresenterComponent, {
+      map: this._map,
+      instance: this._instance,
+      controls: this._controls,
+    });
 
     this._world.registerSystem(Giro3DSystem);
     const g3ds = this._world.getSystem(Giro3DSystem);
@@ -1122,7 +1158,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     }
 
     this._world = world; // FIXME actually thats done in presenter.setWorld(..)
-                        // should better check that world == this._world here and throw if not
+    // should better check that world == this._world here and throw if not
 
     // Create GIS root entity WITHOUT reparenting (unlike initGISRootEntity)
     // The Map's object3d must stay in Giro3D's scene for tiles to work
@@ -1142,8 +1178,13 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     // DO NOT reparent to activeRoot - the Map must stay in Giro3D's scene!
     // world.getActiveRoot().add(gisRootEntity.object3D); // <-- This breaks Giro3D!
 
-    console.log('[MapPresenter] GIS root entity created (NOT reparented to LevelRoot)');
-    console.log('[MapPresenter] Map object3d parent:', this._contentRoot.parent?.name);
+    console.log(
+      '[MapPresenter] GIS root entity created (NOT reparented to LevelRoot)',
+    );
+    console.log(
+      '[MapPresenter] Map object3d parent:',
+      this._contentRoot.parent?.name,
+    );
 
     this._gisRootEntity = gisRootEntity;
   }
@@ -1322,7 +1363,6 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     eventType: PointerEventType,
     event: MouseEvent | PointerEvent,
   ): void {
-    
     const callbacks = this._pointerCallbacks.get(eventType);
     if (!callbacks || callbacks.size === 0) return;
     console.log(`Giro3D PointerEvent: ${eventType}`);
@@ -1330,7 +1370,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     const pointerId = (event as PointerEvent).pointerId ?? 0;
 
     // Events that don't need picking (canvas-level, not object-level)
-    if (eventType === 'pointerenter' || eventType === 'pointerleave' || eventType === 'pointercancel') {
+    if (
+      eventType === 'pointerenter' ||
+      eventType === 'pointerleave' ||
+      eventType === 'pointercancel'
+    ) {
       this._emitPointerEvent(eventType, {
         point: null,
         object: null,
@@ -1366,7 +1410,12 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     } else {
       // Emit event even with no pick for certain event types
       // These need to fire even when not over an object (e.g., for leave detection)
-      const emitWithoutPick = ['hover', 'pointermove', 'pointerup', 'contextmenu'];
+      const emitWithoutPick = [
+        'hover',
+        'pointermove',
+        'pointerup',
+        'contextmenu',
+      ];
       if (emitWithoutPick.includes(eventType)) {
         this._emitPointerEvent(eventType, {
           point: null,
@@ -1519,11 +1568,13 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * @internal
    */
   private async _createMap(
-    extent: CRSExtent|{ minX: number; maxX: number; minY: number; maxY: number }|string,
+    extent:
+      | CRSExtent
+      | { minX: number; maxX: number; minY: number; maxY: number }
+      | string,
     crsCode: any, //|CoordinateSystem,
-  ): Promise<void>
-  {
-    if(typeof extent=='string'){
+  ): Promise<void> {
+    if (typeof extent == 'string') {
       extent = crsFromBBox(extent);
     }
 
@@ -1535,11 +1586,16 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     let minY = extent.minY;
     let maxY = extent.maxY;
 
-    const isGeographic = Math.abs(minX) < 180 && Math.abs(maxX) < 180 &&
-                         Math.abs(minY) < 90 && Math.abs(maxY) < 90;
+    const isGeographic =
+      Math.abs(minX) < 180 &&
+      Math.abs(maxX) < 180 &&
+      Math.abs(minY) < 90 &&
+      Math.abs(maxY) < 90;
 
     if (isGeographic && this._coordAdapter) {
-      console.log('[MapPresenter] Extent appears to be in geographic coordinates, converting to CRS...');
+      console.log(
+        '[MapPresenter] Extent appears to be in geographic coordinates, converting to CRS...',
+      );
       console.log('[MapPresenter] Geographic extent:', minX, maxX, minY, maxY);
 
       // Convert corners from geographic to CRS
@@ -1552,25 +1608,27 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       minY = sw.y;
       maxY = ne.y;
 
-      console.log('[MapPresenter] Converted CRS extent:', minX, maxX, minY, maxY);
+      console.log(
+        '[MapPresenter] Converted CRS extent:',
+        minX,
+        maxX,
+        minY,
+        maxY,
+      );
     }
 
-    const giro3dExtent = new Extent(
-      crsCode,
-      minX,
-      maxX,
-      minY,
-      maxY,
-    );
+    const giro3dExtent = new Extent(crsCode, minX, maxX, minY, maxY);
 
     // compute center of Map's extent. (TODO would be good if it aligned with 'this.origin' to avoid confusion)
-    this.center = {lon: (giro3dExtent.west + giro3dExtent.east) / 2,
-                   lat: (giro3dExtent.south + giro3dExtent.north) / 2 };
+    this.center = {
+      lon: (giro3dExtent.west + giro3dExtent.east) / 2,
+      lat: (giro3dExtent.south + giro3dExtent.north) / 2,
+    };
 
     console.log('[MapPresenter] Creating map with extent:', giro3dExtent);
 
     this._map = new Giro3DMap({
-      name: this._config.name || "giro3d_map",
+      name: this._config.name || 'giro3d_map',
       extent: giro3dExtent,
       discardNoData: this._config.discardNoData ?? false,
       backgroundColor: this._config.backgroundColor, //  || '#f0f0f0'
@@ -1588,9 +1646,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       terrain: this._config.terrain,
       // by default lighting is disabled in giro3d
       castShadow: this._config.castShadow || false,
-      receiveShadow: this._config.receiveShadow || false
+      receiveShadow: this._config.receiveShadow || false,
     });
-
 
     /*Add THREE object or Entity to the instance.
     If the object or entity has no parent, it will be added to the default tree 
@@ -1610,10 +1667,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
    * @internal
    */
   private _setupControls(): void {
-    this._controls = new MapControls(
-      this._camera,
-      this._instance.domElement,
-    );
+    this._controls = new MapControls(this._camera, this._instance.domElement);
     this._controls.enableDamping = true;
     this._controls.dampingFactor = 0.2;
     this._controls.maxPolarAngle = Math.PI / 2.3;
@@ -1622,7 +1676,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     // Position camera at initial view (hovering above device origin)
     // Giro3D Map uses: X=Easting, Y=Northing, Z=Up (Y-up=false)
-   /* if (false && this._coordAdapter) {
+    /* if (false && this._coordAdapter) {
       const origin = this._coordAdapter.getOrigin();
       const altitude = this._config.initialAltitude || 500;
 
@@ -1637,25 +1691,30 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       this._controls.target.set(origin.crs.x, origin.crs.y, 0);
       this._controls.saveState();
     } else {*/
-      // No coordinate adapter - position camera at center of map extent
-      console.log(`[MapPresenter] No coordinate adapter, positioning camera at map extent center`);
-      const ext = this._map.extent;
-      const centerX = (ext.west + ext.east) / 2;
-      const centerY = (ext.south + ext.north) / 2;
-      const altitude = this._config.initialAltitude || 500;
+    // No coordinate adapter - position camera at center of map extent
+    console.log(
+      `[MapPresenter] No coordinate adapter, positioning camera at map extent center`,
+    );
+    const ext = this._map.extent;
+    const centerX = (ext.west + ext.east) / 2;
+    const centerY = (ext.south + ext.north) / 2;
+    const altitude = this._config.initialAltitude || 500;
 
-      console.log(`[MapPresenter] Map extent center (X=E, Y=N):`, centerX, centerY);
-      // X=Easting, Y=Northing (offset south for angled view), Z=altitude
-      this._camera.position.set(centerX, centerY - altitude * 0.2, altitude);
-      this._controls.target.set(centerX, centerY, 0);
-      this._controls.saveState();
-  //  }
+    console.log(
+      `[MapPresenter] Map extent center (X=E, Y=N):`,
+      centerX,
+      centerY,
+    );
+    // X=Easting, Y=Northing (offset south for angled view), Z=altitude
+    this._camera.position.set(centerX, centerY - altitude * 0.2, altitude);
+    this._controls.target.set(centerX, centerY, 0);
+    this._controls.saveState();
+    //  }
 
     // Notify on control changes
     // this._controls.addEventListener('change', () => {
     //    this.notifyChange();    });
     this._instance.view.setControls(this._controls);
-
   }
 
   // ============================================================================
@@ -1752,19 +1811,30 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     console.log('Camera.position:', camera.position.toArray());
     console.log('Camera.near:', camera.near, 'Camera.far:', camera.far);
     console.log('Camera.fov:', (camera as any).fov);
-    console.log('Camera.matrixWorldNeedsUpdate:', camera.matrixWorldNeedsUpdate);
+    console.log(
+      'Camera.matrixWorldNeedsUpdate:',
+      camera.matrixWorldNeedsUpdate,
+    );
     console.log('Camera.up:', camera.up.toArray());
 
-    const mainLoop = (this._instance as any).mainLoop || (this._instance as any)._mainLoop;
+    const mainLoop =
+      (this._instance as any).mainLoop || (this._instance as any)._mainLoop;
     if (mainLoop) {
-      console.log('MainLoop.automaticCameraPlaneComputation:', mainLoop.automaticCameraPlaneComputation);
+      console.log(
+        'MainLoop.automaticCameraPlaneComputation:',
+        mainLoop.automaticCameraPlaneComputation,
+      );
     }
 
     // ── 2. Tile tree ─────────────────────────────────────────
     const tiles: any[] = [];
     const collectTiles = (obj: any, depth = 0) => {
       // TileMesh has .extent and .lod or .coordinate
-      if (obj.isTileMesh || obj.coordinate !== undefined || (obj.extent && obj.lod !== undefined)) {
+      if (
+        obj.isTileMesh ||
+        obj.coordinate !== undefined ||
+        (obj.extent && obj.lod !== undefined)
+      ) {
         tiles.push({
           name: obj.name,
           lod: obj.coordinate?.z ?? obj.lod ?? '?',
@@ -1797,23 +1867,34 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           bbox.getSize(size);
           const center = new Vector3();
           bbox.getCenter(center);
-          console.log(`  Tile "${tile.name}" LOD=${tile.coordinate?.z}:`,
-            '\n    worldBox center:', center.toArray(),
-            '\n    worldBox size:', size.toArray(),
-            '\n    worldBox min:', bbox.min.toArray(),
-            '\n    worldBox max:', bbox.max.toArray(),
-            '\n    position:', tile.position.toArray(),
-            '\n    visible:', tile.visible,
-            '\n    materialVisible:', tile.material?.visible,
-            '\n    textureSize:', tile.textureSize?.toArray?.(),
+          console.log(
+            `  Tile "${tile.name}" LOD=${tile.coordinate?.z}:`,
+            '\n    worldBox center:',
+            center.toArray(),
+            '\n    worldBox size:',
+            size.toArray(),
+            '\n    worldBox min:',
+            bbox.min.toArray(),
+            '\n    worldBox max:',
+            bbox.max.toArray(),
+            '\n    position:',
+            tile.position.toArray(),
+            '\n    visible:',
+            tile.visible,
+            '\n    materialVisible:',
+            tile.material?.visible,
+            '\n    textureSize:',
+            tile.textureSize?.toArray?.(),
           );
 
           // Compute distance from camera to box
           const geometricError = Math.max(size.x, size.y);
           const camInLocal = camera.position.clone();
           const dist = bbox.distanceToPoint(camInLocal);
-          console.log(`    geometricError: ${geometricError}, cameraDist: ${dist}`,
-            `\n    dist <= geoError? ${dist <= geometricError} (→ null SSE → should subdivide)`);
+          console.log(
+            `    geometricError: ${geometricError}, cameraDist: ${dist}`,
+            `\n    dist <= geoError? ${dist <= geometricError} (→ null SSE → should subdivide)`,
+          );
         }
       }
     } else {
@@ -1833,7 +1914,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     });
     this._instance.addEventListener('before-entity-update', (e: any) => {
       if (e.entity === map && updateCount <= 5) {
-        console.log(`[DEBUG] Map entity about to update (frame #${updateCount})`);
+        console.log(
+          `[DEBUG] Map entity about to update (frame #${updateCount})`,
+        );
       }
     });
     this._instance.addEventListener('after-entity-update', (e: any) => {
@@ -1849,7 +1932,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           if (obj.children) obj.children.forEach(countTiles);
         };
         countTiles(map.object3d);
-        console.log(`[DEBUG] After Map update: ${tileCount} tiles (${visibleCount} visible)`);
+        console.log(
+          `[DEBUG] After Map update: ${tileCount} tiles (${visibleCount} visible)`,
+        );
       }
     });
 
@@ -1858,7 +1943,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     const origShouldSubdivide = proto.shouldSubdivide;
     if (origShouldSubdivide) {
       let patchCallCount = 0;
-      proto.shouldSubdivide = function(context: any, node: any) {
+      proto.shouldSubdivide = function (context: any, node: any) {
         const result = origShouldSubdivide.call(this, context, node);
         patchCallCount++;
         if (patchCallCount <= 20) {
@@ -1866,27 +1951,35 @@ export class MapPresenter implements IPresenter, IGISPresenter {
           node.getWorldSpaceBoundingBox(wb);
           const sz = new Vector3();
           wb.getSize(sz);
-          console.log(`[DEBUG] shouldSubdivide LOD=${node.coordinate?.z} → ${result}`,
+          console.log(
+            `[DEBUG] shouldSubdivide LOD=${node.coordinate?.z} → ${result}`,
             `worldBoxSize=[${sz.x.toFixed(0)},${sz.y.toFixed(0)},${sz.z.toFixed(1)}]`,
             `cam=[${context.view.camera.position.x.toFixed(0)},${context.view.camera.position.y.toFixed(0)},${context.view.camera.position.z.toFixed(0)}]`,
-            `viewSize=${context.view.width}x${context.view.height}`);
+            `viewSize=${context.view.width}x${context.view.height}`,
+          );
         }
         return result;
       };
-      console.log('[DEBUG] Patched Map.shouldSubdivide — zoom in and check console');
+      console.log(
+        '[DEBUG] Patched Map.shouldSubdivide — zoom in and check console',
+      );
     } else {
-      console.warn('[DEBUG] Could not patch shouldSubdivide (not on prototype)');
+      console.warn(
+        '[DEBUG] Could not patch shouldSubdivide (not on prototype)',
+      );
     }
 
     // Also patch testVisibility
     const origTestVis = proto.testVisibility;
     if (origTestVis) {
       let visCallCount = 0;
-      proto.testVisibility = function(node: any, context: any) {
+      proto.testVisibility = function (node: any, context: any) {
         const result = origTestVis.call(this, node, context);
         visCallCount++;
         if (visCallCount <= 20) {
-          console.log(`[DEBUG] testVisibility LOD=${node.coordinate?.z} → ${result}`);
+          console.log(
+            `[DEBUG] testVisibility LOD=${node.coordinate?.z} → ${result}`,
+          );
         }
         return result;
       };

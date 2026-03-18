@@ -24,7 +24,10 @@ import {
   type PresentationMode,
   type PresenterConfig,
 } from '../presenter/index.js';
-import { ContextFactory, type PresenterContext } from '../presenter/presenter-context.js';
+import {
+  ContextFactory,
+  type PresenterContext,
+} from '../presenter/presenter-context.js';
 import type { Object3DEventMap } from '../runtime/index.js';
 import {
   Material,
@@ -165,13 +168,16 @@ export class World extends ElicsWorld {
    * This is typically called by the world initializer when presenter mode is enabled.
    * @internal
    */
-  setPresenter(presenter: IPresenter, container: HTMLDivElement, config?: PresenterConfig): void {
+  setPresenter(
+    presenter: IPresenter,
+    container: HTMLDivElement,
+    config?: PresenterConfig,
+  ): void {
     this._presenter = presenter;
     this._container = container;
     this._presenterConfig = config;
 
-    if(this.onSetPresenter)
-    {
+    if (this.onSetPresenter) {
       this.onSetPresenter(this, presenter, config);
     }
     presenter.setWorld(this);
@@ -361,7 +367,10 @@ export class World extends ElicsWorld {
    * await world.launch(PresentationMode.Map);
    * ```
    */
-  async launch(mode: PresentationMode, options?: Partial<PresenterConfig>): Promise<void> {
+  async launch(
+    mode: PresentationMode,
+    options?: Partial<PresenterConfig>,
+  ): Promise<void> {
     if (!this._presenter) {
       throw new Error(
         'Presenter mode not enabled. Use WorldOptions.presentation to enable presenter mode.',
@@ -374,7 +383,7 @@ export class World extends ElicsWorld {
     }
 
     // Start the presenter
-   //  await this._presenter.start(); // already done in setupRenderLoop()
+    //  await this._presenter.start(); // already done in setupRenderLoop()
 
     // For XR modes, request a session
     if (mode === 'immersive-ar' || mode === 'immersive-vr') {
@@ -401,7 +410,10 @@ export class World extends ElicsWorld {
    * await world.switchMode(PresentationMode.ImmersiveAR);
    * ```
    */
-  async switchMode(mode: PresentationMode, options?: Partial<PresenterConfig>): Promise<void> {
+  async switchMode(
+    mode: PresentationMode,
+    options?: Partial<PresenterConfig>,
+  ): Promise<void> {
     if (!this._presenter || !this._container) {
       throw new Error(
         'Presenter mode not enabled. Use WorldOptions.presentation to enable presenter mode.',
@@ -423,7 +435,10 @@ export class World extends ElicsWorld {
     const objects = this._presenter.deactivate();
 
     // Get or reuse rendering context
-    const context = this._contextFactory.getOrCreateContext(this._container, requirements);
+    const context = this._contextFactory.getOrCreateContext(
+      this._container,
+      requirements,
+    );
 
     // Initialize new presenter with shared context
     const config = { ...this._presenterConfig, ...options };

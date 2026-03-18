@@ -323,11 +323,11 @@ export class CoordinateAdapter {
    *
    * @internal
    */
-  private ecefToENU(ecef: {
-    x: number;
-    y: number;
-    z: number;
-  }): { east: number; north: number; up: number } {
+  private ecefToENU(ecef: { x: number; y: number; z: number }): {
+    east: number;
+    north: number;
+    up: number;
+  } {
     const φ = (this.origin.lat * Math.PI) / 180;
     const λ = (this.origin.lon * Math.PI) / 180;
 
@@ -354,11 +354,11 @@ export class CoordinateAdapter {
    *
    * @internal
    */
-  private enuToECEF(enu: {
-    east: number;
-    north: number;
-    up: number;
-  }): { x: number; y: number; z: number } {
+  private enuToECEF(enu: { east: number; north: number; up: number }): {
+    x: number;
+    y: number;
+    z: number;
+  } {
     const φ = (this.origin.lat * Math.PI) / 180;
     const λ = (this.origin.lon * Math.PI) / 180;
 
@@ -370,8 +370,7 @@ export class CoordinateAdapter {
     // Inverse rotation matrix from ENU to ECEF
     const dx =
       -sinλ * enu.east - sinφ * cosλ * enu.north + cosφ * cosλ * enu.up;
-    const dy =
-      cosλ * enu.east - sinφ * sinλ * enu.north + cosφ * sinλ * enu.up;
+    const dy = cosλ * enu.east - sinφ * sinλ * enu.north + cosφ * sinλ * enu.up;
     const dz = cosφ * enu.north + sinφ * enu.up;
 
     return {

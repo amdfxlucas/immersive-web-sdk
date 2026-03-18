@@ -22,7 +22,7 @@
 import type { Object3D, Vector3 } from 'three';
 import type { Entity } from '../ecs/entity.js';
 import type { IPresenter } from './presenter.js';
-import type {World} from '../ecs/index.js';
+import type { World } from '../ecs/index.js';
 
 /**
  * Geographic coordinates (WGS84)
@@ -65,10 +65,15 @@ export interface CRSExtent {
 
 export function crsFromBBox(bbox: string): CRSExtent {
   const tkn = bbox.split(',');
-  const box = tkn.slice(0,4)?.map(s => Number(s.trim()));
+  const box = tkn.slice(0, 4)?.map((s) => Number(s.trim()));
 
-  let extent: CRSExtent = {minX: box[0], minY: box[1], maxX: box[2], maxY: box[3]};
-  if(box.length==5){
+  let extent: CRSExtent = {
+    minX: box[0],
+    minY: box[1],
+    maxX: box[2],
+    maxY: box[3],
+  };
+  if (box.length == 5) {
     extent.crs = tkn[4];
   }
   return extent;
@@ -113,7 +118,6 @@ export interface IGISPresenter extends IPresenter {
   // ============================================================================
   // GIS ROOT
   // ============================================================================
-
 
   /**
    * Initialize the GIS root entity.

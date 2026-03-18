@@ -43,8 +43,15 @@ import type {
   WebGLRendererParameters,
   Vector3,
 } from 'three';
-import type { GeographicCoords, ProjectCRS, CRSExtent } from './gis-presenter.js';
-import type { PresenterContext, ContextRequirements } from './presenter-context.js';
+import type {
+  GeographicCoords,
+  ProjectCRS,
+  CRSExtent,
+} from './gis-presenter.js';
+import type {
+  PresenterContext,
+  ContextRequirements,
+} from './presenter-context.js';
 
 // Re-export GIS types for convenience
 export type { GeographicCoords, ProjectCRS, CRSExtent };
@@ -74,7 +81,8 @@ export enum PresentationMode {
  *
  * @category Runtime
  */
-export interface PresenterConfig { // TODO rename GISPresenterConfig
+export interface PresenterConfig {
+  // TODO rename GISPresenterConfig
   /** Project coordinate reference system (enables GIS features) */
   crs?: ProjectCRS;
   /** Geographic origin for ENU transforms */
@@ -109,13 +117,13 @@ export interface XRPresenterOptions extends PresenterConfig {
  * @category Runtime
  */
 export interface MapPresenterOptions extends PresenterConfig {
-  fetcher?: any, // ReturnType< (featureclass_name: string, options: Object )=> Object3D>
+  fetcher?: any; // ReturnType< (featureclass_name: string, options: Object )=> Object3D>
   // TODO maybe allow to provide object with multiple fetchers, one per source-type i.e. 'object', 'color' etc.
   // -------  Giro3d InstanceOptions  ---------------
   camera?: PerspectiveCamera | OrthographicCamera; // TODO move to PresenterContext  Abstraction
   renderer?: WebGLRenderer | WebGLRendererParameters;
   scene3D?: Scene;
-  backgroundColor?: string|null;
+  backgroundColor?: string | null;
   backgroundOpacity?: number;
   /** Enable terrain rendering */
   terrain?: boolean; // | Partial<TerrainOptions>
@@ -219,17 +227,17 @@ export enum PresenterState {
  * @category Runtime
  */
 export type PointerEventType =
-  | 'select'           // click / tap
-  | 'dblclick'         // double click / double tap
-  | 'contextmenu'      // right click / long press
-  | 'hover'            // throttled pointermove for hover detection
-  | 'pointermove'      // raw pointer move (not throttled)
-  | 'pointerdown'      // pointer pressed
-  | 'pointerup'        // pointer released
-  | 'pointerenter'     // pointer enters canvas
-  | 'pointerleave'     // pointer leaves canvas
-  | 'pointercancel'    // pointer interaction cancelled
-  | 'wheel';           // scroll wheel
+  | 'select' // click / tap
+  | 'dblclick' // double click / double tap
+  | 'contextmenu' // right click / long press
+  | 'hover' // throttled pointermove for hover detection
+  | 'pointermove' // raw pointer move (not throttled)
+  | 'pointerdown' // pointer pressed
+  | 'pointerup' // pointer released
+  | 'pointerenter' // pointer enters canvas
+  | 'pointerleave' // pointer leaves canvas
+  | 'pointercancel' // pointer interaction cancelled
+  | 'wheel'; // scroll wheel
 
 /**
  * Pointer event callback function type
@@ -313,7 +321,6 @@ export interface IPresenter {
    *          installed by World on Presenter
    */
   start(loop: any): Promise<void>;
-
 
   setWorld(world: World): void;
   /**
@@ -424,7 +431,6 @@ export interface IPresenter {
    * @returns Geographic coordinates of camera
    */
   getCameraPosition(): GeographicCoords;
-
 
   // ============================================================================
   // RENDER LOOP INTEGRATION

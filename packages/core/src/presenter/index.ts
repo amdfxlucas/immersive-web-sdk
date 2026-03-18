@@ -83,7 +83,10 @@ export {
 } from './gis-presenter.js';
 
 // GIS Root Component
-export { GISRootComponent, type GISRootComponentType } from './gis-root-component.js';
+export {
+  GISRootComponent,
+  type GISRootComponentType,
+} from './gis-root-component.js';
 
 // ============================================================================
 // PRESENTER IMPLEMENTATIONS
@@ -91,7 +94,14 @@ export { GISRootComponent, type GISRootComponentType } from './gis-root-componen
 
 export { XRPresenter } from './xr-presenter.js';
 export { MapPresenter } from './map-presenter.js';
-export {MapLayerComponent, MapDataSourceComponent, MapLayerType, MapPresenterComponent, registerDataSourceType, getDataSourceType} from './map3d_components';
+export {
+  MapLayerComponent,
+  MapDataSourceComponent,
+  MapLayerType,
+  MapPresenterComponent,
+  registerDataSourceType,
+  getDataSourceType,
+} from './map3d_components';
 // ============================================================================
 // COORDINATE ADAPTER
 // ============================================================================

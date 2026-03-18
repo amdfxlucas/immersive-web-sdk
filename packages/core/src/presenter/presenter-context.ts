@@ -16,12 +16,7 @@
  * @category Runtime
  */
 
-import {
-  PerspectiveCamera,
-  Scene,
-  SRGBColorSpace,
-  WebGLRenderer,
-} from 'three';
+import { PerspectiveCamera, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
 import type { OrthographicCamera } from 'three';
 
 /**
@@ -213,7 +208,10 @@ export class ContextFactory {
       multiviewStereo: requirements.renderer?.multiviewStereo ?? false,
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
+    renderer.setSize(
+      container.clientWidth || window.innerWidth,
+      container.clientHeight || window.innerHeight,
+    );
     renderer.outputColorSpace = SRGBColorSpace;
 
     if (requirements.xrEnabled) {
@@ -226,7 +224,8 @@ export class ContextFactory {
     const scene = new Scene();
     const camera = new PerspectiveCamera(
       requirements.camera?.fov ?? 50,
-      (container.clientWidth || window.innerWidth) / (container.clientHeight || window.innerHeight),
+      (container.clientWidth || window.innerWidth) /
+        (container.clientHeight || window.innerHeight),
       requirements.camera?.near ?? 0.1,
       requirements.camera?.far ?? 200,
     );

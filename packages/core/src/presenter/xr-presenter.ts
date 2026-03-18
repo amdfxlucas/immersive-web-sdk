@@ -44,7 +44,10 @@ import type {
   ProjectCRS,
 } from './gis-presenter.js';
 import { initGISRootEntity } from './gis-root-component.js';
-import type { PresenterContext, ContextRequirements } from './presenter-context.js';
+import type {
+  PresenterContext,
+  ContextRequirements,
+} from './presenter-context.js';
 import {
   FlyToOptions,
   IPresenter,
@@ -304,7 +307,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   }
 
   /**@note called by world in setPresenter() */
-  setWorld(world: World){
+  setWorld(world: World) {
     this._world = world;
   }
 
@@ -319,7 +322,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     // Start the render loop
     this._clock.start();
 
-    //  store and start the world's render loop here 
+    //  store and start the world's render loop here
     this._renderer.setAnimationLoop(loop);
 
     this._state.value = PresenterState.Running;
@@ -337,7 +340,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
       }
     }
 
- //   this._renderer.setAnimationLoop(null);  // done by world ?!
+    //   this._renderer.setAnimationLoop(null);  // done by world ?!
     this._clock.stop();
     this._state.value = PresenterState.Ready;
   }
@@ -770,7 +773,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     this._world.visibilityState.value = VisibilityState.NonImmersive;
     // this._renderer.setAnimationLoop(null);
     this._clock.stop();
-    this._state.value = PresenterState.Ready; 
+    this._state.value = PresenterState.Ready;
   }
 
   /**

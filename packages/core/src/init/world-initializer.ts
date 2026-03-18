@@ -82,9 +82,7 @@ import { IGISPresenter } from '../presenter/gis-presenter.js';
  * Defaults are tuned for VR; you can override camera frustum and default lighting via {@link WorldOptions.render}.
  */
 export type WorldOptions = {
-  presenter?: {mode?: PresentationMode,
-              options?: PresenterConfig
-  },
+  presenter?: { mode?: PresentationMode; options?: PresenterConfig };
   /** Asset manifest to preload before the first frame. */
   assets?: AssetManifest;
   /** Size of preallocated Elics-ECS  ComponentStorage */
@@ -170,56 +168,62 @@ export async function initializeWorld<T extends World = World>(
   WorldClass?: WorldConstructor<T>,
 ): Promise<T> {
   // Create and configure world instance
-  const world = createWorldInstance(options.entityCapacity, options.checksOn, WorldClass) as T;
+  const world = createWorldInstance(
+    options.entityCapacity,
+    options.checksOn,
+    WorldClass,
+  ) as T;
 
   // Extract configuration options
   const config = extractConfiguration(options);
 
-  const initImpl = (world: World,
-                   config: ReturnType<typeof extractConfiguration>,
-                    presenter: IPresenter) => {
+  const initImpl = (
+    world: World,
+    config: ReturnType<typeof extractConfiguration>,
+    presenter: IPresenter,
+  ) => {
+    // Store XR defaults for later explicit launch/offer calls
+    world.xrDefaults = {
+      sessionMode: config.xr.sessionMode,
+      referenceSpace: config.xr.referenceSpace,
+      features: config.xr.features,
+    };
 
-      // Store XR defaults for later explicit launch/offer calls
-      world.xrDefaults = {
-        sessionMode: config.xr.sessionMode,
-        referenceSpace: config.xr.referenceSpace,
-        features: config.xr.features,
-      };
+    // Register core systems (LevelSystem receives defaultLighting)
+    registerCoreSystems(world, config);
 
-      // Register core systems (LevelSystem receives defaultLighting)
-      registerCoreSystems(world, config);
+    // Initialize asset manager
+    initializeAssetManager(world.renderer, world);
 
-      // Initialize asset manager
-      initializeAssetManager(world.renderer, world);
+    // Register additional systems (UI + Audio on by default)
+    registerAdditionalSystems(world);
 
-      // Register additional systems (UI + Audio on by default)
-      registerAdditionalSystems(world);
+    // Register input and feature systems with explicit priorities
+    registerFeatureSystems(world, config);
 
-      // Register input and feature systems with explicit priorities
-      registerFeatureSystems(world, config);
+    // Setup render loop (integrates presenter hooks with World update)
+    setupRenderLoop(world, presenter);
 
-      // Setup render loop (integrates presenter hooks with World update)
-      setupRenderLoop(world, presenter);
+    // Note: Resize handling is now managed by the presenter
 
-      // Note: Resize handling is now managed by the presenter
-
-      // Manage XR offer flow if configured
-      if (config.xr.offer && config.xr.offer !== 'none') {
-        manageOfferFlow(world, config.xr.offer);  // requires world.xrDefaults
-      }
+    // Manage XR offer flow if configured
+    if (config.xr.offer && config.xr.offer !== 'none') {
+      manageOfferFlow(world, config.xr.offer); // requires world.xrDefaults
+    }
   };
 
   // if presenter mode is known, create one
-  if(options?.presenter)
-  {
-
+  if (options?.presenter) {
     // Create and initialize presenter based on session mode
     const presenter = createPresenter(config); // TODO use createPresenter(mode: PresentationMode,_options?: PresenterConfig,)
     const presenterConfig = buildPresenterConfig(config);
 
     // Use ContextFactory to create shared rendering context
     const requirements = presenter.getRequirements();
-    const context = world.contextFactory.getOrCreateContext(container, requirements);
+    const context = world.contextFactory.getOrCreateContext(
+      container,
+      requirements,
+    );
     await presenter.initialize(context, presenterConfig);
 
     // Get rendering components from context and assign to world
@@ -229,25 +233,31 @@ export async function initializeWorld<T extends World = World>(
     setupInputManagement(world);
     initImpl(world, config, presenter);
     // Return promise that resolves after asset preloading
-     return finalizeInitialization<T>(world, options.assets).then(async (w) => {
-       // Load initial level or create empty level
-       const levelUrl =
-         typeof options.level === 'string' ? options.level : options.level?.url;
-       if (levelUrl) {
-         await w.loadLevel(levelUrl);
-       } else {
-         await w.loadLevel();
-       }
-       return w;
-     });
+    return finalizeInitialization<T>(world, options.assets).then(async (w) => {
+      // Load initial level or create empty level
+      const levelUrl =
+        typeof options.level === 'string' ? options.level : options.level?.url;
+      if (levelUrl) {
+        await w.loadLevel(levelUrl);
+      } else {
+        await w.loadLevel();
+      }
+      return w;
+    });
   } else {
     // otherwise defer complete world initialization until user calls world.setPresenter(pr)
     // NOTE could save world parameter by binding to 'this'
-    world.onSetPresenter = (world: World, presenter: IPresenter, pconfig: PresenterConfig ) =>
-      {
+    world.onSetPresenter = (
+      world: World,
+      presenter: IPresenter,
+      pconfig: PresenterConfig,
+    ) => {
       // Use ContextFactory to create shared rendering context
       const requirements = presenter.getRequirements();
-      const context = world.contextFactory.getOrCreateContext(container, requirements);
+      const context = world.contextFactory.getOrCreateContext(
+        container,
+        requirements,
+      );
 
       // Get rendering components from context and assign to world
       assignRenderingToWorld(world, presenter, context, pconfig);
@@ -258,8 +268,8 @@ export async function initializeWorld<T extends World = World>(
       const config = extractConfiguration(options);
       initImpl(world, config, presenter);
 
-      if(isGISPresenter(presenter))
-      { // only call this now, once LevelSystem is initialized and ActiveLevelRoot exists
+      if (isGISPresenter(presenter)) {
+        // only call this now, once LevelSystem is initialized and ActiveLevelRoot exists
         (presenter as IGISPresenter).initGISRoot(world);
       }
 
@@ -307,8 +317,7 @@ function createWorldInstance<T extends World = World>(
     .registerComponent(Transform)
     .registerComponent(Visibility)
     .registerComponent(LevelTag); // required by LevelSystem
-    world.registerSystem(TransformSystem)
-    .registerSystem(VisibilitySystem);
+  world.registerSystem(TransformSystem).registerSystem(VisibilitySystem);
   return world;
 }
 
@@ -387,11 +396,10 @@ function assignRenderingToWorld(
   // Scene entity (wrap Scene in an entity for parenting convenience) required by LevelSystem
   world.sceneEntity = world.createTransformEntity(context.scene);
 
-  if(!world?.presenter)
-  { // Register presenter with world (this also initializes GIS root if applicable)
+  if (!world?.presenter) {
+    // Register presenter with world (this also initializes GIS root if applicable)
     world.setPresenter(presenter, context.container, presenterConfig);
   }
-
 }
 
 /**
@@ -502,11 +510,12 @@ function registerCoreSystems(
     .registerComponent(DomeGradient)
     .registerComponent(IBLTexture)
     .registerComponent(IBLGradient);
-    // Unified environment system (background + IBL)
-    world.registerSystem(EnvironmentSystem); // requires world.renderer
-    world.registerSystem(LevelSystem, { // requires sceneEntity -> creates ActiveLevelRoot child -> init() must be called before presenter initGISRoot
-      configData: { defaultLighting: config.defaultLighting },
-    });
+  // Unified environment system (background + IBL)
+  world.registerSystem(EnvironmentSystem); // requires world.renderer
+  world.registerSystem(LevelSystem, {
+    // requires sceneEntity -> creates ActiveLevelRoot child -> init() must be called before presenter initGISRoot
+    configData: { defaultLighting: config.defaultLighting },
+  });
 }
 
 /**

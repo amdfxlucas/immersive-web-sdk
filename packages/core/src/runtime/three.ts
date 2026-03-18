@@ -22,7 +22,6 @@ THREE.BatchedMesh.prototype.computeBoundsTree = computeBatchedBoundsTree;
 THREE.BatchedMesh.prototype.disposeBoundsTree = disposeBatchedBoundsTree;
 THREE.BatchedMesh.prototype.raycast = acceleratedRaycast;
 
-
 /*
 THREE.BatchedMesh.prototype.deleteInstance = (instanceId) => {
     this.validateInstanceId(instanceId);
@@ -32,20 +31,24 @@ THREE.BatchedMesh.prototype.deleteInstance = (instanceId) => {
     return this;
 }*/
 
-
-  // wrongly called by three-mesh-bvh for every instance, even deleted ones ! -> BUG
-  // getVisibleAt and validateInstanceId are patched to not trigger the bug
-  (THREE.BatchedMesh.prototype as unknown as {
-    getVisibleAt: (instanceId: number)=>boolean
-    }).getVisibleAt = isVisibleAt;
-  function isVisibleAt(this: THREE.BatchedMesh, instanceId: number)
-  {
-    const instanceInfo = (this as unknown as { _instanceInfo: {active: boolean, visible: boolean}[] })
-    ._instanceInfo;
-   (this as unknown as {validateInstanceId: (instanceId: number)=>void}).validateInstanceId(instanceId); // THREE upstream impl. throws for deleted instances
-    return instanceInfo[instanceId].active && instanceInfo[instanceId].visible ;
+// wrongly called by three-mesh-bvh for every instance, even deleted ones ! -> BUG
+// getVisibleAt and validateInstanceId are patched to not trigger the bug
+(
+  THREE.BatchedMesh.prototype as unknown as {
+    getVisibleAt: (instanceId: number) => boolean;
   }
- 
+).getVisibleAt = isVisibleAt;
+function isVisibleAt(this: THREE.BatchedMesh, instanceId: number) {
+  const instanceInfo = (
+    this as unknown as {
+      _instanceInfo: { active: boolean; visible: boolean }[];
+    }
+  )._instanceInfo;
+  (
+    this as unknown as { validateInstanceId: (instanceId: number) => void }
+  ).validateInstanceId(instanceId); // THREE upstream impl. throws for deleted instances
+  return instanceInfo[instanceId].active && instanceInfo[instanceId].visible;
+}
 
 (
   THREE.BatchedMesh.prototype as unknown as {
@@ -63,7 +66,6 @@ function isValidInstanceId(this: THREE.BatchedMesh, instanceId: number) {
     );
   }
 }
-
 
 /* // three-mesh-bvh
 function acceleratedBatchedMeshRaycast(raycaster, intersects) {

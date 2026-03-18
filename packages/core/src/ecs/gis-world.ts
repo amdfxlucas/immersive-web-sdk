@@ -365,7 +365,7 @@ export class GISWorld extends World {
     options: GISWorldOptions,
   ): Promise<GISWorld> {
     // Validate that GIS configuration is provided
-   /* if (!options.presentation?.crs || !options.presentation?.origin) {
+    /* if (!options.presentation?.crs || !options.presentation?.origin) {
       throw new Error(
         'GISWorld requires presentation.crs and presentation.origin to be configured',
       );
@@ -376,10 +376,14 @@ export class GISWorld extends World {
     const { initializeWorld } = await import('../init/index.js');
 
     // Use the standard world initializer but create a GISWorld instance
-    const world = (await initializeWorld(container, options, GISWorld)) as GISWorld;
+    const world = (await initializeWorld(
+      container,
+      options,
+      GISWorld,
+    )) as GISWorld;
 
     // Verify the presenter supports GIS operations
-   /* if (!isGISPresenter(world.presenter)) {
+    /* if (!isGISPresenter(world.presenter)) {
       throw new Error(
         'GISWorld creation failed: presenter does not support GIS operations. ' +
         'Ensure presentation mode and CRS/origin are properly configured.',

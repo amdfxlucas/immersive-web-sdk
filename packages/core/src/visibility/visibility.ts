@@ -22,8 +22,6 @@ export const Visibility = createComponent(
 function attachToEntity(entity: Entity): void {
   const object3D = entity.object3D;
   if (object3D) {
-
-
     Object.defineProperty(object3D, 'visible', {
       get: () => {
         return entity.getValue(Visibility, 'isVisible');
@@ -48,7 +46,7 @@ function attachToEntity(entity: Entity): void {
         entity.setValue(Visibility, 'isVisible', value);
       },
       enumerable: true,
-      configurable: true
+      configurable: true,
     });
   }
 }
@@ -56,7 +54,6 @@ function attachToEntity(entity: Entity): void {
 function detachFromEntity(entity: Entity): void {
   const object3D = entity.object3D;
   if (object3D) {
-
     Object.defineProperty(object3D, 'visible', {
       value: object3D.visible,
       enumerable: true,
@@ -64,7 +61,9 @@ function detachFromEntity(entity: Entity): void {
     });
     return;
   } else if (entity.hasComponent(MapLayerComponent)) {
-    const layer = entity.getValue(MapLayerComponent, 'layer') as { visible: boolean };
+    const layer = entity.getValue(MapLayerComponent, 'layer') as {
+      visible: boolean;
+    };
     if (!layer) {
       return;
     }

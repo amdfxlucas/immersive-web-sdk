@@ -58,7 +58,9 @@ export function getComponent(
     return null;
   }
 
-  const id = Number.isInteger(entity) ? (entity as number) : (entity as Entity).index;
+  const id = Number.isInteger(entity)
+    ? (entity as number)
+    : (entity as Entity).index;
   const entityObj = Number.isInteger(entity) ? null : (entity as Entity);
 
   for (const k of Object.keys(component.schema)) {
@@ -95,14 +97,19 @@ export function setComponent(
     throw new Error('input error');
   }
 
-  const id = Number.isInteger(entity) ? (entity as number) : (entity as Entity).index;
+  const id = Number.isInteger(entity)
+    ? (entity as number)
+    : (entity as Entity).index;
   const entityObj = Number.isInteger(entity) ? null : (entity as Entity);
 
   for (const k of Object.keys(component.schema)) {
     const schemaField = component.schema[k];
     if (VECTOR_TYPES.includes(schemaField.type as VectorType)) {
       if (entityObj && values[k] !== undefined) {
-        const view = entityObj.getVectorView(component, k as never) as TypedArray;
+        const view = entityObj.getVectorView(
+          component,
+          k as never,
+        ) as TypedArray;
         view.set(values[k] as ArrayLike<number>);
       }
     } else {
@@ -137,7 +144,9 @@ export function setComponentWeak(
     throw new Error('input error');
   }
 
-  const id = Number.isInteger(entity) ? (entity as number) : (entity as Entity).index;
+  const id = Number.isInteger(entity)
+    ? (entity as number)
+    : (entity as Entity).index;
   const entityObj = Number.isInteger(entity) ? null : (entity as Entity);
 
   for (const k of Object.keys(values)) {
@@ -150,7 +159,10 @@ export function setComponentWeak(
       const schemaField = component.schema[k];
       if (VECTOR_TYPES.includes(schemaField.type as VectorType)) {
         if (entityObj && values[k] !== undefined) {
-          const view = entityObj.getVectorView(component, k as never) as TypedArray;
+          const view = entityObj.getVectorView(
+            component,
+            k as never,
+          ) as TypedArray;
           view.set(values[k] as ArrayLike<number>);
         }
       } else {

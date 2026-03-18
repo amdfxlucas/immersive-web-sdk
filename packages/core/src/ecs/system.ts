@@ -17,7 +17,12 @@ import {
 } from 'elics';
 import type { QueryManager } from 'elics/lib/query-manager.js';
 import { Object3D, Vector3 } from 'three';
-import { isGISPresenter, type IPresenter, type IGISPresenter, type GeographicCoords } from '../presenter/index.js';
+import {
+  isGISPresenter,
+  type IPresenter,
+  type IGISPresenter,
+  type GeographicCoords,
+} from '../presenter/index.js';
 import {
   PerspectiveCamera,
   Scene,
@@ -141,15 +146,25 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
     }
 
     /** Live getter - stays fresh across presenter switches */
-    get player(): XROrigin { return this.world.player; }
+    get player(): XROrigin {
+      return this.world.player;
+    }
     /** Live getter - stays fresh across presenter switches */
-    get input(): XRInputManager { return this.world.input; }
+    get input(): XRInputManager {
+      return this.world.input;
+    }
     /** Live getter - stays fresh across presenter switches */
-    get scene(): Scene { return this.world.scene; }
+    get scene(): Scene {
+      return this.world.scene;
+    }
     /** Live getter - stays fresh across presenter switches */
-    get camera(): PerspectiveCamera { return this.world.camera; }
+    get camera(): PerspectiveCamera {
+      return this.world.camera;
+    }
     /** Live getter - stays fresh across presenter switches */
-    get renderer(): WebGLRenderer { return this.world.renderer; }
+    get renderer(): WebGLRenderer {
+      return this.world.renderer;
+    }
 
     get globals() {
       return this.world.globals;

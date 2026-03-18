@@ -14,11 +14,15 @@ export enum EventButton {
 }
 
 export function fromNativeButton(btn: number): EventButton {
-  switch(btn){
-    case 0: return EventButton.Primary;
-    case 1: return EventButton.Auxiliary;
-    case 2: return EventButton.Secondary;
-    default: throw `Unhandled button: ${btn}`;
+  switch (btn) {
+    case 0:
+      return EventButton.Primary;
+    case 1:
+      return EventButton.Auxiliary;
+    case 2:
+      return EventButton.Secondary;
+    default:
+      throw `Unhandled button: ${btn}`;
   }
 }
 
@@ -102,7 +106,12 @@ export const Pressed = createComponent(
   'Pressed',
   {
     /**Tells you which specific button was pressed or released to trigger the event. */
-    button: {type: Types.Enum, enum: EventButton, default: EventButton.Primary } },
+    button: {
+      type: Types.Enum,
+      enum: EventButton,
+      default: EventButton.Primary,
+    },
+  },
   'A tag added by InputSystem while the entity is actively pressed.',
 );
 
