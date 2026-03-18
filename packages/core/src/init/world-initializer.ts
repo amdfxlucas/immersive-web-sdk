@@ -45,8 +45,9 @@ import {
   isGISPresenter,
   IPresenter,
 } from '../presenter/index.js';
+import type { PresenterContext } from '../presenter/presenter-context.js';
 import { XRPresenter } from '../presenter/xr-presenter.js';
-import { Clock, WebGLRenderer } from '../runtime/index.js';
+import { Clock, PerspectiveCamera, WebGLRenderer } from '../runtime/index.js';
 import {
   SceneUnderstandingSystem,
   XRAnchor,
@@ -215,13 +216,17 @@ export async function initializeWorld<T extends World = World>(
     // Create and initialize presenter based on session mode
     const presenter = createPresenter(config); // TODO use createPresenter(mode: PresentationMode,_options?: PresenterConfig,)
     const presenterConfig = buildPresenterConfig(config);
-    await presenter.initialize(container, presenterConfig);
 
-    // Get rendering components from presenter and assign to world
-    assignRenderingToWorld(world, presenter, container, presenterConfig);
+    // Use ContextFactory to create shared rendering context
+    const requirements = presenter.getRequirements();
+    const context = world.contextFactory.getOrCreateContext(container, requirements);
+    await presenter.initialize(context, presenterConfig);
+
+    // Get rendering components from context and assign to world
+    assignRenderingToWorld(world, presenter, context, presenterConfig);
 
     // Setup input management (uses world.camera and world.scene from presenter)
-    setupInputManagement(world); 
+    setupInputManagement(world);
     initImpl(world, config, presenter);
     // Return promise that resolves after asset preloading
      return finalizeInitialization<T>(world, options.assets).then(async (w) => {
@@ -238,15 +243,18 @@ export async function initializeWorld<T extends World = World>(
   } else {
     // otherwise defer complete world initialization until user calls world.setPresenter(pr)
     // NOTE could save world parameter by binding to 'this'
-    world.onSetPresenter = (world: World, presenter: IPresenter, pconfig: PresenterConfig ) => 
+    world.onSetPresenter = (world: World, presenter: IPresenter, pconfig: PresenterConfig ) =>
       {
-      // Get rendering components from presenter and assign to world
-      assignRenderingToWorld(world, presenter, container, pconfig);
+      // Use ContextFactory to create shared rendering context
+      const requirements = presenter.getRequirements();
+      const context = world.contextFactory.getOrCreateContext(container, requirements);
+
+      // Get rendering components from context and assign to world
+      assignRenderingToWorld(world, presenter, context, pconfig);
 
       // Setup input management (uses world.camera and world.scene from presenter)
       setupInputManagement(world);
 
-      // TODO ... 
       const config = extractConfiguration(options);
       initImpl(world, config, presenter);
 
@@ -362,38 +370,26 @@ function buildPresenterConfig(
 }
 
 /**
- * Assign rendering components from presenter to world instance
- * @note presenter must be initialized! i.e. have scene, renderer constructed
+ * Assign rendering components from context to world instance.
+ * @note presenter must be initialized! i.e. context.scene, context.renderer populated
  */
 function assignRenderingToWorld(
   world: World,
   presenter: IPresenter,
-  container: HTMLDivElement,
+  context: PresenterContext,
   presenterConfig: PresenterConfig,
 ) {
-  // REDUNDANT with setPresenter() implementation
-  // Get rendering components from presenter
-  world.scene = presenter.scene;
-  world.camera = presenter.camera;
-  world.renderer = presenter.renderer;
+  // Get rendering components from context (written by presenter during initialize)
+  world.scene = context.scene;
+  world.camera = context.camera as PerspectiveCamera;
+  world.renderer = context.renderer;
 
-    // Scene entity (wrap Scene in an entity for parenting convenience) required by LevelSystem
-  world.sceneEntity = world.createTransformEntity(presenter.scene);
-
-  // Create a default level root so activeLevel is always defined
-  // REDUNDANT with LevelSystem::init()
-  /*
-  const levelRootEntity = world.createTransformEntity(undefined, {
-    parent: world.sceneEntity,
-  });
-  levelRootEntity.object3D!.name = 'LevelRoot';
-  // @ts-ignore init signal now; LevelSystem will enforce identity each frame
-  world.activeLevel = signal(levelRootEntity);
-  */
+  // Scene entity (wrap Scene in an entity for parenting convenience) required by LevelSystem
+  world.sceneEntity = world.createTransformEntity(context.scene);
 
   if(!world?.presenter)
   { // Register presenter with world (this also initializes GIS root if applicable)
-    world.setPresenter(presenter, container, presenterConfig);
+    world.setPresenter(presenter, context.container, presenterConfig);
   }
 
 }

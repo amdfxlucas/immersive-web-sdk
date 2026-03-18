@@ -50,6 +50,7 @@ import {
   type ProjectCRS,
 } from './gis-presenter.js';
 import { GISRootComponent } from './gis-root-component.js';
+import type { PresenterContext, ContextRequirements } from './presenter-context.js';
 import {
   FlyToOptions,
   IPresenter,
@@ -290,6 +291,9 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   /** Presentation mode (always Map) */
   private _mode = PresentationMode.Map;
 
+  /** Shared rendering context */
+  private _context!: PresenterContext;
+
   /** Presenter state signal */
   private _state = signal<PresenterState>(PresenterState.Uninitialized);
 
@@ -420,14 +424,35 @@ export class MapPresenter implements IPresenter, IGISPresenter {
   }
 
   // ============================================================================
+  // CONTEXT REQUIREMENTS
+  // ============================================================================
+
+  /**
+   * Declare what this presenter needs from the rendering context.
+   */
+  getRequirements(): ContextRequirements {
+    return {
+      xrEnabled: false,
+      renderer: {
+        alpha: true,
+        antialias: true,
+      },
+      camera: {
+        type: ['perspective', 'orthographic'],
+      },
+      sceneUpAxis: 'z',
+    };
+  }
+
+  // ============================================================================
   // LIFECYCLE
   // ============================================================================
 
   /**
-   * Initialize the presenter
+   * Initialize the presenter with a shared rendering context.
    */
   async initialize(
-    container: HTMLDivElement,
+    context: PresenterContext,
     config: PresenterConfig,
   ): Promise<void> {
     if (this._state.value !== PresenterState.Uninitialized) {
@@ -442,6 +467,10 @@ export class MapPresenter implements IPresenter, IGISPresenter {
         'Giro3D is required for MapPresenter. Install it with: npm install @giro3d/giro3d',
       );
     }
+
+    this._context = context;
+    const container = context.container;
+
     if(!container){
       throw "No target container for Giro3d MapPresenter specified";
     }
@@ -461,7 +490,7 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     let crs = null;
     let crs_def = config.crs.proj4;
-     // NOTE: Giro3d requires WKT definition not proj4 
+     // NOTE: Giro3d requires WKT definition not proj4
     if(crs_def)
     { // definition provided by user in project file
        crs = CoordinateSystem.register(config.crs.code, crs_def);
@@ -476,14 +505,16 @@ export class MapPresenter implements IPresenter, IGISPresenter {
       await this._coordAdapter.initialize();
     }
 
+    // Disable XR on shared renderer
+    context.renderer.xr.enabled = false;
+
+    // Pass shared renderer to Giro3D Instance
     this._instance = new Instance({
       target: container,
-      // TODO reuse THREE context between presenters -> PresenterContext abstraction
-      //  camera: config.camera,
-      //  renderer: config.renderer,
-      //  scene3D: config.scene
+      renderer: context.renderer,
       crs: crs,
       backgroundColor: this._config.backgroundColor, // || '#87CEEB'
+      ownsRenderer: false, // prevent Giro3D from disposing our shared renderer
     });
 
     // const axesHelper = new AxesHelper(100000); // ONLY for debugging
@@ -524,7 +555,11 @@ export class MapPresenter implements IPresenter, IGISPresenter {
     // Get Three.js references from Giro3D
     this._scene = this._instance.scene;
     this._camera = this._instance.view.camera;
-    this._renderer = this._instance.renderer;
+    this._renderer = context.renderer;
+
+    // Write scene and camera back to context
+    context.scene = this._scene;
+    context.camera = this._camera;
 
     // Giro3D Map uses: X=Easting, Y=Northing, Z=Up (Y-up=false)
 
@@ -853,6 +888,62 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     this._pointerCallbacks.clear();
     this._state.value = PresenterState.Disposed;
+  }
+
+  /**
+   * Deactivate the presenter without disposing shared resources.
+   *
+   * Stops the render loop and collects content objects for migration,
+   * but does NOT dispose the shared renderer (Giro3D Instance was created
+   * with ownsRenderer: false).
+   */
+  deactivate(): Object3D[] {
+    const objects: Object3D[] = [];
+
+    // Collect ENU-wrapped objects (unwrap them for migration)
+    for (const [, wrapper] of this._enuWrappers) {
+      const inner = wrapper.innerObject;
+      wrapper.wrapper.remove(inner);
+      if (wrapper.wrapper.parent) {
+        wrapper.wrapper.parent.remove(wrapper.wrapper);
+      }
+      objects.push(inner);
+    }
+    this._enuWrappers.clear();
+
+    // Collect non-wrapped content objects
+    if (this._contentRoot) {
+      while (this._contentRoot.children.length > 0) {
+        const child = this._contentRoot.children[0];
+        this._contentRoot.remove(child);
+        objects.push(child);
+      }
+    }
+
+    // Cancel the ECS update loop
+    if (this._animationFrameId !== null) {
+      cancelAnimationFrame(this._animationFrameId);
+      this._animationFrameId = null;
+    }
+    this._externalLoop = null;
+
+    // Dispose controls
+    if (this._controls) {
+      this._controls.dispose();
+      this._controls = null;
+    }
+
+    // Dispose Giro3D instance (ownsRenderer: false prevents renderer disposal)
+    if (this._instance) {
+      this._instance.dispose();
+      this._instance = null;
+    }
+
+    this._pointerCallbacks.clear();
+    this._clock.stop();
+    this._state.value = PresenterState.Ready;
+
+    return objects;
   }
 
   // ============================================================================

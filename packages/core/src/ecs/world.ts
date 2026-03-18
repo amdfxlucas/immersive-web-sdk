@@ -24,6 +24,7 @@ import {
   type PresentationMode,
   type PresenterConfig,
 } from '../presenter/index.js';
+import { ContextFactory, type PresenterContext } from '../presenter/presenter-context.js';
 import type { Object3DEventMap } from '../runtime/index.js';
 import {
   Material,
@@ -127,6 +128,20 @@ export class World extends ElicsWorld {
   private _presenterConfig: PresenterConfig | undefined;
 
   /**
+   * Context factory for creating and reusing rendering contexts.
+   * @internal
+   */
+  private _contextFactory = new ContextFactory();
+
+  /**
+   * The shared rendering context (renderer, canvas, scene, camera).
+   * Persists across presenter switches when possible.
+   */
+  get presenterContext(): PresenterContext | undefined {
+    return this._contextFactory.context ?? undefined;
+  }
+
+  /**
    * Get the active presenter (if any).
    *
    * returns the current presenter instance.
@@ -154,13 +169,17 @@ export class World extends ElicsWorld {
     this._presenter = presenter;
     this._container = container;
     this._presenterConfig = config;
-   
-//    presenter.setWorld(this);
+
     if(this.onSetPresenter)
     {
       this.onSetPresenter(this, presenter, config);
     }
     presenter.setWorld(this);
+  }
+
+  /** Get the context factory (for use by world-initializer) */
+  get contextFactory(): ContextFactory {
+    return this._contextFactory;
   }
 
   constructor(entityCapacity: number, checksOn: boolean = false) {
@@ -396,32 +415,32 @@ export class World extends ElicsWorld {
     // Dynamically import presenter factory to avoid circular dependency
     const { createPresenter } = await import('../presenter/index.js');
 
-    // Collect objects from current content root
-    const contentRoot = this._presenter.getContentRoot();
-    const objects: Object3D[] = [];
-    while (contentRoot.children.length > 0) {
-      const child = contentRoot.children[0];
-      contentRoot.remove(child);
-      objects.push(child);
-    }
+    // Create new presenter to get its requirements
+    const newPresenter = createPresenter(mode);
+    const requirements = newPresenter.getRequirements();
 
-    // Stop current presenter
-    await this._presenter.stop();
+    // Deactivate current presenter (collects content, does NOT dispose renderer)
+    const objects = this._presenter.deactivate();
 
-    // Create new presenter
+    // Get or reuse rendering context
+    const context = this._contextFactory.getOrCreateContext(this._container, requirements);
+
+    // Initialize new presenter with shared context
     const config = { ...this._presenterConfig, ...options };
-    this._presenter = createPresenter(mode, config);
-    await this._presenter.initialize(this._container, config as PresenterConfig);
+    await newPresenter.initialize(context, config as PresenterConfig);
 
-    // Update world references to use new presenter
-    this.scene = this._presenter.scene;
-    this.camera = this._presenter.camera;
-    this.renderer = this._presenter.renderer;
+    // Update world references from context
+    this.scene = context.scene;
+    this.camera = context.camera as PerspectiveCamera;
+    this.renderer = context.renderer;
 
-    // Restore objects to new content root
+    // Restore migrated objects
     for (const obj of objects) {
-      this._presenter.addObject(obj, { isENU: true });
+      newPresenter.addObject(obj, { isENU: true });
     }
+
+    this._presenter = newPresenter;
+    newPresenter.setWorld(this);
 
     // Re-setup XR input if needed
     if (mode === 'immersive-ar' || mode === 'immersive-vr') {
@@ -429,9 +448,7 @@ export class World extends ElicsWorld {
     }
 
     // Start the new presenter
-    // Note: When switching modes, the render loop is already managed by the world
-    // The presenter.start() receives null here as the loop continues from the previous state
-    await this._presenter.start(null);
+    await newPresenter.start(null);
   }
 
   /**

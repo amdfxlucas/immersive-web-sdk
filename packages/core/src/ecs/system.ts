@@ -59,8 +59,11 @@ export interface System<S extends SystemSchema, Q extends SystemQueries>
 
   readonly player: XROrigin;
   readonly input: XRInputManager;
+  /** Live reference to the current scene (reads from World, stays fresh across presenter switches) */
   readonly scene: Scene;
+  /** Live reference to the current camera (reads from World, stays fresh across presenter switches) */
   readonly camera: PerspectiveCamera;
+  /** Live reference to the current renderer (reads from World, stays fresh across presenter switches) */
   readonly renderer: WebGLRenderer;
   readonly visibilityState: Signal<VisibilityState>;
   readonly cleanupFuncs: Array<() => void>;
@@ -123,11 +126,6 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
     public queries!: Record<keyof Q, Query>;
     public config = {} as SystemConfigSignals<S>;
 
-    public readonly player: XROrigin;
-    public readonly input: XRInputManager;
-    public readonly scene: Scene;
-    public readonly camera: PerspectiveCamera;
-    public readonly renderer: WebGLRenderer;
     public readonly visibilityState: Signal<VisibilityState>;
     public readonly cleanupFuncs: Array<() => void> = [];
 
@@ -139,13 +137,19 @@ export function createSystem<S extends SystemSchema, Q extends SystemQueries>(
       for (const key in schema) {
         this.config[key] = signal(schema[key].default as any);
       }
-      this.player = world.player;
-      this.input = world.input;
-      this.scene = world.scene;
-      this.camera = world.camera;
-      this.renderer = world.renderer;
       this.visibilityState = world.visibilityState;
     }
+
+    /** Live getter - stays fresh across presenter switches */
+    get player(): XROrigin { return this.world.player; }
+    /** Live getter - stays fresh across presenter switches */
+    get input(): XRInputManager { return this.world.input; }
+    /** Live getter - stays fresh across presenter switches */
+    get scene(): Scene { return this.world.scene; }
+    /** Live getter - stays fresh across presenter switches */
+    get camera(): PerspectiveCamera { return this.world.camera; }
+    /** Live getter - stays fresh across presenter switches */
+    get renderer(): WebGLRenderer { return this.world.renderer; }
 
     get globals() {
       return this.world.globals;

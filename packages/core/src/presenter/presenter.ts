@@ -44,10 +44,13 @@ import type {
   Vector3,
 } from 'three';
 import type { GeographicCoords, ProjectCRS, CRSExtent } from './gis-presenter.js';
+import type { PresenterContext, ContextRequirements } from './presenter-context.js';
 
 // Re-export GIS types for convenience
 export type { GeographicCoords, ProjectCRS, CRSExtent };
 
+// Re-export context types for convenience
+export type { PresenterContext, ContextRequirements };
 
 import type { World } from '../ecs/world.js';
 /**
@@ -278,16 +281,31 @@ export interface IPresenter {
   readonly isRunning: boolean;
 
   // ============================================================================
+  // CONTEXT REQUIREMENTS
+  // ============================================================================
+
+  /**
+   * Declare what this presenter needs from the rendering context.
+   *
+   * Called before initialize() to determine if an existing context can be reused
+   * or if a new one must be created.
+   */
+  getRequirements(): ContextRequirements;
+
+  // ============================================================================
   // LIFECYCLE
   // ============================================================================
 
   /**
-   * Initialize the presenter with a DOM container and configuration
+   * Initialize the presenter with a shared rendering context and configuration.
    *
-   * @param container - The HTML element to render into
+   * The presenter uses the context's renderer but creates its own Scene and Camera,
+   * then writes them back to the context for World/System access.
+   *
+   * @param context - The shared rendering context
    * @param config - Presenter configuration options
    */
-  initialize(container: HTMLDivElement, config: PresenterConfig): Promise<void>;
+  initialize(context: PresenterContext, config: PresenterConfig): Promise<void>;
 
   /**
    * Start the render loop
@@ -317,6 +335,19 @@ export interface IPresenter {
    * Dispose all resources and cleanup
    */
   dispose(): void;
+
+  /**
+   * Deactivate the presenter without disposing shared resources.
+   *
+   * Called during mode switch. The presenter should:
+   * - Stop its render loop
+   * - Detach its event listeners
+   * - NOT dispose the shared renderer
+   * - Return its content objects for migration to the new presenter
+   *
+   * @returns Array of content Object3D instances to migrate
+   */
+  deactivate(): Object3D[];
 
   // ============================================================================
   // SCENE GRAPH
@@ -432,3 +463,6 @@ export type PresenterFactory = (
   mode: PresentationMode,
   options?: PresenterConfig,
 ) => IPresenter;
+
+// Re-export ContextFactory for convenience
+export { ContextFactory } from './presenter-context.js';

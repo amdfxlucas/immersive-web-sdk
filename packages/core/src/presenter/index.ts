@@ -65,6 +65,13 @@ export {
   type PointerCallback,
 } from './presenter.js';
 
+// Context types
+export {
+  type PresenterContext,
+  type ContextRequirements,
+  ContextFactory,
+} from './presenter-context.js';
+
 // GIS-specific types and interfaces
 export {
   type IGISPresenter,

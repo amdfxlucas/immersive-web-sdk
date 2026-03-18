@@ -28,12 +28,12 @@ import {
   Object3D,
   PerspectiveCamera,
   Scene,
-  SRGBColorSpace,
   Vector3,
   WebGLRenderer,
 } from 'three';
 import type { Entity } from '../ecs/entity.js';
-import type { World, VisibilityState } from '../ecs/world.js';
+import type { World } from '../ecs/world.js';
+import { VisibilityState } from '../ecs/world.js';
 import { ReferenceSpaceType } from '../init/xr.js';
 import { CoordinateAdapter } from './coordinate-adapter.js';
 import type {
@@ -44,6 +44,7 @@ import type {
   ProjectCRS,
 } from './gis-presenter.js';
 import { initGISRootEntity } from './gis-root-component.js';
+import type { PresenterContext, ContextRequirements } from './presenter-context.js';
 import {
   FlyToOptions,
   IPresenter,
@@ -95,6 +96,9 @@ export class XRPresenter implements IPresenter, IGISPresenter {
 
   /** Presentation mode (AR or VR) */
   private _mode: PresentationMode;
+
+  /** Shared rendering context */
+  private _context!: PresenterContext;
 
   /** Presenter state signal */
   private _state = signal<PresenterState>(PresenterState.Uninitialized);
@@ -210,14 +214,36 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   }
 
   // ============================================================================
+  // CONTEXT REQUIREMENTS
+  // ============================================================================
+
+  /**
+   * Declare what this presenter needs from the rendering context.
+   */
+  getRequirements(): ContextRequirements {
+    return {
+      xrEnabled: this._mode !== PresentationMode.Inline,
+      renderer: {
+        alpha: true, // always true for maximum reuse
+        antialias: true,
+        multiviewStereo: true,
+      },
+      camera: {
+        type: ['perspective'],
+      },
+      sceneUpAxis: 'y',
+    };
+  }
+
+  // ============================================================================
   // LIFECYCLE
   // ============================================================================
 
   /**
-   * Initialize the presenter
+   * Initialize the presenter with a shared rendering context.
    */
   async initialize(
-    container: HTMLDivElement,
+    context: PresenterContext,
     config: PresenterConfig,
   ): Promise<void> {
     if (this._state.value !== PresenterState.Uninitialized) {
@@ -225,7 +251,8 @@ export class XRPresenter implements IPresenter, IGISPresenter {
       return;
     }
 
-    this._container = container;
+    this._context = context;
+    this._container = context.container;
     this._config = config as XRPresenterOptions;
 
     // Store GIS configuration
@@ -251,27 +278,21 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     );
     this._camera.position.set(0, 1.7, 0); // Default eye height
 
-    // Setup renderer
-    this._renderer = new WebGLRenderer({
-      antialias: true,
-      alpha: this._mode === PresentationMode.ImmersiveAR,
-      // @ts-ignore - multiviewStereo is a Quest-specific extension
-      multiviewStereo: true,
-    });
-    this._renderer.setPixelRatio(window.devicePixelRatio);
-    this._renderer.setSize(window.innerWidth, window.innerHeight);
-    this._renderer.outputColorSpace = SRGBColorSpace;
-    this._renderer.xr.enabled = true;
+    // Use shared renderer from context
+    this._renderer = context.renderer;
+    this._renderer.xr.enabled = this._mode !== PresentationMode.Inline;
 
-    container.appendChild(this._renderer.domElement);
-
-    // Setup scene
+    // Setup scene (Y-up, owned by this presenter)
     this._scene = new Scene();
 
     // Create content root
     this._contentRoot = new Group();
     this._contentRoot.name = 'ContentRoot';
     this._scene.add(this._contentRoot);
+
+    // Write scene and camera back to context
+    context.scene = this._scene;
+    context.camera = this._camera;
 
     // Setup resize handling
     this._setupResizeHandling();
@@ -364,6 +385,36 @@ export class XRPresenter implements IPresenter, IGISPresenter {
 
     this._pointerCallbacks.clear();
     this._state.value = PresenterState.Disposed;
+  }
+
+  /**
+   * Deactivate the presenter without disposing shared resources.
+   *
+   * Stops the render loop and collects content objects for migration,
+   * but does NOT dispose the shared renderer.
+   */
+  deactivate(): Object3D[] {
+    const objects: Object3D[] = [];
+    while (this._contentRoot.children.length > 0) {
+      const child = this._contentRoot.children[0];
+      this._contentRoot.remove(child);
+      objects.push(child);
+    }
+
+    // Stop render loop without disposing renderer
+    this._renderer.setAnimationLoop(null);
+    this._clock.stop();
+
+    // Remove resize handler
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler);
+      this._resizeHandler = null;
+    }
+
+    this._pointerCallbacks.clear();
+    this._state.value = PresenterState.Ready;
+
+    return objects;
   }
 
   // ============================================================================
