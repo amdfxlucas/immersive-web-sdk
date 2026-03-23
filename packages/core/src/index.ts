@@ -29,6 +29,7 @@ export * from './camera/index.js';
 export * from './depth/index.js';
 export * from './mcp/index.js';
 export * from './presenter/index.js';
+export * from './batching/index.js';
 
 // re-exports
 export * from '@iwsdk/xr-input';

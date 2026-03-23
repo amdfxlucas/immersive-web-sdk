@@ -608,7 +608,8 @@ export class MapPresenter implements IPresenter, IGISPresenter {
 
     for (let layer of this._world.queryManager.registerQuery({
       required: [MapLayerComponent],
-    }).entities) { //.values().find(layer => {});
+    }).entities) {
+      //.values().find(layer => {});
       this._addECSLayerImpl(layer);
     }
   }

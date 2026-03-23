@@ -74,6 +74,7 @@ import {
   buildSessionInit,
 } from './index.js';
 import { IGISPresenter } from '../presenter/gis-presenter.js';
+import { BatchedInstanceComponent } from '../batching/batched-instance.js';
 
 /** Options for {@link initializeWorld} / {@link World.create}.
  *
@@ -500,6 +501,7 @@ function registerCoreSystems(
   config: ReturnType<typeof extractConfiguration>,
 ) {
   world
+  .registerComponent(BatchedInstanceComponent)
     .registerComponent(RayInteractable)
     .registerComponent(PokeInteractable)
     .registerComponent(Hovered)
