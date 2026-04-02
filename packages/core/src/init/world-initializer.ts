@@ -83,7 +83,7 @@ import { BatchedInstanceComponent } from '../batching/batched-instance.js';
  * Defaults are tuned for VR; you can override camera frustum and default lighting via {@link WorldOptions.render}.
  */
 export type WorldOptions = {
-  presenter?: { mode?: PresentationMode; options?: PresenterConfig };
+  presenter?: { mode?: string; options?: PresenterConfig };
   /** Asset manifest to preload before the first frame. */
   assets?: AssetManifest;
   /** Size of preallocated Elics-ECS  ComponentStorage */
@@ -501,7 +501,7 @@ function registerCoreSystems(
   config: ReturnType<typeof extractConfiguration>,
 ) {
   world
-  .registerComponent(BatchedInstanceComponent)
+    .registerComponent(BatchedInstanceComponent)
     .registerComponent(RayInteractable)
     .registerComponent(PokeInteractable)
     .registerComponent(Hovered)

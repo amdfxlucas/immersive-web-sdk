@@ -13,8 +13,9 @@
  * rendering modes:
  *
  * - **XR Mode**: WebXR-based immersive AR/VR rendering
- * - **Map Mode**: 2D/2.5D geographic map view using Giro3D
  * - **Inline Mode**: Non-immersive 3D view in browser
+ * - **Custom Modes**: External packages can register new modes via
+ *   `registerPresenterDescriptor` (e.g. `@iwsdk/map-presenter` adds `'map'`)
  *
  * Systems interact with the presenter API rather than raw Three.js objects,
  * enabling seamless mode switching without changing system code.
@@ -24,20 +25,24 @@
  *
  * @example
  * ```ts
- * import {
- *   PresentationMode,
- *   createPresenter,
- *   getSupportedModes
- * } from '@iwsdk/core';
+ * import { PresentationMode, createPresenter, getSupportedModes } from '@iwsdk/core';
  *
  * // Check available modes
  * const modes = await getSupportedModes();
  *
- * // Create a map presenter
- * const presenter = createPresenter(PresentationMode.Map);
- * await presenter.initialize(container, {
- *   crs: { code: 'EPSG:25833', proj4: '...' },
- *   origin: { lat: 51.05, lon: 13.74 }
+ * // Create a VR presenter
+ * const presenter = createPresenter(PresentationMode.ImmersiveVR);
+ * ```
+ *
+ * @example Registering an external presenter
+ * ```ts
+ * // External package entry point
+ * import { registerPresenterDescriptor } from '@iwsdk/core';
+ *
+ * registerPresenterDescriptor('my-mode', {
+ *   priority: 15,
+ *   factory: () => new MyPresenter(),
+ *   isSupported: async () => true,
  * });
  * ```
  */
@@ -57,7 +62,6 @@ export {
   type PointerEventData,
   type FlyToOptions,
   type XRPresenterOptions,
-  type MapPresenterOptions,
   type PresenterFactory,
 
   // Types
@@ -72,7 +76,7 @@ export {
   ContextFactory,
 } from './presenter-context.js';
 
-// GIS-specific types and interfaces
+// GIS-specific types and interfaces (used by XRPresenter too)
 export {
   type IGISPresenter,
   type GeographicCoords,
@@ -80,6 +84,7 @@ export {
   type CRSExtent,
   type FitToExtentOptions,
   isGISPresenter,
+  crsFromBBox,
 } from './gis-presenter.js';
 
 // GIS Root Component
@@ -93,20 +98,23 @@ export {
 // ============================================================================
 
 export { XRPresenter } from './xr-presenter.js';
-export { MapPresenter } from './map-presenter.js';
-export {
-  MapLayerComponent,
-  MapDataSourceComponent,
-  MapLayerType,
-  MapPresenterComponent,
-  registerDataSourceType,
-  getDataSourceType,
-} from './map3d_components';
+
 // ============================================================================
 // COORDINATE ADAPTER
 // ============================================================================
 
 export { CoordinateAdapter } from './coordinate-adapter.js';
+
+// ============================================================================
+// PRESENTER REGISTRY (extension API)
+// ============================================================================
+
+export {
+  registerPresenterDescriptor,
+  getPresenterDescriptor,
+  getRegisteredModes,
+  type PresenterDescriptor,
+} from './presenter-registry.js';
 
 // ============================================================================
 // FACTORY FUNCTIONS

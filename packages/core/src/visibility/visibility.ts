@@ -10,7 +10,6 @@ import {
   hasBatchedInstances,
 } from '../batching/batched-instance.js';
 import { Types, createComponent, Entity, createSystem } from '../ecs/index.js';
-import { MapLayerComponent } from '../presenter/map3d_components.js';
 
 export const Visibility = createComponent(
   'Visibility',
@@ -38,23 +37,6 @@ function attachToEntity(entity: Entity): void {
     });
   }
 
-  // MapLayerComponent visibility binding
-  if (!object3D && entity.hasComponent(MapLayerComponent)) {
-    const layer = entity.getValue(MapLayerComponent, 'layer');
-    if (layer) {
-      Object.defineProperty(layer, 'visible', {
-        get: () => {
-          return entity.getValue(Visibility, 'isVisible');
-        },
-        set: (value: boolean) => {
-          entity.setValue(Visibility, 'isVisible', value);
-        },
-        enumerable: true,
-        configurable: true,
-      });
-    }
-  }
-
   // BatchedMesh per-instance visibility
   if (hasBatchedInstances(entity)) {
     const visible = entity.getValue(Visibility, 'isVisible') ?? true;
@@ -70,19 +52,6 @@ function detachFromEntity(entity: Entity): void {
       enumerable: true,
       configurable: true,
     });
-  }
-
-  if (!object3D && entity.hasComponent(MapLayerComponent)) {
-    const layer = entity.getValue(MapLayerComponent, 'layer') as {
-      visible: boolean;
-    };
-    if (layer) {
-      Object.defineProperty(layer, 'visible', {
-        value: layer.visible,
-        enumerable: true,
-        configurable: true,
-      });
-    }
   }
 
   // Restore batched instance visibility to current state (no property to unbind)

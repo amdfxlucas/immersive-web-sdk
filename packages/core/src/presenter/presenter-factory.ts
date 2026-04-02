@@ -9,270 +9,234 @@
  * @file presenter-factory.ts
  * @brief Factory functions for creating and managing presenters
  *
- * Provides a unified way to create the appropriate presenter for
- * the requested mode, with automatic fallback handling and mode
- * capability detection.
+ * Provides a unified way to create the appropriate presenter for the requested
+ * mode, with automatic fallback handling and mode capability detection.
+ *
+ * Presenter implementations are registered via the PresenterRegistry. Built-in
+ * XR modes (ImmersiveAR, ImmersiveVR, Inline) are registered at the bottom of
+ * this file as module-level side effects. External packages (e.g. @iwsdk/map-presenter)
+ * register additional modes by calling `registerPresenterDescriptor` from their
+ * own entry point.
  *
  * @category Runtime
  */
 
 import {
-  IPresenter,
-  MapPresenterOptions,
+  registerPresenterDescriptor,
+  getPresenterDescriptor,
+  getRegisteredModes,
+} from './presenter-registry.js';
+import {
+  type IPresenter,
   PresentationMode,
-  PresenterConfig,
-  XRPresenterOptions,
+  type PresenterConfig,
+  type XRPresenterOptions,
 } from './presenter.js';
 import { XRPresenter } from './xr-presenter.js';
-import { MapPresenter } from './map-presenter.js';
+
+// Re-export PresenterDescriptor and registry functions so consumers only need
+// to import from this module (or from presenter/index.ts).
+export {
+  registerPresenterDescriptor,
+  getPresenterDescriptor,
+  getRegisteredModes,
+  type PresenterDescriptor,
+} from './presenter-registry.js';
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
 
 /**
- * Create a presenter for the specified mode
+ * Create a presenter for the specified mode.
  *
- * Factory function that instantiates the appropriate presenter class
- * based on the requested presentation mode.
+ * The mode must have been registered via `registerPresenterDescriptor` before
+ * this function is called. Built-in XR modes are auto-registered when this
+ * module is imported. External modes (e.g. `'map'`) require their package to
+ * be imported first (side-effect import).
  *
- * @param mode - The presentation mode to create
- * @param options - Mode-specific options (optional)
+ * @param mode - The presentation mode string
  * @returns The created presenter instance
+ * @throws If `mode` has not been registered
  *
  * @example
  * ```ts
- * // Create an AR presenter
- * const arPresenter = createPresenter(PresentationMode.ImmersiveAR);
- *
- * // Create a map presenter with options
- * const mapPresenter = createPresenter(PresentationMode.Map, {
- *   crs: { code: 'EPSG:25833', proj4: '...' },
- *   origin: { lat: 51.05, lon: 13.74 }
- * });
+ * import '@iwsdk/map-presenter'; // registers 'map'
+ * const presenter = createPresenter('map');
  * ```
  *
  * @category Runtime
  */
-export function createPresenter(
-  mode: PresentationMode,
-  _options?: PresenterConfig,
-): IPresenter {
-  switch (mode) {
-    case PresentationMode.ImmersiveAR:
-      return new XRPresenter(PresentationMode.ImmersiveAR);
-
-    case PresentationMode.ImmersiveVR:
-      return new XRPresenter(PresentationMode.ImmersiveVR);
-
-    case PresentationMode.Map:
-      return new MapPresenter();
-
-    case PresentationMode.Inline:
-      // Inline mode uses XRPresenter without XR session
-      return new XRPresenter(PresentationMode.Inline);
-
-    default:
-      throw new Error(`Unknown presentation mode: ${mode}`);
+export function createPresenter(mode: string): IPresenter {
+  const descriptor = getPresenterDescriptor(mode);
+  if (!descriptor) {
+    throw new Error(
+      `Unknown presentation mode: "${mode}". ` +
+        `Registered modes: [${getRegisteredModes().join(', ')}]. ` +
+        `Did you forget to import the presenter package?`,
+    );
   }
+  return descriptor.factory();
 }
 
 /**
- * Check which presentation modes are supported in the current environment
+ * Check which presentation modes are supported in the current environment.
  *
- * Queries the browser for WebXR support and checks for Giro3D availability.
+ * Queries every registered presenter descriptor's `isSupported()` method in
+ * parallel, then returns supported modes sorted by priority (highest first).
  *
- * @returns Promise resolving to array of supported modes
+ * @returns Promise resolving to array of supported mode strings
  *
  * @example
  * ```ts
  * const modes = await getSupportedModes();
  * console.log('Supported modes:', modes);
- * // ['inline', 'immersive-vr', 'map']
+ * // ['immersive-ar', 'immersive-vr', 'inline']
  * ```
  *
  * @category Runtime
  */
-export async function getSupportedModes(): Promise<PresentationMode[]> {
-  const modes: PresentationMode[] = [];
-
-  // Inline mode is always supported
-  modes.push(PresentationMode.Inline);
-
-  // Check XR support
-  if (typeof navigator !== 'undefined' && navigator.xr) {
-    try {
-      if (await navigator.xr.isSessionSupported('immersive-vr')) {
-        modes.push(PresentationMode.ImmersiveVR);
+export async function getSupportedModes(): Promise<string[]> {
+  const modes: string[] = [];
+  await Promise.all(
+    getRegisteredModes().map(async (mode) => {
+      if (await getPresenterDescriptor(mode)!.isSupported()) {
+        modes.push(mode);
       }
-    } catch {
-      // VR not supported
-    }
-
-    try {
-      if (await navigator.xr.isSessionSupported('immersive-ar')) {
-        modes.push(PresentationMode.ImmersiveAR);
-      }
-    } catch {
-      // AR not supported
-    }
-  }
-
-  // Check Giro3D support
-  if (await MapPresenter.isSupported()) {
-    modes.push(PresentationMode.Map);
-  }
-
+    }),
+  );
+  // Sort by priority descending so callers get a deterministic ordered list
+  modes.sort(
+    (a, b) =>
+      (getPresenterDescriptor(b)?.priority ?? 0) -
+      (getPresenterDescriptor(a)?.priority ?? 0),
+  );
   return modes;
 }
 
 /**
- * Get the best available presentation mode
+ * Get the best available presentation mode.
  *
- * Returns the preferred mode if supported, otherwise falls back to the
- * most capable available mode.
+ * Returns the preferred mode if supported; otherwise returns the highest-priority
+ * registered mode that is available. Falls back to `'inline'` if nothing else
+ * is available.
  *
- * Priority order (when no preference):
- * 1. ImmersiveAR (if supported)
- * 2. ImmersiveVR (if supported)
- * 3. Map (if supported)
- * 4. Inline (always available)
- *
- * @param preferred - Optional preferred mode
+ * @param preferred - Optional preferred mode string
  * @returns Promise resolving to the best available mode
  *
  * @example
  * ```ts
- * // Get best mode without preference
- * const mode = await getBestMode();
- *
- * // Get best mode with AR preference
  * const mode = await getBestMode(PresentationMode.ImmersiveAR);
  * ```
  *
  * @category Runtime
  */
-export async function getBestMode(
-  preferred?: PresentationMode,
-): Promise<PresentationMode> {
-  const supported = await getSupportedModes();
-
-  // If preferred mode is supported, use it
+export async function getBestMode(preferred?: string): Promise<string> {
+  const supported = await getSupportedModes(); // already sorted by priority desc
   if (preferred && supported.includes(preferred)) {
     return preferred;
   }
-
-  // Otherwise, return the most capable supported mode
-  const priority = [
-    PresentationMode.ImmersiveAR,
-    PresentationMode.ImmersiveVR,
-    PresentationMode.Map,
-    PresentationMode.Inline,
-  ];
-
-  for (const mode of priority) {
-    if (supported.includes(mode)) {
-      return mode;
-    }
-  }
-
-  // Inline is always available as fallback
-  return PresentationMode.Inline;
+  return supported[0] ?? PresentationMode.Inline;
 }
 
 /**
- * Create presenter configuration with sensible defaults
+ * Create presenter configuration with sensible defaults for the given mode.
  *
- * Merges user options with mode-specific default values.
+ * Delegates to the descriptor's `createConfig()` if present, otherwise passes
+ * user options through unchanged.
  *
- * @param mode - Presentation mode
- * @param options - User-provided options
+ * @param mode - Presentation mode string
+ * @param options - User-provided options (merged with mode defaults)
  * @returns Complete configuration object
- *
- * @example
- * ```ts
- * const config = createPresenterConfig(PresentationMode.Map, {
- *   origin: { lat: 51.05, lon: 13.74 }
- * });
- * ```
  *
  * @category Runtime
  */
 export function createPresenterConfig(
-  mode: PresentationMode,
+  mode: string,
   options?: Partial<PresenterConfig>,
 ): PresenterConfig {
-  const baseConfig: PresenterConfig = {
-    crs: options?.crs,
-    origin: options?.origin,
-    extent: options?.extent,
-  };
-
-  switch (mode) {
-    case PresentationMode.ImmersiveAR: {
-      const xrConfig: XRPresenterOptions = {
-        ...baseConfig,
-        sessionMode: 'immersive-ar',
-        referenceSpace: 'local-floor',
-        features: {
-          handTracking: true,
-          anchors: true,
-          hitTest: true,
-        },
-        fov: 50,
-        near: 0.1,
-        far: 200,
-      };
-      return xrConfig;
-    }
-
-    case PresentationMode.ImmersiveVR: {
-      const xrConfig: XRPresenterOptions = {
-        ...baseConfig,
-        sessionMode: 'immersive-vr',
-        referenceSpace: 'local-floor',
-        features: {
-          handTracking: true,
-        },
-        fov: 50,
-        near: 0.1,
-        far: 200,
-      };
-      return xrConfig;
-    }
-
-    case PresentationMode.Map: {
-      const mapConfig: MapPresenterOptions = {
-        ...baseConfig,
-        backgroundColor: '#87CEEB',
-        terrain: false,
-        initialAltitude: 500,
-      };
-      return mapConfig;
-    }
-
-    case PresentationMode.Inline: {
-      const inlineConfig: XRPresenterOptions = {
-        ...baseConfig,
-        fov: 50,
-        near: 0.1,
-        far: 200,
-      };
-      return inlineConfig;
-    }
-
-    default:
-      return baseConfig;
+  const descriptor = getPresenterDescriptor(mode);
+  if (descriptor?.createConfig) {
+    return descriptor.createConfig(options);
   }
+  return (options ?? {}) as PresenterConfig;
 }
 
 /**
- * Check if a specific presentation mode is supported
+ * Check if a specific presentation mode is supported.
  *
  * @param mode - Mode to check
  * @returns Promise resolving to whether mode is supported
  *
  * @category Runtime
  */
-export async function isModeSupported(
-  mode: PresentationMode,
-): Promise<boolean> {
+export async function isModeSupported(mode: string): Promise<boolean> {
   const supported = await getSupportedModes();
   return supported.includes(mode);
 }
+
+// ============================================================================
+// BUILT-IN REGISTRATIONS
+// These run at module-load time. Any import of this file (directly or via
+// presenter/index.ts) will trigger these registrations, ensuring the built-in
+// XR modes are always available without an explicit bootstrap call.
+// ============================================================================
+
+registerPresenterDescriptor(PresentationMode.ImmersiveAR, {
+  priority: 40,
+  factory: () => new XRPresenter(PresentationMode.ImmersiveAR),
+  isSupported: async () => {
+    if (typeof navigator === 'undefined' || !navigator.xr) { return false; }
+    try {
+      return await navigator.xr.isSessionSupported('immersive-ar');
+    } catch {
+      return false;
+    }
+  },
+  createConfig: (options?) =>
+    ({
+      ...options,
+      sessionMode: 'immersive-ar',
+      referenceSpace: 'local-floor',
+      features: { handTracking: true, anchors: true, hitTest: true },
+      fov: 50,
+      near: 0.1,
+      far: 200,
+    }) as XRPresenterOptions,
+});
+
+registerPresenterDescriptor(PresentationMode.ImmersiveVR, {
+  priority: 30,
+  factory: () => new XRPresenter(PresentationMode.ImmersiveVR),
+  isSupported: async () => {
+    if (typeof navigator === 'undefined' || !navigator.xr) { return false; }
+    try {
+      return await navigator.xr.isSessionSupported('immersive-vr');
+    } catch {
+      return false;
+    }
+  },
+  createConfig: (options?) =>
+    ({
+      ...options,
+      sessionMode: 'immersive-vr',
+      referenceSpace: 'local-floor',
+      features: { handTracking: true },
+      fov: 50,
+      near: 0.1,
+      far: 200,
+    }) as XRPresenterOptions,
+});
+
+registerPresenterDescriptor(PresentationMode.Inline, {
+  priority: 10,
+  factory: () => new XRPresenter(PresentationMode.Inline),
+  isSupported: async () => true, // always supported
+  createConfig: (options?) =>
+    ({
+      ...options,
+      fov: 50,
+      near: 0.1,
+      far: 200,
+    }) as XRPresenterOptions,
+});

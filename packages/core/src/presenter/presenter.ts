@@ -37,12 +37,11 @@ import type { Signal } from '@preact/signals-core';
 import type {
   Object3D,
   PerspectiveCamera,
-  OrthographicCamera,
   Scene,
   WebGLRenderer,
-  WebGLRendererParameters,
   Vector3,
 } from 'three';
+import type { World } from '../ecs/world.js';
 import type {
   GeographicCoords,
   ProjectCRS,
@@ -58,8 +57,6 @@ export type { GeographicCoords, ProjectCRS, CRSExtent };
 
 // Re-export context types for convenience
 export type { PresenterContext, ContextRequirements };
-
-import type { World } from '../ecs/world.js';
 /**
  * Supported presentation modes
  *
@@ -70,8 +67,6 @@ export enum PresentationMode {
   ImmersiveVR = 'immersive-vr',
   /** WebXR immersive AR */
   ImmersiveAR = 'immersive-ar',
-  /** 2D/2.5D Map view (Giro3D) */
-  Map = 'map',
   /** Non-immersive inline 3D view */
   Inline = 'inline',
 }
@@ -109,52 +104,6 @@ export interface XRPresenterOptions extends PresenterConfig {
   near?: number;
   /** Far clipping plane */
   far?: number;
-}
-
-/**
- * Options for Map presenter
- *
- * @category Runtime
- */
-export interface MapPresenterOptions extends PresenterConfig {
-  fetcher?: any; // ReturnType< (featureclass_name: string, options: Object )=> Object3D>
-  // TODO maybe allow to provide object with multiple fetchers, one per source-type i.e. 'object', 'color' etc.
-  // -------  Giro3d InstanceOptions  ---------------
-  camera?: PerspectiveCamera | OrthographicCamera; // TODO move to PresenterContext  Abstraction
-  renderer?: WebGLRenderer | WebGLRendererParameters;
-  scene3D?: Scene;
-  backgroundColor?: string | null;
-  backgroundOpacity?: number;
-  /** Enable terrain rendering */
-  terrain?: boolean; // | Partial<TerrainOptions>
-  /** Initial camera altitude in meters */
-  initialAltitude?: number;
-  // ---------Giro3d MapOptions -----------------------
-  name?: string;
-  discardNoData?: boolean;
-  showOutline?: boolean;
-  outlineColor?: string;
-  subdivisionThreshold?: number;
-  maxSubdivisionLevel?: number; // default is 30
-  side?: number; // THREEjs Material sidedness
-  depthTest?: boolean;
-  castShadow?: boolean;
-  receiveShadow?: boolean;
-  /*
-    subdivisionStrategy?: MapSubdivisionStrategy;
-    colorimetry?: ColorimetryOptions;
-    contourLines?: boolean | Partial<ContourLineOptions>;
-    elevationRange?: ElevationRange;
-   // extent: Extent; -> in PresenterConfig
-    forceTextureAtlases?: boolean;
-    graticule?: boolean | Partial<GraticuleOptions>;
-    lighting?: boolean | MapLightingOptions;
-    // The root object of this entity. If none is provided, a new Group is created.
-    object3d?: Object3D<Object3DEventMap>;
-   */
-  //----- ColorLayer Options ----- (MOVE TO DISPLAY_MODEL)
-  showTileBorders?: boolean;
-  // resolutionFactor?: number
 }
 
 /**
@@ -268,7 +217,7 @@ export interface IPresenter {
   // ============================================================================
 
   /** Current presentation mode */
-  readonly mode: PresentationMode;
+  readonly mode: string;
 
   /** Current presenter state (reactive signal) */
   readonly state: Signal<PresenterState>;
@@ -466,7 +415,7 @@ export interface IPresenter {
  * @category Runtime
  */
 export type PresenterFactory = (
-  mode: PresentationMode,
+  mode: string,
   options?: PresenterConfig,
 ) => IPresenter;
 

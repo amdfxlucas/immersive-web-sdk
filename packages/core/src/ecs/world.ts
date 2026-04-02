@@ -19,11 +19,7 @@ import {
 } from '../init/index.js';
 import { LevelTag } from '../level/index.js';
 import type { MCPRuntime } from '../mcp/index.js';
-import {
-  type IPresenter,
-  type PresentationMode,
-  type PresenterConfig,
-} from '../presenter/index.js';
+import { type IPresenter, type PresenterConfig } from '../presenter/index.js';
 import {
   ContextFactory,
   type PresenterContext,
@@ -158,7 +154,7 @@ export class World extends ElicsWorld {
    *
    * Returns undefined if not using presenter mode (legacy XR-only).
    */
-  get presentationMode(): PresentationMode | undefined {
+  get presentationMode(): string | undefined {
     return this._presenter?.mode;
   }
 
@@ -362,13 +358,10 @@ export class World extends ElicsWorld {
    * ```ts
    * // Launch AR mode
    * await world.launch(PresentationMode.ImmersiveAR);
-   *
-   * // Launch Map mode
-   * await world.launch(PresentationMode.Map);
    * ```
    */
   async launch(
-    mode: PresentationMode,
+    mode: string,
     options?: Partial<PresenterConfig>,
   ): Promise<void> {
     if (!this._presenter) {
@@ -411,7 +404,7 @@ export class World extends ElicsWorld {
    * ```
    */
   async switchMode(
-    mode: PresentationMode,
+    mode: string,
     options?: Partial<PresenterConfig>,
   ): Promise<void> {
     if (!this._presenter || !this._container) {

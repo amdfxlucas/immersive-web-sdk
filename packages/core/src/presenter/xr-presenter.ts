@@ -98,7 +98,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   // ============================================================================
 
   /** Presentation mode (AR or VR) */
-  private _mode: PresentationMode;
+  private _mode: string;
 
   /** Shared rendering context */
   private _context!: PresenterContext;
@@ -163,12 +163,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
    *
    * @param mode - Presentation mode (ImmersiveAR, ImmersiveVR, or Inline)
    */
-  constructor(
-    mode:
-      | PresentationMode.ImmersiveAR
-      | PresentationMode.ImmersiveVR
-      | PresentationMode.Inline,
-  ) {
+  constructor(mode: string) {
     this._mode = mode;
   }
 
@@ -177,7 +172,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   // ============================================================================
 
   /** Current presentation mode */
-  get mode(): PresentationMode {
+  get mode(): string {
     return this._mode;
   }
 
