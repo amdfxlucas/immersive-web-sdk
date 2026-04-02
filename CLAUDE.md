@@ -286,7 +286,7 @@ MIT License - All contributions are licensed under the MIT License.
 
 ## Presenter Abstraction
 
-The Presenter abstraction follows an MVC-inspired pattern where the ECS World is the data model, and Presenters are interchangeable views that render the world's state in different modes (WebXR 3D, Giro3D 2.5D map, etc.).
+The Presenter abstraction follows an MVC-inspired pattern where the ECS World is the data model, and Presenters are interchangeable views that render the world's state in different modes (WebXR 3D, custom map views, etc.).
 
 **Design principles:**
 
@@ -294,22 +294,65 @@ The Presenter abstraction follows an MVC-inspired pattern where the ECS World is
 - Entity identity is preserved across presenter switches (a parcel entity remains the same entity regardless of view)
 - User interactions (clicks, hovers) are communicated back to the ECS as Tag components (Hovered, Pressed) on affected entities
 - Applications only load features into the World and provide a container div; rendering is handled automatically by the active presenter
+- **Core is XR/AR/VR-focused** — additional rendering modes (e.g. map) are provided by external packages via the presenter registry
 
 ### Key Files
 
 ```
 /presenter
-├── presenter.ts            - IPresenter interface, PresentationMode enum, config types
+├── presenter.ts            - IPresenter interface, PresentationMode enum, PresenterConfig
+├── presenter-registry.ts   - PresenterDescriptor interface + registerPresenterDescriptor() registry
 ├── presenter-context.ts    - PresenterContext, ContextRequirements, ContextFactory
-├── xr-presenter.ts         - WebXR (AR/VR) presenter implementation
-├── map-presenter.ts        - Giro3D 2D/2.5D map presenter implementation
-├── presenter-factory.ts    - createPresenter(), getSupportedModes(), getBestMode()
+├── presenter-factory.ts    - createPresenter(), getSupportedModes(), getBestMode() (registry-backed)
+├── xr-presenter.ts         - WebXR (AR/VR/Inline) presenter implementation
 ├── gis-presenter.ts        - IGISPresenter interface for geographic coordinate support
 ├── gis-root-component.ts   - GISRootComponent for CRS/origin metadata
 ├── coordinate-adapter.ts   - ENU ↔ Geographic ↔ CRS coordinate transforms
-├── map3d_components/       - MapLayerComponent, MapDataSourceComponent, FeatureSource
 └── index.ts                - Module exports
 ```
+
+### "Bring Your Own Presenter" — Presenter Registry
+
+`@iwsdk/core` ships with three built-in modes (`immersive-ar`, `immersive-vr`, `inline`). Additional modes are registered by external packages at import time.
+
+```typescript
+// presenter-registry.ts
+export interface PresenterDescriptor {
+  factory(): IPresenter; // creates the presenter instance
+  isSupported(): Promise<boolean>; // environment capability check
+  createConfig?(options?: Partial<PresenterConfig>): PresenterConfig; // default config
+  priority?: number; // for getBestMode() ordering (higher = preferred)
+}
+
+export function registerPresenterDescriptor(
+  mode: string,
+  descriptor: PresenterDescriptor,
+): void;
+export function getPresenterDescriptor(
+  mode: string,
+): PresenterDescriptor | undefined;
+export function getRegisteredModes(): string[];
+```
+
+Built-in XR modes are registered inside `presenter-factory.ts` as module-level side effects (priorities: AR=40, VR=30, Inline=10). External packages register at their own entry point:
+
+```typescript
+// @iwsdk/map-presenter/src/index.ts
+import { registerPresenterDescriptor } from '@iwsdk/core';
+
+registerPresenterDescriptor('map', {
+  priority: 20,
+  factory: () => new MapPresenter(),
+  isSupported: () => MapPresenter.isSupported(),
+  createConfig: (opts) => ({
+    backgroundColor: '#87CEEB',
+    terrain: false,
+    ...opts,
+  }),
+});
+```
+
+**`IPresenter.mode` is `string`** (not a closed enum) so external modes integrate naturally. `PresentationMode` enum covers only built-in modes and remains for convenience in application code.
 
 ### PresenterContext (Shared Rendering Infrastructure)
 
@@ -320,7 +363,7 @@ interface PresenterContext {
   readonly renderer: WebGLRenderer; // shared, never destroyed on mode switch
   readonly container: HTMLDivElement;
   readonly canvas: HTMLCanvasElement;
-  scene: Scene; // swapped per presenter (XR=Y-up, Map=Z-up)
+  scene: Scene; // swapped per presenter (XR=Y-up, external may differ)
   camera: PerspectiveCamera | OrthographicCamera; // swapped per presenter
   readonly xrEnabled: boolean;
   dispose(): void; // only called on World disposal
@@ -330,7 +373,7 @@ interface PresenterContext {
 **What is shared vs. swapped:**
 
 - **Shared** (persists across switches): WebGLRenderer, DOM canvas, container
-- **Swapped** (each presenter creates its own): Scene (XR uses Y-up, Map uses Z-up), Camera
+- **Swapped** (each presenter creates its own): Scene, Camera
 
 ### ContextRequirements (Presenter Specifications)
 
@@ -358,7 +401,7 @@ interface ContextRequirements {
 Example requirements:
 
 - **XRPresenter**: `{ xrEnabled: true, renderer: { alpha: true, antialias: true }, camera: { type: ['perspective'] }, sceneUpAxis: 'y' }`
-- **MapPresenter**: `{ xrEnabled: false, renderer: { alpha: true, antialias: true }, camera: { type: ['perspective', 'orthographic'] }, sceneUpAxis: 'z' }`
+- **MapPresenter** (external): `{ xrEnabled: false, renderer: { alpha: true, antialias: true }, camera: { type: ['perspective', 'orthographic'] }, sceneUpAxis: 'z' }`
 
 ### ContextFactory (Context Reuse Logic)
 
@@ -381,22 +424,21 @@ ContextFactory.getOrCreateContext(container, requirements)
 
 ```typescript
 interface IPresenter {
-  readonly mode: PresentationMode;
-  readonly state: PresenterState;
+  readonly mode: string; // string, not PresentationMode — allows external modes
+  readonly state: Signal<PresenterState>;
   readonly scene: Scene;
-  readonly camera: PerspectiveCamera | OrthographicCamera;
+  readonly camera: PerspectiveCamera;
   readonly renderer: WebGLRenderer;
 
   getRequirements(): ContextRequirements;
   initialize(context: PresenterContext, config: PresenterConfig): Promise<void>;
   deactivate(): Object3D[]; // stop without disposing renderer; return content for migration
-  stop(): void;
+  stop(): Promise<void>;
   dispose(): void;
 
   getContentRoot(): Object3D;
-  render(delta: number): void;
-  resize(width: number, height: number): void;
-  // ... pointer events, flyTo, etc.
+  render(): void;
+  // ... pointer events, flyTo, preUpdate, postUpdate, etc.
 }
 ```
 
@@ -411,14 +453,15 @@ interface IPresenter {
 When `world.switchMode(newMode)` is called:
 
 ```
-1. newPresenter = createPresenter(newMode)
+1. newPresenter = createPresenter(newMode)      // uses registry
 2. requirements = newPresenter.getRequirements()
-3. contentObjects = oldPresenter.deactivate()       // stop old, get content
-4. context = contextFactory.getOrCreateContext(      // reuse or create renderer
+3. contentObjects = oldPresenter.deactivate()   // stop old, get content
+4. context = contextFactory.getOrCreateContext( // reuse or create renderer
      container, requirements)
-5. await newPresenter.initialize(context, config)    // start new presenter
-6. world.scene = context.scene                       // update World references
+5. await newPresenter.initialize(context, config)
+6. world.scene = context.scene                  // update World references
 7. world.camera = context.camera
+8. for obj of contentObjects: newPresenter.addObject(obj, { isENU: true })
 ```
 
 The old presenter's `deactivate()` does NOT dispose the renderer. The new presenter receives the same renderer instance (if requirements are compatible) and creates fresh Scene/Camera objects.
@@ -434,51 +477,68 @@ get camera(): PerspectiveCamera { return this.world.camera; }
 get renderer(): WebGLRenderer { return this.world.renderer; }
 ```
 
-### Giro3D Integration (ownsRenderer)
-
-The Giro3D fork's `C3DEngine` accepts an `ownsRenderer: boolean` option (default `true`). When `ownsRenderer: false`:
-
-- `C3DEngine.dispose()` skips `renderer.dispose()` and canvas removal
-- This allows MapPresenter to safely deactivate without destroying the shared WebGLRenderer
-- Set via `new Instance(domElement, { renderer: context.renderer, ownsRenderer: false })`
-
-### Presenter Implementations
+### Built-in Presenter Implementations
 
 **XRPresenter** (`xr-presenter.ts`):
 
 - Handles WebXR session lifecycle (AR/VR/NonImmersive)
 - Creates Y-up Scene, PerspectiveCamera
 - Uses `renderer.xr` for immersive sessions
+- Also implements `IGISPresenter` for geographic coordinate support in XR
 - On deactivate: stops animation loop, collects scene children, does NOT dispose renderer
 
-**MapPresenter** (`map-presenter.ts`):
+### External Presenter: @iwsdk/map-presenter
 
-- Wraps Giro3D Instance for 2D/2.5D geographic map viewing
-- Creates Z-up Scene via Giro3D, with Perspective or Orthographic camera
-- Wraps ENU-centered geometry in offset transforms for CRS positioning
-- Uses FeatureSource with rbush spatial index for efficient tile-based feature queries
-- On deactivate: unwraps ENU objects, collects content, disposes Giro3D (but NOT the shared renderer)
+The Giro3D-based 2D/2.5D map presenter has been extracted to `~/Documents/repos/map-presenter` (`@iwsdk/map-presenter`). It is **not bundled with core**.
 
-### Usage Example
+To use it:
 
 ```typescript
-// Create world with Map mode
+import '@iwsdk/map-presenter'; // registers 'map' mode as a side effect
+
 const world = await World.create(container, {
-  presentation: {
-    mode: PresentationMode.Map,
-    crs: { code: 'EPSG:25833', proj4: '...' },
-    origin: { lat: 51.05, lon: 13.74 },
+  presenter: {
+    mode: 'map',
+    options: {
+      crs: { code: 'EPSG:25833', proj4: '...' },
+      origin: { lat: 51.05, lon: 13.74 },
+      extent: { minX: 400000, maxX: 420000, minY: 5650000, maxY: 5670000 },
+    },
   },
 });
 
-// Later, switch to AR — renderer is reused, scene/camera swapped
+// Switch to AR later — renderer is reused, scene/camera swapped
 await world.switchMode(PresentationMode.ImmersiveAR);
+```
 
-// Systems work unchanged — live getters always return current scene/camera
-class MySystem extends createSystem({ ... }) {
-  update(delta) {
-    const pos = this.geographicToScene({ lat: 51, lon: 13 });
-    this.scene.traverse(...); // Works in any mode
-  }
+See the `@iwsdk/map-presenter` README for full documentation.
+
+### Usage Example — Custom External Presenter
+
+```typescript
+// my-presenter-package/src/index.ts
+import {
+  registerPresenterDescriptor,
+  type IPresenter,
+  type PresenterContext,
+  type PresenterConfig,
+} from '@iwsdk/core';
+
+class MyCustomPresenter implements IPresenter {
+  readonly mode = 'my-mode';
+  // ... implement full IPresenter interface
 }
+
+registerPresenterDescriptor('my-mode', {
+  priority: 15,
+  factory: () => new MyCustomPresenter(),
+  isSupported: async () => true,
+});
+
+// App entry point
+import 'my-presenter-package'; // triggers registration
+
+const world = await World.create(container, {
+  presenter: { mode: 'my-mode' },
+});
 ```

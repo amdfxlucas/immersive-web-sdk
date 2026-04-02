@@ -152,7 +152,9 @@ export class CoordinateAdapter {
    * Must be called before using any transformation methods.
    */
   async initialize(): Promise<void> {
-    if (this._initialized) return;
+    if (this._initialized) {
+      return;
+    }
 
     this.proj4 = await getProj4();
 
@@ -268,7 +270,9 @@ export class CoordinateAdapter {
    * @returns CRS coordinates
    */
   geographicToCRS(lat: number, lon: number): { x: number; y: number } {
-    if (!this.proj4) throw new Error('CoordinateAdapter not initialized');
+    if (!this.proj4) {
+      throw new Error('CoordinateAdapter not initialized');
+    }
     const result = this.proj4('EPSG:4326', this.crsCode, [lon, lat]);
     return { x: result[0], y: result[1] };
   }
@@ -281,7 +285,9 @@ export class CoordinateAdapter {
    * @returns Geographic coordinates
    */
   crsToGeographic(x: number, y: number): { lat: number; lon: number } {
-    if (!this.proj4) throw new Error('CoordinateAdapter not initialized');
+    if (!this.proj4) {
+      throw new Error('CoordinateAdapter not initialized');
+    }
     const result = this.proj4(this.crsCode, 'EPSG:4326', [x, y]);
     return { lon: result[0], lat: result[1] };
   }

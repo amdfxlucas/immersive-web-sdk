@@ -21,8 +21,8 @@
 
 import type { Object3D, Vector3 } from 'three';
 import type { Entity } from '../ecs/entity.js';
-import type { IPresenter } from './presenter.js';
 import type { World } from '../ecs/index.js';
+import type { IPresenter } from './presenter.js';
 
 /**
  * Geographic coordinates (WGS84)

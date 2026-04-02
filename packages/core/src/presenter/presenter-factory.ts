@@ -186,7 +186,9 @@ registerPresenterDescriptor(PresentationMode.ImmersiveAR, {
   priority: 40,
   factory: () => new XRPresenter(PresentationMode.ImmersiveAR),
   isSupported: async () => {
-    if (typeof navigator === 'undefined' || !navigator.xr) { return false; }
+    if (typeof navigator === 'undefined' || !navigator.xr) {
+      return false;
+    }
     try {
       return await navigator.xr.isSessionSupported('immersive-ar');
     } catch {
@@ -209,7 +211,9 @@ registerPresenterDescriptor(PresentationMode.ImmersiveVR, {
   priority: 30,
   factory: () => new XRPresenter(PresentationMode.ImmersiveVR),
   isSupported: async () => {
-    if (typeof navigator === 'undefined' || !navigator.xr) { return false; }
+    if (typeof navigator === 'undefined' || !navigator.xr) {
+      return false;
+    }
     try {
       return await navigator.xr.isSessionSupported('immersive-vr');
     } catch {

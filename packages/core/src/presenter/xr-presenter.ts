@@ -330,7 +330,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
     if (this._session) {
       try {
         await this._session.end();
-      } catch (e) {
+      } catch {
         // Session may already be ended
       }
     }
@@ -832,7 +832,9 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   static async isSupported(
     mode: PresentationMode.ImmersiveAR | PresentationMode.ImmersiveVR,
   ): Promise<boolean> {
-    if (!navigator.xr) return false;
+    if (!navigator.xr) {
+      return false;
+    }
 
     const sessionMode =
       mode === PresentationMode.ImmersiveAR ? 'immersive-ar' : 'immersive-vr';

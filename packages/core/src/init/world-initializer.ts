@@ -8,6 +8,7 @@
 import { XRInputManager } from '@iwsdk/xr-input';
 import { AssetManager, AssetManifest } from '../asset/index.js';
 import { AudioSource, AudioSystem } from '../audio/index.js';
+import { BatchedInstanceComponent } from '../batching/batched-instance.js';
 import { CameraSource, CameraSystem } from '../camera/index.js';
 import { World, VisibilityState, type WorldConstructor } from '../ecs/index.js';
 import {
@@ -39,6 +40,7 @@ import {
   PhysicsShape,
   PhysicsSystem,
 } from '../physics/index.js';
+import { IGISPresenter } from '../presenter/gis-presenter.js';
 import {
   PresentationMode,
   PresenterConfig,
@@ -73,8 +75,6 @@ import {
   resolveReferenceSpaceType,
   buildSessionInit,
 } from './index.js';
-import { IGISPresenter } from '../presenter/gis-presenter.js';
-import { BatchedInstanceComponent } from '../batching/batched-instance.js';
 
 /** Options for {@link initializeWorld} / {@link World.create}.
  *

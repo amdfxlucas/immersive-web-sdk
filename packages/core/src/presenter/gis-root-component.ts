@@ -17,8 +17,8 @@
  */
 
 import type { Group } from 'three';
-import { createComponent } from '../ecs/index.js';
 import type { Entity } from '../ecs/entity.js';
+import { createComponent } from '../ecs/index.js';
 import type { World } from '../ecs/world.js';
 
 /**
