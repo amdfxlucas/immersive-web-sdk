@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import {
   acceleratedRaycast,
   computeBatchedBoundsTree,
@@ -80,6 +80,6 @@ function acceleratedBatchedMeshRaycast(raycaster, intersects) {
       }
 */
 
-export * from 'three';
+export * from 'three/webgpu';
 
 // export * as Addons from 'three/examples/jsm/Addons.js';

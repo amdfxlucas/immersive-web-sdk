@@ -6,7 +6,7 @@
  */
 
 import { Signal, signal } from '@preact/signals-core';
-import { Group, PerspectiveCamera, Scene, WebXRManager } from 'three';
+import { Group, PerspectiveCamera, Scene, WebXRManager } from 'three/webgpu';
 import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadInputProfile } from './gamepad/input-profiles.js';
 import { StatefulGamepad } from './gamepad/stateful-gamepad.js';

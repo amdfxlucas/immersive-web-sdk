@@ -22,7 +22,7 @@
  * @category Runtime
  */
 
-import { Vector3 } from 'three';
+import { Vector3 } from 'three/webgpu';
 import type { WorldOptions } from '../init/index.js';
 import {
   isGISPresenter,

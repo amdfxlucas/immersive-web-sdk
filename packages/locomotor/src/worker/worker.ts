@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Matrix4, Vector3 } from 'three';
+import { Matrix4, Vector3 } from 'three/webgpu';
 import { LocomotionEngine } from '../core/engine.js';
 import { MessageType } from '../types/message-types.js';
 

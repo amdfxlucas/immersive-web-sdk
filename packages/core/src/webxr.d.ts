@@ -10,7 +10,7 @@
 import type { Entity } from 'elics';
 import { Object3D } from './runtime/index.js';
 // Extend the Object3D interface
-declare module 'three' {
+declare module 'three/webgpu' {
   interface Object3D {
     // flexInstancedMesh is removed from core runtime; keep slot for compatibility if needed
     // flexInstancedMesh?: any;

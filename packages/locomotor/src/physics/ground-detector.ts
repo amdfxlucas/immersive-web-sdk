@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Ray, Vector3 } from 'three';
+import { Ray, Vector3 } from 'three/webgpu';
 import type {
   Environment,
   EnvironmentManager,

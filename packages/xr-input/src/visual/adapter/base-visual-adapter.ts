@@ -13,7 +13,7 @@ import {
   Object3D,
   PerspectiveCamera,
   Scene,
-} from 'three';
+} from 'three/webgpu';
 import {
   DEFAULT_PROFILES_PATH,
   InputLayout,

@@ -15,7 +15,7 @@ import {
   Quaternion,
   Ray,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import { MeshBVH } from 'three-mesh-bvh';
 import { calculateTrajectoryBounds } from '../physics/math-utils.js';
 import { EnvironmentType } from '../types/environment-types.js';

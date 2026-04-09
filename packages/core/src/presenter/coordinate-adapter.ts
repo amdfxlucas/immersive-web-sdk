@@ -25,7 +25,7 @@
  * @category Runtime
  */
 
-import { Vector3 } from 'three';
+import { Vector3 } from 'three/webgpu';
 import type { GeographicCoords, ProjectCRS } from './presenter.js';
 
 /** WGS84 ellipsoid semi-major axis in meters */

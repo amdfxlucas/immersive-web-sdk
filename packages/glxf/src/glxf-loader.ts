@@ -12,7 +12,7 @@ import {
   LoaderUtils,
   LoadingManager,
   Object3D,
-} from 'three';
+} from 'three/webgpu';
 import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Interface for any loader with loadAsync method

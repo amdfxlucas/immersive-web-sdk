@@ -6,7 +6,7 @@
  */
 
 import { VERSION as EliCSVersion } from 'elics';
-import { REVISION } from 'three';
+import { REVISION } from 'three/webgpu';
 import { VERSION } from './version.js';
 
 export * from './runtime/index.js';

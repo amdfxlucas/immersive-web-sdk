@@ -255,7 +255,7 @@ describe('BundleSource', () => {
     const source = new BundleSource('https://example.com/bundle');
     await source.prepare();
     expect(source.getPackageInstallSpec('@iwsdk/unknown')).toBeUndefined();
-    expect(source.getPackageInstallSpec('three')).toBeUndefined();
+    expect(source.getPackageInstallSpec('three/webgpu')).toBeUndefined();
   });
 
   it('cleanup() is a no-op', async () => {

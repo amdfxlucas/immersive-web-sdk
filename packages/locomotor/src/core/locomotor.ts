@@ -12,7 +12,7 @@ import {
   Object3D,
   Quaternion,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { EnvironmentType } from '../types/environment-types.js';
 import { MessageType } from '../types/message-types.js';

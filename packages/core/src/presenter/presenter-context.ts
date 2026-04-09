@@ -17,7 +17,7 @@
  */
 
 import { PerspectiveCamera, Scene, SRGBColorSpace, WebGPURenderer } from 'three/webgpu';
-import type { OrthographicCamera } from 'three';
+import type { OrthographicCamera } from 'three/webgpu';
 
 /**
  * Shared Three.js rendering infrastructure that persists across presenter switches.

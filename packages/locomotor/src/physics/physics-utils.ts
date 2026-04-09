@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Vector3 } from 'three';
+import { Vector3 } from 'three/webgpu';
 
 /**
  * Static physics utility functions for locomotion

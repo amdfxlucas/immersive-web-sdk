@@ -7,7 +7,7 @@
 
 import { Component } from '@pmndrs/uikit';
 import { signal, Signal } from '@preact/signals-core';
-import { Group, Object3D } from 'three';
+import { Group, Object3D } from 'three/webgpu';
 
 /**
  * Lightweight DOM-like wrapper around a UIKit root `Component` that lives in the 3D scene.

@@ -19,7 +19,7 @@
  * @category Runtime
  */
 
-import type { Object3D, Vector3 } from 'three';
+import type { Object3D, Vector3 } from 'three/webgpu';
 import type { Entity } from '../ecs/entity.js';
 import type { World } from '../ecs/index.js';
 import type { IPresenter } from './presenter.js';

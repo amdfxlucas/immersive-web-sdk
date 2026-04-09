@@ -6,7 +6,7 @@
  */
 
 import { Pointer } from '@pmndrs/pointer-events';
-import type { Object3D, PerspectiveCamera } from 'three';
+import type { Object3D, PerspectiveCamera } from 'three/webgpu';
 import type { XROrigin } from '../rig/xr-origin.js';
 import { CursorVisual } from './cursor-visual.js';
 import { GrabPointer } from './grab-pointer.js';

@@ -29,7 +29,7 @@ import {
   Mesh,
   RGBAFormat,
   Sphere,
-} from 'three';
+} from 'three/webgpu';
 
 const ID_ATTR_NAME = 'batchId';
 const _identityMatrix = new Matrix4();

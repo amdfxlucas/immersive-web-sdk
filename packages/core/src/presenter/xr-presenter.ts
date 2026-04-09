@@ -29,8 +29,8 @@ import {
   PerspectiveCamera,
   Scene,
   Vector3,
-  WebGLRenderer,
-} from 'three';
+  WebGPURenderer,
+} from 'three/webgpu';
 import type { Entity } from '../ecs/entity.js';
 import type { World } from '../ecs/world.js';
 import { VisibilityState } from '../ecs/world.js';
@@ -113,7 +113,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   private _camera!: PerspectiveCamera;
 
   /** WebGL renderer */
-  private _renderer!: WebGLRenderer;
+  private _renderer!: WebGPURenderer;
 
   /** Content root for application geometry */
   private _contentRoot!: Group;
@@ -192,7 +192,7 @@ export class XRPresenter implements IPresenter, IGISPresenter {
   }
 
   /** The WebGL renderer */
-  get renderer(): WebGLRenderer {
+  get renderer(): WebGPURenderer {
     return this._renderer;
   }
 

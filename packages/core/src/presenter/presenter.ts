@@ -38,9 +38,9 @@ import type {
   Object3D,
   PerspectiveCamera,
   Scene,
-  WebGLRenderer,
+  WebGPURenderer,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import type { World } from '../ecs/world.js';
 import type {
   GeographicCoords,
@@ -242,7 +242,7 @@ export interface IPresenter {
   readonly camera: PerspectiveCamera;
 
   /** The WebGL renderer */
-  readonly renderer: WebGLRenderer;
+  readonly renderer: WebGPURenderer;
 
   /** Whether the presenter is initialized */
   readonly isInitialized: boolean;

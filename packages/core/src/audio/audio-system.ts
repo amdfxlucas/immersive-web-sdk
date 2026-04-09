@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { PositionalAudio, AudioListener, Audio as AmbientAudio } from 'three';
+import { PositionalAudio, AudioListener, Audio as AmbientAudio } from 'three/webgpu';
 import { AssetManager } from '../asset/index.js';
 import { Types, Entity, createSystem } from '../ecs/index.js';
 import { AudioInstance, AudioPool } from './audio-pool.js';

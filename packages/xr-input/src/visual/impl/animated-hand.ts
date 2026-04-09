@@ -14,7 +14,7 @@ import {
   SkinnedMesh,
   Vector2,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import { BaseHandVisual } from './base-impl.js';
 
 export const stencilMaterial = new ShaderMaterial({

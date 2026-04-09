@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Group, Matrix4 } from 'three';
+import { Group, Matrix4 } from 'three/webgpu';
 
 export class XROrigin extends Group {
   public readonly head: Group;

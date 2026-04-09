@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Group, Matrix4, PerspectiveCamera, Scene, Vector3 } from 'three';
+import { Group, Matrix4, PerspectiveCamera, Scene, Vector3 } from 'three/webgpu';
 import { InputLayout } from '../../gamepad/input-profiles.js';
 import { XRAssetLoader } from '../../xr-input-manager.js';
 import {

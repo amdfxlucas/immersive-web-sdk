@@ -12,7 +12,7 @@ import {
   Object3D,
   Quaternion,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import { FlexBatchedMesh } from '../utils/flex-batched-mesh.js';
 import { BaseControllerVisual } from './base-impl.js';
 

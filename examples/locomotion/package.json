@@ -16,7 +16,7 @@
     "@iwsdk/core": "file:../../packages/core/iwsdk-core.tgz",
     "@pmndrs/uikit-horizon": "^1.0.60",
     "@pmndrs/uikit-lucide": "^1.0.60",
-    "three": "npm:super-three@0.181.0"
+    "three": "0.183.0"
   },
   "devDependencies": {
     "@iwsdk/vite-plugin-gltf-optimizer": "file:../../packages/vite-plugin-gltf-optimizer/iwsdk-vite-plugin-gltf-optimizer.tgz",

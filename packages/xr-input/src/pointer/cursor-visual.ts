@@ -14,7 +14,7 @@ import {
   MeshBasicMaterial,
   Quaternion,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import { lerp } from 'three/src/math/MathUtils.js';
 import type { XROrigin } from '../rig/xr-origin.js';
 

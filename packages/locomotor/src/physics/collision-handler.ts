@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Box3, Line3, Matrix4, Vector3 } from 'three';
+import { Box3, Line3, Matrix4, Vector3 } from 'three/webgpu';
 import type { Environment } from '../environment/environment-manager.js';
 
 export interface CapsuleInfo {

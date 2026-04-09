@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Matrix4, Object3D, Quaternion, Vector3 } from 'three';
+import { Matrix4, Object3D, Quaternion, Vector3 } from 'three/webgpu';
 
 // Reusable objects to avoid allocations in hot paths
 const _m1 = new Matrix4();

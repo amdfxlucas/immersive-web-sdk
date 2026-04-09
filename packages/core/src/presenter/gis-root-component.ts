@@ -16,7 +16,7 @@
  * @category Runtime
  */
 
-import type { Group } from 'three';
+import type { Group } from 'three/webgpu';
 import type { Entity } from '../ecs/entity.js';
 import { createComponent } from '../ecs/index.js';
 import type { World } from '../ecs/world.js';

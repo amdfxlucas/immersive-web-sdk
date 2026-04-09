@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@iwsdk/core": "file:../packages/core/iwsdk-core.tgz",
-    "three": "npm:super-three@0.181.0"
+    "three": "0.183.0"
   },
   "devDependencies": {
     "@felixtz/iwsdk-rag-mcp": "^0.2.0",

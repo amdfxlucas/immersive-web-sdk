@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Group, Object3D, PerspectiveCamera, Scene } from 'three';
+import { Group, Object3D, PerspectiveCamera, Scene } from 'three/webgpu';
 import { InputLayout } from '../../gamepad/input-profiles.js';
 import { XRInputVisualAdapter } from '../adapter/base-visual-adapter.js';
 import { XRControllerVisualAdapter } from '../adapter/controller-visual-adapter.js';

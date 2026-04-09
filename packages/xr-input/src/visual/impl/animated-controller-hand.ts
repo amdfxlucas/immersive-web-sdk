@@ -15,7 +15,7 @@ import {
   Scene,
   SkinnedMesh,
   Vector3,
-} from 'three';
+} from 'three/webgpu';
 import { lerp } from 'three/src/math/MathUtils.js';
 import { InputLayout } from '../../gamepad/input-profiles.js';
 import { HandPose } from '../adapter/base-visual-adapter.js';

@@ -13,7 +13,7 @@ import {
   Mesh,
   PerspectiveCamera,
   ShaderMaterial,
-} from 'three';
+} from 'three/webgpu';
 import { lerp } from 'three/src/math/MathUtils.js';
 import { XROrigin } from '../rig/xr-origin.js';
 

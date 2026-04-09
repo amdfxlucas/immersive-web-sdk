@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Box3, Vector3 } from 'three';
+import { Box3, Vector3 } from 'three/webgpu';
 
 export function calculateTrajectoryBounds(
   origin: Vector3,

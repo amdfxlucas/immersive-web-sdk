@@ -5,8 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  three: npm:super-three@0.181.0
-  '@types/three': 0.181.0
+  '@types/three': 0.183.0
   three-mesh-bvh: ^0.9.1
   axios: ^1.12.0
   preact: ^10.27.3
@@ -45,8 +44,8 @@ importers:
         specifier: ^7.5.8
         version: 7.7.1
       '@types/three':
-        specifier: 0.181.0
-        version: 0.181.0
+        specifier: 0.183.0
+        version: 0.183.0
       '@types/webxr':
         specifier: ^0.5.8
         version: 0.5.24
@@ -108,14 +107,14 @@ importers:
         specifier: ^1.3.10
         version: 1.3.10
       '@iwsdk/glxf':
-        specifier: workspace:*
-        version: link:../glxf
+        specifier: file:../glxf/iwsdk-glxf.tgz
+        version: file:packages/glxf/iwsdk-glxf.tgz(three@0.183.2)
       '@iwsdk/locomotor':
-        specifier: workspace:*
-        version: link:../locomotor
+        specifier: file:../locomotor/iwsdk-locomotor.tgz
+        version: file:packages/locomotor/iwsdk-locomotor.tgz(three-mesh-bvh@0.9.2(three@0.183.2))(three@0.183.2)
       '@iwsdk/xr-input':
-        specifier: workspace:*
-        version: link:../xr-input
+        specifier: file:../xr-input/iwsdk-xr-input.tgz
+        version: file:packages/xr-input/iwsdk-xr-input.tgz(three@0.183.2)
       '@pmndrs/handle':
         specifier: ^6.6.16
         version: 6.6.28(react@19.2.0)
@@ -124,10 +123,10 @@ importers:
         version: 6.6.28
       '@pmndrs/uikit':
         specifier: ^1.0.62
-        version: 1.0.62(super-three@0.181.0)
+        version: 1.0.62(three@0.183.2)
       '@pmndrs/uikitml':
         specifier: ^0.1.12
-        version: 0.1.12(super-three@0.181.0)
+        version: 0.1.12(three@0.183.2)
       '@preact/signals-core':
         specifier: ^1.11.0
         version: 1.12.1
@@ -135,11 +134,11 @@ importers:
         specifier: ^3.4.1
         version: 3.4.2
       three:
-        specifier: npm:super-three@0.181.0
-        version: super-three@0.181.0
+        specifier: '*'
+        version: 0.183.2
       three-mesh-bvh:
         specifier: ^0.9.1
-        version: 0.9.2(super-three@0.181.0)
+        version: 0.9.2(three@0.183.2)
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.0.0
@@ -194,17 +193,17 @@ importers:
   packages/glxf:
     dependencies:
       three:
-        specifier: npm:super-three@0.181.0
-        version: super-three@0.181.0
+        specifier: '>=0.160.0'
+        version: 0.183.2
 
   packages/locomotor:
     dependencies:
       three:
-        specifier: npm:super-three@0.181.0
-        version: super-three@0.181.0
+        specifier: '>=0.160.0'
+        version: 0.183.2
       three-mesh-bvh:
         specifier: ^0.9.1
-        version: 0.9.2(super-three@0.181.0)
+        version: 0.9.2(three@0.183.2)
 
   packages/starter-assets:
     devDependencies:
@@ -342,7 +341,7 @@ importers:
     dependencies:
       '@pmndrs/uikitml':
         specifier: ^0.1.12
-        version: 0.1.12(super-three@0.181.0)
+        version: 0.1.12(three@0.183.2)
       '@types/node':
         specifier: ^20.19.9
         version: 20.19.25
@@ -360,8 +359,8 @@ importers:
         specifier: ^11.0.4
         version: 11.0.4
       three:
-        specifier: npm:super-three@0.181.0
-        version: super-three@0.181.0
+        specifier: '*'
+        version: 0.183.2
 
   packages/xr-input:
     dependencies:
@@ -372,8 +371,8 @@ importers:
         specifier: ^1.11.0
         version: 1.12.1
       three:
-        specifier: npm:super-three@0.181.0
-        version: super-three@0.181.0
+        specifier: '>=0.160.0'
+        version: 0.183.2
 
 packages:
 
@@ -1039,6 +1038,28 @@ packages:
     peerDependencies:
       iwer: ^2.0.0
 
+  '@iwsdk/glxf@file:packages/glxf/iwsdk-glxf.tgz':
+    resolution: {integrity: sha512-aBOInn6FSJ5viKPr//eT4jmTw5mZe8wCSAtU+CIdDJnqRaYmBQ4p9++NbQvgr6WnliWtZA26mVQYMkknNqPVQw==, tarball: file:packages/glxf/iwsdk-glxf.tgz}
+    version: 0.2.2
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      three: '>=0.160.0'
+
+  '@iwsdk/locomotor@file:packages/locomotor/iwsdk-locomotor.tgz':
+    resolution: {integrity: sha512-9IBHdN2BQdHEB9PPDPFIgb1BMKIr+rklU0JAJGAb8pLf9aizUfeqDP9ew1yCoYemEFWWK128ZpelInz9yA/D3g==, tarball: file:packages/locomotor/iwsdk-locomotor.tgz}
+    version: 0.2.2
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      three: '>=0.160.0'
+      three-mesh-bvh: ^0.9.1
+
+  '@iwsdk/xr-input@file:packages/xr-input/iwsdk-xr-input.tgz':
+    resolution: {integrity: sha512-0EIiB8JUB8n4uTKj2VzdP9BMiqRS/RSUS2SgKWjz1n64Gr8gZCY8lzQZ1ot4COdhx61qA3nus7z1pvPl+qsVeQ==, tarball: file:packages/xr-input/iwsdk-xr-input.tgz}
+    version: 0.2.2
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      three: '>=0.160.0'
+
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -1476,8 +1497,8 @@ packages:
   '@types/table@5.0.0':
     resolution: {integrity: sha512-fQLtGLZXor264zUPWI95WNDsZ3QV43/c0lJpR/h1hhLJumXRmHNsrvBfEzW2YMhb0EWCsn4U6h82IgwsajAuTA==}
 
-  '@types/three@0.181.0':
-    resolution: {integrity: sha512-MLF1ks8yRM2k71D7RprFpDb9DOX0p22DbdPqT/uAkc6AtQXjxWCVDjCy23G9t1o8HcQPk7woD2NIyiaWcWPYmA==}
+  '@types/three@0.183.0':
+    resolution: {integrity: sha512-AaGkvloQhxdrfMm/HbY8cpOz1K1jkEELn6zjFoY3yhAiC7zhhZE19+gDBybYwKk+GqXmWKxqDCB43NqyW3+QZw==}
 
   '@types/tmp@0.2.6':
     resolution: {integrity: sha512-chhaNf2oKHlRkDGt+tiKE2Z5aJ6qalm7Z9rlLdBwmOiAAf09YQvvoLXjWK4HWPF1xU/fqvMgfNfpVoBscA/tKA==}
@@ -3087,11 +3108,11 @@ packages:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
 
-  meshoptimizer@0.22.0:
-    resolution: {integrity: sha512-IebiK79sqIy+E4EgOr+CAw+Ke8hAspXKzBd0JdgEmPHiAwmvEj2S4h1rfvo+o/BnfEYd/jAOg5IeeIjzlzSnDg==}
-
   meshoptimizer@0.24.0:
     resolution: {integrity: sha512-Iq/8cM5cK2B0P0QdKHexr30zEJn5sQxjXKtQJGp6LO7r1VUPwhgxau18pvybVDnEDsKE49GdlJYwqPX9A/P9Sw==}
+
+  meshoptimizer@1.0.1:
+    resolution: {integrity: sha512-Vix+QlA1YYT3FwmBBZ+49cE5y/b+pRrcXKqGpS5ouh33d3lSp2PoTpCw19E0cKDFWalembrHnIaZetf27a+W2g==}
 
   micromark-util-character@2.1.1:
     resolution: {integrity: sha512-wv8tdUTJ3thSFFFJKtpYKOYiGP2+v96Hvk4Tu8KpCAsTMs6yi+nVmGh1syvSCsaxz45J6Jbw+9DD6g97+NV67Q==}
@@ -3850,9 +3871,6 @@ packages:
     engines: {node: '>=16 || 14 >=14.17'}
     hasBin: true
 
-  super-three@0.181.0:
-    resolution: {integrity: sha512-ffemt+MKDPVVkQwG1nzW/5SXHROVqcXCCj/sR6V8nlt7X9qy8vEngoVyeHmsuXjwuSWBBihlVIm+8QUZ1MJDfg==}
-
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
@@ -3898,6 +3916,12 @@ packages:
     resolution: {integrity: sha512-W0oUU4AZv0QwisjlkYlLVaYTVxijhMXCztyNvVlDmTK/u0QB16Xbfem5nWkQBsz3oTzztA1B/ouiz4wYCMj78g==}
     peerDependencies:
       three: '>= 0.159.0'
+
+  three@0.165.0:
+    resolution: {integrity: sha512-cc96IlVYGydeceu0e5xq70H8/yoVT/tXBxV/W8A/U6uOq7DXc4/s1Mkmnu6SqoYGhSRWWYFOhVwvq6V0VtbplA==}
+
+  three@0.183.2:
+    resolution: {integrity: sha512-di3BsL2FEQ1PA7Hcvn4fyJOlxRRgFYBpMTcyOgkwJIaDOdJMebEFPA+t98EvjuljDx4hNulAGwF6KIjtwI5jgQ==}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -4957,7 +4981,7 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
       styled-components: 6.1.19(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      three: super-three@0.181.0
+      three: 0.165.0
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -4965,8 +4989,23 @@ snapshots:
   '@iwer/sem@0.2.5(iwer@2.2.0)':
     dependencies:
       iwer: 2.2.0
-      three: super-three@0.181.0
+      three: 0.165.0
       ts-proto: 2.8.3
+
+  '@iwsdk/glxf@file:packages/glxf/iwsdk-glxf.tgz(three@0.183.2)':
+    dependencies:
+      three: 0.183.2
+
+  '@iwsdk/locomotor@file:packages/locomotor/iwsdk-locomotor.tgz(three-mesh-bvh@0.9.2(three@0.183.2))(three@0.183.2)':
+    dependencies:
+      three: 0.183.2
+      three-mesh-bvh: 0.9.2(three@0.183.2)
+
+  '@iwsdk/xr-input@file:packages/xr-input/iwsdk-xr-input.tgz(three@0.183.2)':
+    dependencies:
+      '@pmndrs/pointer-events': 6.6.28
+      '@preact/signals-core': 1.12.1
+      three: 0.183.2
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -5078,18 +5117,18 @@ snapshots:
     dependencies:
       '@preact/signals-core': 1.12.1
 
-  '@pmndrs/uikit@1.0.62(super-three@0.181.0)':
+  '@pmndrs/uikit@1.0.62(three@0.183.2)':
     dependencies:
       '@pmndrs/msdfonts': 1.0.62
       '@pmndrs/uikit-pub-sub': 1.0.62
       '@preact/signals-core': 1.12.1
       '@zappar/msdf-generator': 1.2.4
-      three: super-three@0.181.0
+      three: 0.183.2
       yoga-layout: 3.2.1
 
-  '@pmndrs/uikitml@0.1.12(super-three@0.181.0)':
+  '@pmndrs/uikitml@0.1.12(three@0.183.2)':
     dependencies:
-      '@pmndrs/uikit': 1.0.62(super-three@0.181.0)
+      '@pmndrs/uikit': 1.0.62(three@0.183.2)
       '@preact/signals-core': 1.12.1
       chai: 5.3.3
       inline-style-parser: 0.2.7
@@ -5414,7 +5453,7 @@ snapshots:
 
   '@types/table@5.0.0': {}
 
-  '@types/three@0.181.0':
+  '@types/three@0.183.0':
     dependencies:
       '@dimforge/rapier3d-compat': 0.12.0
       '@tweenjs/tween.js': 23.1.3
@@ -5422,7 +5461,7 @@ snapshots:
       '@types/webxr': 0.5.24
       '@webgpu/types': 0.1.66
       fflate: 0.8.2
-      meshoptimizer: 0.22.0
+      meshoptimizer: 1.0.1
 
   '@types/tmp@0.2.6': {}
 
@@ -7200,9 +7239,9 @@ snapshots:
 
   merge2@1.4.1: {}
 
-  meshoptimizer@0.22.0: {}
-
   meshoptimizer@0.24.0: {}
+
+  meshoptimizer@1.0.1: {}
 
   micromark-util-character@2.1.1:
     dependencies:
@@ -8089,8 +8128,6 @@ snapshots:
       tinyglobby: 0.2.15
       ts-interface-checker: 0.1.13
 
-  super-three@0.181.0: {}
-
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
@@ -8129,9 +8166,13 @@ snapshots:
     dependencies:
       any-promise: 1.3.0
 
-  three-mesh-bvh@0.9.2(super-three@0.181.0):
+  three-mesh-bvh@0.9.2(three@0.183.2):
     dependencies:
-      three: super-three@0.181.0
+      three: 0.183.2
+
+  three@0.165.0: {}
+
+  three@0.183.2: {}
 
   tinybench@2.9.0: {}
 

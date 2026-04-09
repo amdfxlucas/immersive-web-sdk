@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { Group, Material, Matrix4, Mesh, Object3D } from 'three';
+import { Group, Material, Matrix4, Mesh, Object3D } from 'three/webgpu';
 import { SimpleBatchedMesh } from './simple-batched-mesh.js';
 
 export class FlexBatchedMesh extends Group {

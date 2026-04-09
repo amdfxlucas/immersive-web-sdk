@@ -16,7 +16,7 @@ import {
   TypeValueToType,
 } from 'elics';
 import type { QueryManager } from 'elics/lib/query-manager.js';
-import { Object3D, Vector3 } from 'three';
+import { Object3D, Vector3 } from 'three/webgpu';
 import {
   isGISPresenter,
   type IPresenter,

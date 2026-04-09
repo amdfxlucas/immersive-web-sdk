@@ -6,7 +6,7 @@
  */
 
 import { Pointer, createTouchPointer } from '@pmndrs/pointer-events';
-import type { PerspectiveCamera } from 'three';
+import type { PerspectiveCamera } from 'three/webgpu';
 import type { XROrigin } from '../rig/xr-origin.js';
 
 /**

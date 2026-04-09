@@ -59,7 +59,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/node": "^20.0.0",
-    "@types/three": "^0.181.0",
+    "@types/three": "^0.183.0",
     "@types/webxr": "^0.5.8",
     "@typescript-eslint/eslint-plugin": "^5.55.0",
     "@typescript-eslint/parser": "^5.62.0",
@@ -82,8 +82,7 @@
   },
   "pnpm": {
     "overrides": {
-      "three": "npm:super-three@0.181.0",
-      "@types/three": "0.181.0",
+      "@types/three": "0.183.0",
       "three-mesh-bvh": "^0.9.1",
       "axios": "^1.12.0",
       "preact": "^10.27.3",

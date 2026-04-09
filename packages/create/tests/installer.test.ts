@@ -136,7 +136,7 @@ describe('installDependenciesFromBundle', () => {
     await installDependenciesFromBundle(tmpDir, source);
 
     const pkg = JSON.parse(await fsp.readFile(pkgPath, 'utf-8'));
-    expect(pkg.dependencies['three']).toBe('^0.165.0');
+    expect(pkg.dependencies['three/webgpu']).toBe('^0.165.0');
     expect(pkg.dependencies['vite']).toBe('^5.0.0');
     expect(pkg.devDependencies['vitest']).toBe('^2.0.0');
   });
