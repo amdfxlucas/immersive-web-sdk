@@ -5,32 +5,33 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {
-  Color,
-  ShaderLib,
-  ShaderMaterial,
-  UniformsLib,
-  UniformsUtils,
-  Vector3,
-} from '../../runtime/three.js';
+import { Color, ShaderMaterial, Vector3 } from '../../runtime/three.js';
 
-// @ts-ignore
-UniformsLib.linee = {
+const lineeUniforms = {
+  diffuse: { value: new Color(0xffffff) },
+  opacity: { value: 1 },
+  map: { value: null },
+  mapTransform: { value: null },
+  alphaMap: { value: null },
+  alphaTest: { value: 0 },
+  fogColor: { value: new Color(0x000000) },
+  fogNear: { value: 1 },
+  fogFar: { value: 2000 },
   linewidth: { value: 1 },
-  color: { value: new Color(0xffffff) },
   startPoint: { value: new Vector3() },
   endPoint: { value: new Vector3() },
 };
 
-ShaderLib['linee'] = {
-  uniforms: UniformsUtils.merge([
-    UniformsLib.common,
-    UniformsLib.fog,
-    // @ts-ignore
-    UniformsLib.linee,
-  ]),
+function cloneUniforms(source: typeof lineeUniforms) {
+  const result: Record<string, { value: unknown }> = {};
+  for (const key in source) {
+    const v = source[key as keyof typeof source];
+    result[key] = { value: v.value };
+  }
+  return result;
+}
 
-  vertexShader: /* glsl */ `
+const lineeVertexShader = /* glsl */ `
 		#include <common>
 		#include <color_pars_vertex>
 		#include <fog_pars_vertex>
@@ -169,9 +170,9 @@ ShaderLib['linee'] = {
 			#include <fog_vertex>
 
 		}
-		`,
+		`;
 
-  fragmentShader: /* glsl */ `
+const lineeFragmentShader = /* glsl */ `
 		uniform float linewidth;
 
 		varying vec4 worldPos;
@@ -243,8 +244,7 @@ ShaderLib['linee'] = {
 			#include <premultiplied_alpha_fragment>
 
 		}
-		`,
-};
+		`;
 
 class LineMaterial extends ShaderMaterial {
   isLineMaterial = true;
@@ -255,10 +255,10 @@ class LineMaterial extends ShaderMaterial {
     super({
       // @ts-ignore
       type: 'LineMaterial',
-      uniforms: UniformsUtils.clone(ShaderLib['linee'].uniforms),
+      uniforms: cloneUniforms(lineeUniforms),
 
-      vertexShader: ShaderLib['linee'].vertexShader,
-      fragmentShader: ShaderLib['linee'].fragmentShader,
+      vertexShader: lineeVertexShader,
+      fragmentShader: lineeFragmentShader,
 
       clipping: true, // required for clipping support
     });

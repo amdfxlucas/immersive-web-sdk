@@ -1039,14 +1039,14 @@ packages:
       iwer: ^2.0.0
 
   '@iwsdk/glxf@file:packages/glxf/iwsdk-glxf.tgz':
-    resolution: {integrity: sha512-aBOInn6FSJ5viKPr//eT4jmTw5mZe8wCSAtU+CIdDJnqRaYmBQ4p9++NbQvgr6WnliWtZA26mVQYMkknNqPVQw==, tarball: file:packages/glxf/iwsdk-glxf.tgz}
+    resolution: {integrity: sha512-rVNZDnlSZNyn9iic9LJNd0TlYeMf9hb5AaKvW/uCcVsMpRyLinXJPz04U7bBOHgbD1WYShVku1FAWRKEoB4EqA==, tarball: file:packages/glxf/iwsdk-glxf.tgz}
     version: 0.2.2
     engines: {node: '>=20.19.0'}
     peerDependencies:
       three: '>=0.160.0'
 
   '@iwsdk/locomotor@file:packages/locomotor/iwsdk-locomotor.tgz':
-    resolution: {integrity: sha512-9IBHdN2BQdHEB9PPDPFIgb1BMKIr+rklU0JAJGAb8pLf9aizUfeqDP9ew1yCoYemEFWWK128ZpelInz9yA/D3g==, tarball: file:packages/locomotor/iwsdk-locomotor.tgz}
+    resolution: {integrity: sha512-JRP6NJO3hrGVbAc+WU+dHOxBOP4svGS9HBSfrjLfs434P7fZ/mpfMSml7Eg5i6HcPTDiAJb1bUa7deIXoGwFEw==, tarball: file:packages/locomotor/iwsdk-locomotor.tgz}
     version: 0.2.2
     engines: {node: '>=20.19.0'}
     peerDependencies:
@@ -1054,7 +1054,7 @@ packages:
       three-mesh-bvh: ^0.9.1
 
   '@iwsdk/xr-input@file:packages/xr-input/iwsdk-xr-input.tgz':
-    resolution: {integrity: sha512-0EIiB8JUB8n4uTKj2VzdP9BMiqRS/RSUS2SgKWjz1n64Gr8gZCY8lzQZ1ot4COdhx61qA3nus7z1pvPl+qsVeQ==, tarball: file:packages/xr-input/iwsdk-xr-input.tgz}
+    resolution: {integrity: sha512-2eAh0gF57QHtg4LbYd6a0M3K+CnLEp4GYg5J9OqIAAKcEDwRjVEKQ5Xmt/S68HpCLM0Ig7/hNxc20XNbtROvug==, tarball: file:packages/xr-input/iwsdk-xr-input.tgz}
     version: 0.2.2
     engines: {node: '>=20.19.0'}
     peerDependencies:
