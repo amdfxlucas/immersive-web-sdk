@@ -71,12 +71,25 @@ export enum PresentationMode {
   Inline = 'inline',
 }
 
+export enum RendererType {
+  WEBGPU,
+  WEBGL
+}
+
+/**
+ * @brief here go any options for the WebGL or WebGPU Renderer ctor
+ * @note unused for now. TODO use to forceWebGL fallback mode. Otherwise (currently) it defaults to true
+ */
+export interface RendererConfig {
+  renderer?: RendererType| RendererType.WEBGPU
+}
+
 /**
  * Presenter configuration options
  *
  * @category Runtime
  */
-export interface PresenterConfig {
+export interface PresenterConfig extends RendererConfig {
   // TODO rename GISPresenterConfig
   /** Project coordinate reference system (enables GIS features) */
   crs?: ProjectCRS;

@@ -16,7 +16,7 @@
  * @category Runtime
  */
 
-import { PerspectiveCamera, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
+import { PerspectiveCamera, Scene, SRGBColorSpace, WebGPURenderer } from 'three/webgpu';
 import type { OrthographicCamera } from 'three';
 
 /**
@@ -29,7 +29,7 @@ import type { OrthographicCamera } from 'three';
  */
 export interface PresenterContext {
   /** The shared WebGL renderer (never destroyed during mode switches) */
-  readonly renderer: WebGLRenderer;
+  readonly renderer: WebGPURenderer;
 
   /** The DOM container element */
   readonly container: HTMLDivElement;
@@ -67,8 +67,10 @@ export interface PresenterContext {
 export interface ContextRequirements {
   /** Whether the renderer must have XR enabled */
   xrEnabled?: boolean;
+  /** Whether the renderer must have WebGPU support */
+  gpuEnabled?: boolean;  // redundant with RendererConfig ?!
 
-  /** Required renderer capabilities */
+  /** Required renderer capabilities */ 
   renderer?: {
     /** Need alpha channel (transparent background for AR). Immutable after creation. */
     alpha?: boolean;
@@ -172,6 +174,14 @@ export class ContextFactory {
     ) {
       return false;
     }
+    if(requirements?.gpuEnabled != undefined &&
+      requirements?.gpuEnabled && 
+      ( !context.renderer.isWebGPURenderer ||
+        ! (gl as any instanceof GPUCanvasContext) )
+      )
+     {
+      return false;
+     }
     if (
       requirements.renderer?.antialias !== undefined &&
       requirements.renderer.antialias !== contextAttrs?.antialias
@@ -201,7 +211,7 @@ export class ContextFactory {
     container: HTMLDivElement,
     requirements: ContextRequirements,
   ): PresenterContext {
-    const renderer = new WebGLRenderer({
+    const renderer = new WebGPURenderer({
       antialias: requirements.renderer?.antialias ?? true,
       alpha: true, // always true to guarantee reuse across AR/non-AR switches
       // @ts-ignore - multiviewStereo is a Quest-specific extension
