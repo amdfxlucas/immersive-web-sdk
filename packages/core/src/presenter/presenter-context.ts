@@ -16,7 +16,12 @@
  * @category Runtime
  */
 
-import { PerspectiveCamera, Scene, SRGBColorSpace, WebGPURenderer } from 'three/webgpu';
+import {
+  PerspectiveCamera,
+  Scene,
+  SRGBColorSpace,
+  WebGPURenderer,
+} from 'three/webgpu';
 import type { OrthographicCamera } from 'three/webgpu';
 
 /**
@@ -52,6 +57,9 @@ export interface PresenterContext {
   /** Whether XR is enabled on the renderer */
   readonly xrEnabled: boolean;
 
+  /** The requirements that were used to create this context */
+  readonly requirements: ContextRequirements;
+
   /** Dispose the context (only called on World disposal, never on mode switch) */
   dispose(): void;
 }
@@ -68,9 +76,9 @@ export interface ContextRequirements {
   /** Whether the renderer must have XR enabled */
   xrEnabled?: boolean;
   /** Whether the renderer must have WebGPU support */
-  gpuEnabled?: boolean;  // redundant with RendererConfig ?!
+  gpuEnabled?: boolean; // redundant with RendererConfig ?!
 
-  /** Required renderer capabilities */ 
+  /** Required renderer capabilities */
   renderer?: {
     /** Need alpha channel (transparent background for AR). Immutable after creation. */
     alpha?: boolean;
@@ -165,7 +173,19 @@ export class ContextFactory {
     context: PresenterContext,
     requirements: ContextRequirements,
   ): boolean {
-    const gl = context.renderer.getContext();
+    // Use cached requirements if backend context isn't available yet
+    const cachedRequirements = context.requirements;
+    let gl = null;
+    try {
+      gl = context.renderer?.getContext();
+    } catch {
+      console.warn('WebGPUBackend not initialized');
+    }
+    if (!gl) {
+      // Backend context not yet initialized - compare against cached requirements
+      // If requirements match what was used to create this context, it's reusable
+      return this.requirementsMatch(cachedRequirements, requirements);
+    }
     const contextAttrs = gl.getContextAttributes();
 
     if (
@@ -174,18 +194,51 @@ export class ContextFactory {
     ) {
       return false;
     }
-    if(requirements?.gpuEnabled != undefined &&
-      requirements?.gpuEnabled && 
-      ( !context.renderer.isWebGPURenderer ||
-        ! (gl as any instanceof GPUCanvasContext) )
-      )
-     {
+    if (
+      requirements?.gpuEnabled != undefined &&
+      requirements?.gpuEnabled &&
+      (!context.renderer.isWebGPURenderer ||
+        !((gl as any) instanceof GPUCanvasContext))
+    ) {
       return false;
-     }
+    }
     if (
       requirements.renderer?.antialias !== undefined &&
       requirements.renderer.antialias !== contextAttrs?.antialias
     ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private requirementsMatch(
+    cached: ContextRequirements | undefined,
+    requested: ContextRequirements,
+  ): boolean {
+    if (!cached) {
+      return false;
+    }
+
+    // Compare renderer requirements
+    const cachedRenderer = cached.renderer ?? {};
+    const requestedRenderer = requested.renderer ?? {};
+
+    if (cachedRenderer.alpha !== requestedRenderer.alpha) {
+      return false;
+    }
+    if (cachedRenderer.antialias !== requestedRenderer.antialias) {
+      return false;
+    }
+    if (cachedRenderer.stencil !== requestedRenderer.stencil) {
+      return false;
+    }
+    if (cachedRenderer.multiviewStereo !== requestedRenderer.multiviewStereo) {
+      return false;
+    }
+
+    // Compare gpuEnabled
+    if (cached.gpuEnabled !== requested.gpuEnabled) {
       return false;
     }
 
@@ -217,6 +270,10 @@ export class ContextFactory {
       // @ts-ignore - multiviewStereo is a Quest-specific extension
       multiviewStereo: requirements.renderer?.multiviewStereo ?? false,
     });
+
+    // Initialize the WebGPU backend immediately - required before first use
+    renderer.init().then(()=>{});
+
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(
       container.clientWidth || window.innerWidth,
@@ -249,6 +306,7 @@ export class ContextFactory {
       get xrEnabled() {
         return renderer.xr.enabled;
       },
+      requirements,
       dispose() {
         renderer.dispose();
         if (renderer.domElement.parentNode) {
